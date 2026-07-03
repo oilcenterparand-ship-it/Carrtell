@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    font-family: 'Vazirmatn', system-ui, sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-navy-950 text-white antialiased;
+  }
+
+  ::selection {
+    @apply bg-gold-500/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-navy-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-navy-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-navy-600;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gold-500 text-navy-950 font-bold px-8 py-3.5 rounded-xl
+           hover:bg-gold-400 transition-all duration-300
+           active:scale-[0.97] shadow-lg shadow-gold-500/20;
+  }
+
+  .btn-secondary {
+    @apply border-2 border-gold-500/50 text-gold-500 font-semibold px-8 py-3 rounded-xl
+           hover:bg-gold-500/10 hover:border-gold-500 transition-all duration-300
+           active:scale-[0.97];
+  }
+
+  .btn-ghost {
+    @apply text-white/70 font-medium px-6 py-2.5 rounded-lg
+           hover:text-white hover:bg-white/5 transition-all duration-200;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight;
+  }
+
+  .section-subtitle {
+    @apply text-lg md:text-xl text-white/60 max-w-2xl;
+  }
+
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.06]
+           rounded-2xl p-6 md:p-8 transition-all duration-300
+           hover:bg-white/[0.06] hover:border-white/[0.1];
+  }
+
+  .gold-gradient-text {
+    @apply bg-gradient-to-l from-gold-400 via-gold-500 to-gold-600
+           bg-clip-text text-transparent;
+  }
+
+  .navy-gradient {
+    @apply bg-gradient-to-b from-navy-950 via-navy-900 to-navy-950;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
