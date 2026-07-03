@@ -1,3 +1,4 @@
+import { brandConfig } from '../config/brand';
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -23,10 +24,10 @@ function CarrtellLogo() {
   return (
     <Link to="/" className="flex items-center shrink-0">
       <img
-        src="/brand/logo.png"
-        alt="Carrtell"
-        className="h-16 w-auto object-contain"
-      />
+  src={brandConfig.logo}
+  alt={brandConfig.name}
+  className="h-16 w-auto object-contain"
+/>
     </Link>
   );
 }
