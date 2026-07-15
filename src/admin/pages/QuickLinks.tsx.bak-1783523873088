@@ -1,0 +1,157 @@
+import { Link } from 'react-router-dom';
+
+type QuickLinkItem = {
+  title: string;
+  path: string;
+  desc: string;
+  icon?: string;
+  badge?: string;
+};
+
+type QuickLinkGroup = {
+  title: string;
+  icon: string;
+  items: QuickLinkItem[];
+};
+
+const groups: QuickLinkGroup[] = [
+  {
+    title: 'مرکز مدیریت',
+    icon: '🏠',
+    items: [
+      { title: 'داشبورد مدیریت', path: '/admin/dashboard', desc: 'آمار کلی، KPI و وضعیت فروش', icon: '📊' },
+      { title: 'مرکز مسیرها', path: '/admin/quick-links', desc: 'همین صفحه؛ دسترسی سریع به همه بخش‌ها', icon: '🧭', badge: 'اصلی' },
+      { title: 'مدیریت مسیرها / Route Registry', path: '/admin/route-registry', desc: 'مشاهده و مدیریت همه مسیرهای ثبت‌شده پنل', icon: '📍', badge: 'جدید' },
+      { title: 'تست سلامت مسیرها', path: '/admin/navigation-audit', desc: 'بررسی Routeها، لینک‌ها و صفحات ناقص', icon: '🛠' },
+      { title: 'وضعیت سیستم', path: '/admin/system-health', desc: 'بررسی اتصال‌ها، جدول‌ها و سلامت کلی سیستم', icon: '✅' },
+      { title: 'گزارش خطاها', path: '/admin/bug-reports', desc: 'مشاهده خطاها و گزارش‌های ثبت‌شده کاربران', icon: '🐞' },
+    ],
+  },
+  {
+    title: 'فروشگاه',
+    icon: '🛒',
+    items: [
+      { title: 'محصولات', path: '/admin/products', desc: 'مدیریت محصولات و موجودی پایه', icon: '🛢' },
+      { title: 'دسته‌بندی‌ها', path: '/admin/categories', desc: 'مدیریت دسته‌بندی‌های فروشگاه', icon: '🧩' },
+      { title: 'برندها', path: '/admin/brands', desc: 'مدیریت برندها و تصاویر', icon: '🏷' },
+      { title: 'پکیج‌ها', path: '/admin/packages', desc: 'پکیج‌های آماده مدیر برای خودروها', icon: '🎁' },
+      { title: 'تخفیف‌ها', path: '/admin/discounts', desc: 'کد تخفیف و کمپین‌های فروش', icon: '🏷️' },
+      { title: 'فروش هوشمند', path: '/admin/smart-sales', desc: 'قوانین پیشنهاد مکمل و افزایش فروش', icon: '🤖' },
+      { title: 'کمپین‌ها', path: '/admin/campaigns', desc: 'کمپین‌های صفحه اصلی و فروش ویژه', icon: '📣' },
+    ],
+  },
+  {
+    title: 'سرویس در محل',
+    icon: '🚗',
+    items: [
+      { title: 'مرکز اعزام', path: '/admin/dispatch', desc: 'تخصیص سرویس‌کار و عملیات سرویس', icon: '📍' },
+      { title: 'درخواست‌های سرویس', path: '/admin/service-requests', desc: 'لیست درخواست‌های سرویس در محل', icon: '🧰' },
+      { title: 'ناوگان سرویس', path: '/admin/service-fleet', desc: 'مدیریت خودروهای سرویس‌کار', icon: '🚐' },
+      { title: 'شعب', path: '/admin/branches', desc: 'مدیریت شعبه‌ها و محدوده‌ها', icon: '🏬' },
+      { title: 'خودروها', path: '/admin/cars', desc: 'مدیریت خودروهای قابل انتخاب', icon: '🚘' },
+    ],
+  },
+  {
+    title: 'سفارش، مشتری و پشتیبانی',
+    icon: '👥',
+    items: [
+      { title: 'سفارش‌ها', path: '/admin/orders', desc: 'مدیریت سفارش‌ها و وضعیت پرداخت', icon: '📦' },
+      { title: 'CRM مشتریان', path: '/admin/customers-crm', desc: 'پرونده کامل مشتری، برچسب و یادداشت', icon: '👤' },
+      { title: 'مشتری‌ها', path: '/admin/customers', desc: 'لیست مشتریان و خروجی اکسل', icon: '📇' },
+      { title: 'باشگاه مشتریان', path: '/admin/loyalty', desc: 'امتیاز، کیف پول و سطح مشتری', icon: '⭐' },
+      { title: 'پشتیبانی', path: '/admin/support', desc: 'تیکت‌ها و پاسخگویی', icon: '🎧' },
+      { title: 'اعلان‌ها', path: '/admin/notifications', desc: 'مرکز اعلان داخل سایت', icon: '🔔' },
+      { title: 'نظرات', path: '/admin/reviews', desc: 'تایید و مدیریت نظرات', icon: '💬' },
+      { title: 'مرجوعی‌ها', path: '/admin/returns', desc: 'درخواست بررسی و مرجوعی کالا', icon: '↩️' },
+      { title: 'اصالت کالا', path: '/admin/authenticity', desc: 'بررسی کد اصالت و رهگیری', icon: '🛡' },
+    ],
+  },
+  {
+    title: 'انبار، خرید و مالی',
+    icon: '💰',
+    items: [
+      { title: 'انبار', path: '/admin/inventory', desc: 'موجودی، حداقل موجودی و گردش کالا', icon: '📦' },
+      { title: 'تأمین‌کنندگان', path: '/admin/suppliers', desc: 'شرکت‌ها و پخش‌کنندگان', icon: '🏭' },
+      { title: 'خرید کالا', path: '/admin/purchases', desc: 'ثبت خرید و افزایش موجودی', icon: '🧾' },
+      { title: 'مالی', path: '/admin/finance', desc: 'فروش، هزینه، سود و گزارش مالی', icon: '💵' },
+      { title: 'گزارش سرمایه‌گذار', path: '/admin/investor-report', desc: 'گزارش درآمد، رشد و بازگشت سرمایه', icon: '📈' },
+    ],
+  },
+  {
+    title: 'محتوا و بازاریابی',
+    icon: '📢',
+    items: [
+      { title: 'محتوای صفحه اصلی', path: '/admin/home-content', desc: 'بنرها، سکشن‌ها و صفحه اصلی', icon: '🏠' },
+      { title: 'بلاگ', path: '/admin/blog', desc: 'مقالات و محتوای آموزشی', icon: '📝' },
+      { title: 'SEO', path: '/admin/seo', desc: 'متاتگ‌ها و تنظیمات سئو', icon: '🔎' },
+      { title: 'پیامک‌ها', path: '/admin/sms-logs', desc: 'لاگ پیامک‌ها و وضعیت ارسال', icon: '📨' },
+    ],
+  },
+  {
+    title: 'کارکنان و سیستم',
+    icon: '⚙️',
+    items: [
+      { title: 'کارکنان', path: '/admin/staff', desc: 'مدیریت کارمندان و سرویس‌کارها', icon: '👥' },
+      { title: 'نقش‌ها', path: '/admin/roles', desc: 'نقش‌ها و سطح دسترسی', icon: '🔐' },
+      { title: 'کاربران و نقش‌ها', path: '/admin/users', desc: 'تغییر نقش کاربران', icon: '🧑‍💼' },
+      { title: 'تنظیمات', path: '/admin/settings', desc: 'تنظیمات مرکزی سیستم', icon: '⚙️' },
+      { title: 'ظاهر سایت', path: '/admin/appearance', desc: 'تم‌ها، فونت‌ها و حالت روشن/تاریک', icon: '🎨' },
+      { title: 'تنظیمات پرداخت', path: '/admin/payment-settings', desc: 'زرین‌پال و پرداخت تستی', icon: '💳' },
+      { title: 'گزارش فعالیت‌ها', path: '/admin/audit-logs', desc: 'ثبت فعالیت مدیران و تغییرات', icon: '🧾' },
+    ],
+  },
+];
+
+export default function AdminQuickLinks() {
+  return (
+    <main dir="rtl" className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100 md:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-l from-slate-900 to-slate-800 p-5 shadow-2xl">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm text-amber-300">Carrtell Admin Center</p>
+              <h1 className="mt-1 text-2xl font-black md:text-3xl">مرکز مسیرها</h1>
+              <p className="mt-2 text-sm text-slate-300">دسترسی سریع به همه صفحات پنل مدیریت، مسیرهای عملیاتی، مالی، محتوا و سلامت سیستم.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/admin/navigation-audit" className="rounded-2xl bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-300">🛠 تست سلامت مسیرها</Link>
+              <Link to="/admin/route-registry" className="rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-300/20">📍 مدیریت مسیرها</Link>
+              <Link to="/admin/system-health" className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm hover:bg-white/15">✅ وضعیت سیستم</Link>
+            </div>
+          </div>
+        </section>
+
+        {groups.map((group) => (
+          <section key={group.title} className="rounded-3xl border border-white/10 bg-slate-900/80 p-4 shadow-xl">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-xl">{group.icon}</span>
+              <h2 className="text-lg font-black">{group.title}</h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {group.items.map((item) => (
+                <Link
+                  key={`${group.title}-${item.path}`}
+                  to={item.path}
+                  className="group rounded-2xl border border-white/10 bg-slate-800/80 p-4 transition hover:-translate-y-0.5 hover:border-amber-300/50 hover:bg-slate-800 hover:shadow-lg hover:shadow-amber-500/10"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{item.icon || '•'}</span>
+                      <h3 className="font-bold text-slate-50 group-hover:text-amber-200">{item.title}</h3>
+                    </div>
+                    {item.badge && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-950">{item.badge}</span>}
+                  </div>
+                  <p className="mt-2 min-h-[38px] text-xs leading-6 text-slate-300">{item.desc}</p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                    <span dir="ltr">{item.path}</span>
+                    <span className="text-amber-300">ورود ←</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </main>
+  );
+}

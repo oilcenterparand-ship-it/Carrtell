@@ -1,0 +1,224 @@
+import { useEffect, useState } from 'react';
+import { CreditCard, Loader2, Save, ShieldCheck } from 'lucide-react';
+import {
+  defaultPaymentGatewaySettings,
+  getPaymentGatewaySettings,
+  updatePaymentGatewaySettings,
+  type PaymentGatewaySettings,
+} from '../services/paymentsApi';
+
+const darkInput = 'w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20';
+const labelClass = 'mb-2 block text-sm font-bold text-slate-200';
+
+export default function PaymentSettings() {
+  const [settings, setSettings] = useState<PaymentGatewaySettings>(defaultPaymentGatewaySettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        const data = await getPaymentGatewaySettings();
+        if (mounted) setSettings(data);
+      } catch (err: any) {
+        if (mounted) setError(err?.message || 'تنظیمات پرداخت دریافت نشد.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  function update<K extends keyof PaymentGatewaySettings>(key: K, value: PaymentGatewaySettings[K]) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function save() {
+    setSaving(true);
+    setError('');
+    setMessage('');
+    try {
+      await updatePaymentGatewaySettings(settings);
+      setMessage('تنظیمات پرداخت ذخیره شد.');
+    } catch (err: any) {
+      setError(err?.message || 'ذخیره تنظیمات پرداخت انجام نشد.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-white/10 bg-slate-900/70 text-slate-300">
+        <Loader2 className="ml-2 h-5 w-5 animate-spin" /> در حال دریافت تنظیمات پرداخت...
+      </div>
+    );
+  }
+
+  return (
+    <div dir="rtl" className="space-y-6 text-slate-100">
+      <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl shadow-black/20">
+        <div className="border-b border-white/10 bg-gradient-to-l from-emerald-500/15 via-amber-500/10 to-transparent p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-black text-amber-200">
+                <CreditCard className="h-4 w-4" /> تنظیمات درگاه پرداخت
+              </div>
+              <h1 className="text-2xl font-black">زرین‌پال و پرداخت آزمایشی</h1>
+              <p className="mt-3 max-w-3xl leading-7 text-slate-400">
+                پرداخت آزمایشی برای تست حفظ می‌شود. برای اتصال واقعی زرین‌پال بهتر است درخواست و تایید پرداخت از Supabase Edge Function انجام شود تا Merchant ID و منطق پرداخت داخل فرانت افشا نشود.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 px-6 py-3 font-black text-slate-950 shadow-xl shadow-amber-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+              ذخیره تنظیمات
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 p-6 lg:grid-cols-2">
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <h2 className="mb-5 text-lg font-black">وضعیت کلی پرداخت</h2>
+            <div className="grid gap-4">
+              <label>
+                <span className={labelClass}>درگاه فعال</span>
+                <select
+                  value={settings.activeProvider}
+                  onChange={(e) => update('activeProvider', e.target.value as PaymentGatewaySettings['activeProvider'])}
+                  className={darkInput}
+                >
+                  <option value="test">پرداخت آزمایشی</option>
+                  <option value="zarinpal">زرین‌پال</option>
+                  <option value="manual">پرداخت دستی</option>
+                </select>
+              </label>
+
+              <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                <span>
+                  <b className="block">فعال بودن پرداخت آزمایشی</b>
+                  <small className="text-slate-400">برای تست خرید بدون درگاه واقعی</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.testGatewayEnabled}
+                  onChange={(e) => update('testGatewayEnabled', e.target.checked)}
+                  className="h-5 w-5 accent-amber-400"
+                />
+              </label>
+
+              <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                <span>
+                  <b className="block">فعال بودن زرین‌پال</b>
+                  <small className="text-slate-400">بعد از تکمیل Edge Function روشن شود</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.zarinpalEnabled}
+                  onChange={(e) => update('zarinpalEnabled', e.target.checked)}
+                  className="h-5 w-5 accent-emerald-400"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <h2 className="mb-5 text-lg font-black">تنظیمات زرین‌پال</h2>
+            <div className="grid gap-4">
+              <label>
+                <span className={labelClass}>حالت زرین‌پال</span>
+                <select
+                  value={settings.zarinpalMode}
+                  onChange={(e) => update('zarinpalMode', e.target.value as PaymentGatewaySettings['zarinpalMode'])}
+                  className={darkInput}
+                >
+                  <option value="sandbox">Sandbox / تست</option>
+                  <option value="production">Real / واقعی</option>
+                </select>
+              </label>
+
+              <label>
+                <span className={labelClass}>Merchant ID زرین‌پال</span>
+                <input
+                  value={settings.zarinpalMerchantId}
+                  onChange={(e) => update('zarinpalMerchantId', e.target.value)}
+                  className={darkInput}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  dir="ltr"
+                />
+              </label>
+
+              <label>
+                <span className={labelClass}>مسیر بازگشت پرداخت</span>
+                <input
+                  value={settings.callbackPath}
+                  onChange={(e) => update('callbackPath', e.target.value)}
+                  className={darkInput}
+                  placeholder="/payment"
+                  dir="ltr"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-5 lg:col-span-2">
+            <h2 className="mb-5 text-lg font-black">Edge Function های امن</h2>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <label>
+                <span className={labelClass}>آدرس تابع درخواست پرداخت</span>
+                <input
+                  value={settings.zarinpalEdgeRequestUrl}
+                  onChange={(e) => update('zarinpalEdgeRequestUrl', e.target.value)}
+                  className={darkInput}
+                  placeholder="https://...supabase.co/functions/v1/zarinpal-request"
+                  dir="ltr"
+                />
+              </label>
+              <label>
+                <span className={labelClass}>آدرس تابع تایید پرداخت</span>
+                <input
+                  value={settings.zarinpalEdgeVerifyUrl}
+                  onChange={(e) => update('zarinpalEdgeVerifyUrl', e.target.value)}
+                  className={darkInput}
+                  placeholder="https://...supabase.co/functions/v1/zarinpal-verify"
+                  dir="ltr"
+                />
+              </label>
+            </div>
+            <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm leading-7 text-emerald-100">
+              <ShieldCheck className="mb-2 h-5 w-5" />
+              در این پچ فرانت آماده است. مرحله بعد می‌توانیم کد Supabase Edge Function واقعی زرین‌پال را هم اضافه کنیم.
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-5 lg:col-span-2">
+            <label>
+              <span className={labelClass}>پیشوند توضیح پرداخت</span>
+              <input
+                value={settings.descriptionPrefix}
+                onChange={(e) => update('descriptionPrefix', e.target.value)}
+                className={darkInput}
+                placeholder="پرداخت سفارش Carrtell"
+              />
+            </label>
+          </section>
+        </div>
+
+        {(message || error) && (
+          <div className={`mx-6 mb-6 rounded-2xl border p-4 text-sm font-bold ${error ? 'border-red-500/20 bg-red-500/10 text-red-200' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'}`}>
+            {error || message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

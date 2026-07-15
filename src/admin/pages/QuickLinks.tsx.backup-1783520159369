@@ -1,0 +1,97 @@
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { adminRouteRegistry } from '../navigation/adminRoutesRegistry';
+
+const audienceLabel: Record<string, string> = {
+  admin: 'مدیریت',
+  customer: 'مشتری',
+  driver: 'سرویس‌کار',
+  public: 'عمومی'
+};
+
+export default function QuickLinks() {
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<'quick' | 'routes'>('quick');
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return adminRouteRegistry;
+    return adminRouteRegistry.filter((item) =>
+      `${item.title} ${item.path} ${item.group}`.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  const grouped = useMemo(() => {
+    return filtered.reduce<Record<string, typeof filtered>>((acc, item) => {
+      acc[item.group] ||= [];
+      acc[item.group].push(item);
+      return acc;
+    }, {});
+  }, [filtered]);
+
+  const important = adminRouteRegistry.filter((item) =>
+    ['/admin/dashboard','/admin/orders','/admin/products','/admin/dispatch','/admin/navigation-audit','/admin/system-health','/admin/settings','/admin/appearance','/admin/bug-reports'].includes(item.path)
+  );
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-black">مرکز مسیرهای پنل مدیریت</h1>
+              <p className="mt-2 text-sm text-slate-400">همه صفحه‌های مدیریتی، مشتری، سرویس‌کار و ابزارهای سلامت از همین‌جا قابل دسترسی هستند.</p>
+            </div>
+            <div className="flex gap-2 rounded-2xl bg-slate-950 p-1">
+              <button onClick={() => setTab('quick')} className={`rounded-xl px-4 py-2 text-sm font-bold ${tab === 'quick' ? 'bg-yellow-400 text-slate-950' : 'text-slate-300'}`}>دسترسی سریع</button>
+              <button onClick={() => setTab('routes')} className={`rounded-xl px-4 py-2 text-sm font-bold ${tab === 'routes' ? 'bg-yellow-400 text-slate-950' : 'text-slate-300'}`}>مدیریت مسیرها</button>
+            </div>
+          </div>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="جستجوی صفحه، مسیر یا دسته‌بندی..."
+            className="mt-5 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-yellow-400"
+          />
+        </div>
+
+        {tab === 'quick' ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            {important.map((item) => (
+              <Link key={item.path} to={item.path} className="rounded-3xl border border-slate-800 bg-slate-900 p-5 transition hover:border-yellow-400 hover:bg-slate-800">
+                <div className="text-lg font-black">{item.title}</div>
+                <div className="mt-2 text-xs text-slate-400 ltr:text-left">{item.path}</div>
+                <div className="mt-4 inline-flex rounded-full bg-slate-950 px-3 py-1 text-xs text-yellow-300">{item.group}</div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {Object.entries(grouped).map(([group, items]) => (
+              <section key={group} className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+                <h2 className="mb-4 text-lg font-black text-yellow-300">{group}</h2>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {items.map((item) => (
+                    <div key={item.path} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-slate-100">{item.title}</div>
+                          <div className="mt-1 text-xs text-slate-500">{item.path}</div>
+                        </div>
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-300">فعال</span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] text-slate-300">{audienceLabel[item.audience || 'admin']}</span>
+                        <Link to={item.path} className="rounded-xl bg-yellow-400 px-3 py-2 text-xs font-black text-slate-950 hover:bg-yellow-300">باز کردن</Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

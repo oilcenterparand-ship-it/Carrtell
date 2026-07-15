@@ -1,0 +1,29 @@
+@font-face {
+  font-family: 'Carrtell Vazirmatn';
+  src: url('/fonts/Vazirmatn.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Carrtell Yekan';
+  src: url('/fonts/Yekan.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Carrtell Shabnam';
+  src: url('/fonts/Shabnam.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Carrtell Dana';
+  src: url('/fonts/Dana.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Carrtell IranSans';
+  src: url('/fonts/IranSans.woff2') format('woff2');
+  font-display: swap;
+}

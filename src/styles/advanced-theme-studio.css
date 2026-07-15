@@ -1,0 +1,724 @@
+:root {
+  --ct-bg: #060a12;
+  --ct-surface: #0d1424;
+  --ct-surface-2: #151f33;
+  --ct-surface-3: #1c2940;
+  --ct-text: #f8fafc;
+  --ct-heading: #ffffff;
+  --ct-muted: #aebbd0;
+  --ct-border: #263650;
+  --ct-primary: #e5b830;
+  --ct-primary-hover: #f4d766;
+  --ct-primary-text: #111827;
+  --ct-accent: #f59e0b;
+  --ct-header: #08101d;
+  --ct-header-text: #ffffff;
+  --ct-input-bg: #0c1627;
+  --ct-input-text: #f8fafc;
+  --ct-success: #22c55e;
+  --ct-danger: #fb7185;
+  --ct-warning: #fbbf24;
+  --ct-shadow: 0 18px 45px rgba(0,0,0,.32);
+  --ct-font-family: Vazirmatn, system-ui, sans-serif;
+}
+
+html.ct-theme-ready,
+html.ct-theme-ready body,
+html.ct-theme-ready #root,
+html.ct-theme-ready .ct-app-shell {
+  min-height: 100%;
+  background: var(--ct-bg) !important;
+  color: var(--ct-text) !important;
+  font-family: var(--ct-font-family) !important;
+}
+
+html.ct-theme-ready * { font-family: var(--ct-font-family) !important; }
+html.ct-theme-ready body { transition: background-color .25s ease, color .25s ease; }
+html.ct-theme-ready h1,
+html.ct-theme-ready h2,
+html.ct-theme-ready h3,
+html.ct-theme-ready h4,
+html.ct-theme-ready h5,
+html.ct-theme-ready h6 { color: var(--ct-heading); }
+html.ct-theme-ready p,
+html.ct-theme-ready label,
+html.ct-theme-ready li,
+html.ct-theme-ready td,
+html.ct-theme-ready th { color: inherit; }
+html.ct-theme-ready a { color: inherit; }
+
+/* semantic theme helpers */
+html.ct-theme-ready .ct-surface { background: var(--ct-surface) !important; color: var(--ct-text) !important; border-color: var(--ct-border) !important; }
+html.ct-theme-ready .ct-surface-2 { background: var(--ct-surface-2) !important; color: var(--ct-text) !important; border-color: var(--ct-border) !important; }
+html.ct-theme-ready .ct-muted { color: var(--ct-muted) !important; }
+html.ct-theme-ready .ct-primary { background: var(--ct-primary) !important; color: var(--ct-primary-text) !important; }
+
+/* Remap the legacy Tailwind palette so every old page follows the active preset. */
+html.ct-theme-ready .bg-navy-950,
+html.ct-theme-ready .bg-slate-950,
+html.ct-theme-ready .bg-gray-950,
+html.ct-theme-ready .bg-zinc-950,
+html.ct-theme-ready .bg-black { background-color: var(--ct-bg) !important; }
+
+html.ct-theme-ready .bg-navy-900,
+html.ct-theme-ready .bg-slate-900,
+html.ct-theme-ready .bg-gray-900,
+html.ct-theme-ready .bg-zinc-900,
+html.ct-theme-ready .bg-neutral-900,
+html.ct-theme-ready [class*="bg-slate-900/"],
+html.ct-theme-ready [class*="bg-navy-900/"],
+html.ct-theme-ready [class*="bg-black/"] { background-color: var(--ct-surface) !important; }
+
+html.ct-theme-ready .bg-navy-800,
+html.ct-theme-ready .bg-slate-800,
+html.ct-theme-ready .bg-gray-800,
+html.ct-theme-ready .bg-zinc-800,
+html.ct-theme-ready [class*="bg-slate-800/"],
+html.ct-theme-ready [class*="bg-navy-800/"],
+html.ct-theme-ready .bg-white\/5,
+html.ct-theme-ready .bg-white\/\[0\.03\],
+html.ct-theme-ready .bg-white\/\[0\.04\],
+html.ct-theme-ready .bg-white\/\[0\.05\],
+html.ct-theme-ready .bg-white\/\[0\.06\],
+html.ct-theme-ready .bg-white\/10 { background-color: var(--ct-surface-2) !important; }
+
+html[data-ct-theme-base="light"].ct-theme-ready .bg-white,
+html[data-ct-theme-base="light"].ct-theme-ready [class*="bg-white/"] { background-color: var(--ct-surface) !important; }
+
+html.ct-theme-ready .text-white,
+html.ct-theme-ready .text-slate-50,
+html.ct-theme-ready .text-gray-50,
+html.ct-theme-ready .text-slate-100,
+html.ct-theme-ready .text-gray-100 { color: var(--ct-heading) !important; }
+
+html.ct-theme-ready .text-white\/90,
+html.ct-theme-ready .text-white\/80,
+html.ct-theme-ready .text-slate-200,
+html.ct-theme-ready .text-gray-200,
+html.ct-theme-ready .text-slate-300,
+html.ct-theme-ready .text-gray-300 { color: var(--ct-text) !important; }
+
+html.ct-theme-ready .text-white\/70,
+html.ct-theme-ready .text-white\/60,
+html.ct-theme-ready .text-white\/50,
+html.ct-theme-ready .text-white\/40,
+html.ct-theme-ready .text-slate-400,
+html.ct-theme-ready .text-slate-500,
+html.ct-theme-ready .text-gray-400,
+html.ct-theme-ready .text-gray-500 { color: var(--ct-muted) !important; }
+
+html.ct-theme-ready .border-white\/5,
+html.ct-theme-ready .border-white\/10,
+html.ct-theme-ready .border-white\/\[0\.06\],
+html.ct-theme-ready .border-slate-700,
+html.ct-theme-ready .border-slate-800,
+html.ct-theme-ready .border-gray-700,
+html.ct-theme-ready .border-gray-800,
+html.ct-theme-ready [class*="border-slate-800/"] { border-color: var(--ct-border) !important; }
+
+html.ct-theme-ready .bg-gold-500,
+html.ct-theme-ready .bg-amber-400,
+html.ct-theme-ready .bg-amber-500,
+html.ct-theme-ready .bg-yellow-400,
+html.ct-theme-ready .bg-yellow-500 { background-color: var(--ct-primary) !important; color: var(--ct-primary-text) !important; }
+html.ct-theme-ready .hover\:bg-gold-400:hover,
+html.ct-theme-ready .hover\:bg-amber-300:hover,
+html.ct-theme-ready .hover\:bg-amber-400:hover,
+html.ct-theme-ready .hover\:bg-yellow-300:hover { background-color: var(--ct-primary-hover) !important; color: var(--ct-primary-text) !important; }
+html.ct-theme-ready .text-gold-500,
+html.ct-theme-ready .text-gold-400,
+html.ct-theme-ready .text-amber-300,
+html.ct-theme-ready .text-amber-400,
+html.ct-theme-ready .text-yellow-300,
+html.ct-theme-ready .text-yellow-400 { color: var(--ct-primary) !important; }
+html.ct-theme-ready .border-gold-500,
+html.ct-theme-ready .border-gold-500\/50,
+html.ct-theme-ready .border-amber-400,
+html.ct-theme-ready .border-yellow-400 { border-color: var(--ct-primary) !important; }
+
+html.ct-theme-ready .text-emerald-300,
+html.ct-theme-ready .text-emerald-400,
+html.ct-theme-ready .text-green-400 { color: var(--ct-success) !important; }
+html.ct-theme-ready .text-red-300,
+html.ct-theme-ready .text-red-400,
+html.ct-theme-ready .text-rose-300,
+html.ct-theme-ready .text-rose-400 { color: var(--ct-danger) !important; }
+
+html.ct-theme-ready input,
+html.ct-theme-ready select,
+html.ct-theme-ready textarea {
+  background-color: var(--ct-input-bg) !important;
+  color: var(--ct-input-text) !important;
+  border-color: var(--ct-border) !important;
+  caret-color: var(--ct-primary);
+}
+html.ct-theme-ready input::placeholder,
+html.ct-theme-ready textarea::placeholder { color: color-mix(in srgb, var(--ct-input-text) 52%, transparent) !important; opacity: 1; }
+html.ct-theme-ready option { background: var(--ct-input-bg); color: var(--ct-input-text); }
+html.ct-theme-ready input:focus,
+html.ct-theme-ready select:focus,
+html.ct-theme-ready textarea:focus { border-color: var(--ct-primary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-primary) 18%, transparent); }
+
+html.ct-theme-ready button:focus-visible,
+html.ct-theme-ready a:focus-visible { outline: 3px solid color-mix(in srgb, var(--ct-primary) 55%, transparent); outline-offset: 2px; }
+
+/* Header and admin chrome */
+html.ct-theme-ready header,
+html.ct-theme-ready .site-header,
+html.ct-theme-ready .app-header,
+html.ct-theme-ready .main-header,
+html.ct-theme-ready [data-carrtell-header="true"] { background: var(--ct-header) !important; color: var(--ct-header-text) !important; border-color: color-mix(in srgb, var(--ct-primary) 35%, var(--ct-border)) !important; }
+html.ct-theme-ready header input { background: color-mix(in srgb, var(--ct-header) 84%, white 16%) !important; color: var(--ct-header-text) !important; }
+html.ct-theme-ready header button:not([data-preserve-color]),
+html.ct-theme-ready header a:not([data-preserve-color]) { color: var(--ct-header-text); }
+
+html.ct-theme-ready aside,
+html.ct-theme-ready [data-admin-sidebar] { border-color: var(--ct-border) !important; }
+
+/* Tables, cards, modals and dropdowns */
+html.ct-theme-ready table { color: var(--ct-text); }
+html.ct-theme-ready thead { background: var(--ct-surface-2) !important; color: var(--ct-heading) !important; }
+html.ct-theme-ready tbody tr { border-color: var(--ct-border) !important; }
+html.ct-theme-ready tbody tr:hover { background: color-mix(in srgb, var(--ct-primary) 7%, var(--ct-surface)) !important; }
+html.ct-theme-ready [role="dialog"],
+html.ct-theme-ready [role="menu"],
+html.ct-theme-ready .modal,
+html.ct-theme-ready .dropdown-menu { background: var(--ct-surface) !important; color: var(--ct-text) !important; border-color: var(--ct-border) !important; box-shadow: var(--ct-shadow); }
+
+/* Buttons with guaranteed contrast */
+html.ct-theme-ready .btn-primary { background: var(--ct-primary) !important; color: var(--ct-primary-text) !important; box-shadow: 0 12px 30px color-mix(in srgb, var(--ct-primary) 24%, transparent) !important; }
+html.ct-theme-ready .btn-primary:hover { background: var(--ct-primary-hover) !important; }
+html.ct-theme-ready .btn-secondary { background: transparent !important; color: var(--ct-primary) !important; border-color: var(--ct-primary) !important; }
+html.ct-theme-ready .btn-ghost { color: var(--ct-text) !important; }
+html.ct-theme-ready .btn-ghost:hover { background: var(--ct-surface-2) !important; }
+
+/* Prevent unreadable same-color text/background combinations in old components. */
+html[data-ct-theme-base="light"].ct-theme-ready .text-navy-950,
+html[data-ct-theme-base="light"].ct-theme-ready .text-slate-950,
+html[data-ct-theme-base="light"].ct-theme-ready .text-black { color: var(--ct-heading) !important; }
+html[data-ct-theme-base="dark"].ct-theme-ready .bg-white { background: var(--ct-surface) !important; color: var(--ct-text) !important; }
+html[data-ct-theme-base="dark"].ct-theme-ready .text-black,
+html[data-ct-theme-base="dark"].ct-theme-ready .text-slate-950,
+html[data-ct-theme-base="dark"].ct-theme-ready .text-navy-950 { color: var(--ct-heading) !important; }
+html.ct-theme-ready button[disabled],
+html.ct-theme-ready input[disabled],
+html.ct-theme-ready select[disabled] { opacity: .55; cursor: not-allowed; }
+
+/* compact site header */
+header,
+.site-header,
+.app-header,
+.main-header,
+[data-carrtell-header="true"] { min-height: 56px !important; }
+header .container,
+header .max-w-7xl,
+.site-header .container,
+.app-header .container,
+.main-header .container { padding-top: .45rem !important; padding-bottom: .45rem !important; }
+header nav,
+.site-header nav,
+.app-header nav,
+.main-header nav { gap: .45rem !important; }
+header a,
+header button,
+.site-header a,
+.site-header button,
+.app-header a,
+.app-header button,
+.main-header a,
+.main-header button { min-height: 34px; }
+
+.ct-theme-mode-toggle { display: none !important; }
+
+.selected-car-banner,
+.car-selected-banner,
+.ct-selected-car-banner,
+[data-selected-car-banner="true"],
+[class*="SelectedCar"],
+[class*="selected-car"] { padding-top: .45rem !important; padding-bottom: .45rem !important; min-height: 42px !important; }
+
+html[data-ct-resolved-mode="light"] { color-scheme: light; }
+html[data-ct-resolved-mode="dark"] { color-scheme: dark; }
+
+@media (max-width: 768px) {
+  header, .site-header, .app-header, .main-header { min-height: 50px !important; }
+}
+
+/* ========================================================================== 
+   Stage 13 — complete component harmonisation
+   Every legacy utility is translated to a semantic theme token.
+   ========================================================================== */
+
+/* Neutral surfaces: avoid hard-coded white/grey blocks inside any preset. */
+html.ct-theme-ready .bg-white,
+html.ct-theme-ready .bg-slate-50,
+html.ct-theme-ready .bg-gray-50,
+html.ct-theme-ready .bg-neutral-50 { background-color: var(--ct-surface) !important; color: var(--ct-text) !important; }
+
+html.ct-theme-ready .bg-slate-100,
+html.ct-theme-ready .bg-gray-100,
+html.ct-theme-ready .bg-neutral-100,
+html.ct-theme-ready .bg-slate-200,
+html.ct-theme-ready .bg-gray-200,
+html.ct-theme-ready .bg-neutral-200 { background-color: var(--ct-surface-2) !important; color: var(--ct-text) !important; }
+
+html.ct-theme-ready .bg-slate-700,
+html.ct-theme-ready .bg-gray-700,
+html.ct-theme-ready .bg-zinc-700,
+html.ct-theme-ready .bg-neutral-700,
+html.ct-theme-ready [class*="bg-slate-700/"],
+html.ct-theme-ready [class*="bg-gray-700/"] { background-color: var(--ct-surface-3) !important; color: var(--ct-text) !important; }
+
+html.ct-theme-ready .bg-slate-600,
+html.ct-theme-ready .bg-gray-600,
+html.ct-theme-ready .bg-zinc-600 { background-color: color-mix(in srgb, var(--ct-surface-3) 82%, var(--ct-text) 18%) !important; color: var(--ct-heading) !important; }
+
+/* Text mapping must follow the resolved visual mode, not the preset's label. */
+html[data-ct-resolved-mode="dark"].ct-theme-ready .text-slate-950,
+html[data-ct-resolved-mode="dark"].ct-theme-ready .text-slate-900,
+html[data-ct-resolved-mode="dark"].ct-theme-ready .text-gray-950,
+html[data-ct-resolved-mode="dark"].ct-theme-ready .text-gray-900,
+html[data-ct-resolved-mode="dark"].ct-theme-ready .text-neutral-950,
+html[data-ct-resolved-mode="dark"].ct-theme-ready .text-black,
+html[data-ct-resolved-mode="dark"].ct-theme-ready .text-navy-950 { color: var(--ct-heading) !important; }
+
+html[data-ct-resolved-mode="light"].ct-theme-ready .text-slate-950,
+html[data-ct-resolved-mode="light"].ct-theme-ready .text-slate-900,
+html[data-ct-resolved-mode="light"].ct-theme-ready .text-gray-950,
+html[data-ct-resolved-mode="light"].ct-theme-ready .text-gray-900,
+html[data-ct-resolved-mode="light"].ct-theme-ready .text-neutral-950,
+html[data-ct-resolved-mode="light"].ct-theme-ready .text-black,
+html[data-ct-resolved-mode="light"].ct-theme-ready .text-navy-950 { color: var(--ct-heading) !important; }
+
+html.ct-theme-ready .text-slate-600,
+html.ct-theme-ready .text-gray-600,
+html.ct-theme-ready .text-neutral-600 { color: var(--ct-muted) !important; }
+
+/* Primary controls keep their deliberate on-primary foreground. */
+html.ct-theme-ready :is(.bg-gold-500,.bg-gold-400,.bg-amber-300,.bg-amber-400,.bg-amber-500,.bg-yellow-300,.bg-yellow-400,.bg-yellow-500,.btn-primary)
+:is(.text-navy-950,.text-slate-950,.text-black,.text-neutral-950),
+html.ct-theme-ready :is(.bg-gold-500,.bg-gold-400,.bg-amber-300,.bg-amber-400,.bg-amber-500,.bg-yellow-300,.bg-yellow-400,.bg-yellow-500,.btn-primary).text-navy-950,
+html.ct-theme-ready :is(.bg-gold-500,.bg-gold-400,.bg-amber-300,.bg-amber-400,.bg-amber-500,.bg-yellow-300,.bg-yellow-400,.bg-yellow-500,.btn-primary).text-slate-950,
+html.ct-theme-ready :is(.bg-gold-500,.bg-gold-400,.bg-amber-300,.bg-amber-400,.bg-amber-500,.bg-yellow-300,.bg-yellow-400,.bg-yellow-500,.btn-primary).text-black { color: var(--ct-primary-text) !important; }
+
+/* Semantic notices and state cards. */
+html.ct-theme-ready [class*="bg-emerald-500/"],
+html.ct-theme-ready [class*="bg-emerald-400/"],
+html.ct-theme-ready [class*="bg-green-500/"] {
+  background-color: color-mix(in srgb, var(--ct-success) 12%, var(--ct-surface)) !important;
+  color: color-mix(in srgb, var(--ct-success) 75%, var(--ct-heading)) !important;
+  border-color: color-mix(in srgb, var(--ct-success) 42%, var(--ct-border)) !important;
+}
+html.ct-theme-ready [class*="bg-red-500/"],
+html.ct-theme-ready [class*="bg-red-950/"],
+html.ct-theme-ready [class*="bg-rose-500/"] {
+  background-color: color-mix(in srgb, var(--ct-danger) 11%, var(--ct-surface)) !important;
+  color: color-mix(in srgb, var(--ct-danger) 82%, var(--ct-heading)) !important;
+  border-color: color-mix(in srgb, var(--ct-danger) 42%, var(--ct-border)) !important;
+}
+html.ct-theme-ready [class*="bg-amber-400/"],
+html.ct-theme-ready [class*="bg-amber-500/"],
+html.ct-theme-ready [class*="bg-yellow-400/"] {
+  background-color: color-mix(in srgb, var(--ct-warning) 12%, var(--ct-surface)) !important;
+  color: color-mix(in srgb, var(--ct-warning) 72%, var(--ct-heading)) !important;
+  border-color: color-mix(in srgb, var(--ct-warning) 42%, var(--ct-border)) !important;
+}
+
+html.ct-theme-ready .border-red-400,
+html.ct-theme-ready .border-red-500,
+html.ct-theme-ready [class*="border-red-400/"],
+html.ct-theme-ready [class*="border-red-500/"],
+html.ct-theme-ready [class*="border-rose-500/"] { border-color: color-mix(in srgb, var(--ct-danger) 58%, var(--ct-border)) !important; }
+html.ct-theme-ready .border-emerald-400,
+html.ct-theme-ready .border-emerald-500,
+html.ct-theme-ready [class*="border-emerald-400/"],
+html.ct-theme-ready [class*="border-emerald-500/"] { border-color: color-mix(in srgb, var(--ct-success) 58%, var(--ct-border)) !important; }
+
+/* Cards, checkout panels, product rows and common rounded boxes. */
+html.ct-theme-ready :is(section,article,main,aside,div)[class*="rounded-"][class*="border"] {
+  border-color: var(--ct-border);
+}
+html.ct-theme-ready :is(.shadow-lg,.shadow-xl,.shadow-2xl) { box-shadow: var(--ct-shadow) !important; }
+
+html.ct-theme-ready .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+html.ct-theme-ready .divide-white\/10 > :not([hidden]) ~ :not([hidden]),
+html.ct-theme-ready .divide-slate-700 > :not([hidden]) ~ :not([hidden]),
+html.ct-theme-ready .divide-slate-800 > :not([hidden]) ~ :not([hidden]) { border-color: var(--ct-border) !important; }
+
+/* Header controls: visible in every theme, while preserving action colours. */
+html.ct-theme-ready header :is(button,a):not(.btn-primary):not([data-preserve-color]) {
+  border-color: color-mix(in srgb, var(--ct-header-text) 22%, transparent) !important;
+}
+html.ct-theme-ready header :is(button,a):not(.btn-primary):not([data-preserve-color]):hover {
+  background-color: color-mix(in srgb, var(--ct-header-text) 10%, var(--ct-header)) !important;
+}
+html.ct-theme-ready header .bg-white,
+html.ct-theme-ready header .bg-slate-100,
+html.ct-theme-ready header .bg-slate-800,
+html.ct-theme-ready header .bg-slate-900 {
+  background-color: color-mix(in srgb, var(--ct-header) 82%, var(--ct-header-text) 18%) !important;
+  color: var(--ct-header-text) !important;
+}
+
+/* Footer follows the same surface hierarchy and never turns into an unrelated black block. */
+html.ct-theme-ready footer {
+  background: color-mix(in srgb, var(--ct-bg) 80%, var(--ct-surface) 20%) !important;
+  color: var(--ct-text) !important;
+  border-color: var(--ct-border) !important;
+}
+html.ct-theme-ready footer h1,
+html.ct-theme-ready footer h2,
+html.ct-theme-ready footer h3,
+html.ct-theme-ready footer h4 { color: var(--ct-heading) !important; }
+html.ct-theme-ready footer p,
+html.ct-theme-ready footer li,
+html.ct-theme-ready footer a { color: var(--ct-muted) !important; }
+html.ct-theme-ready footer a:hover { color: var(--ct-primary) !important; }
+
+/* Forms and native autofill. */
+html.ct-theme-ready input:-webkit-autofill,
+html.ct-theme-ready input:-webkit-autofill:hover,
+html.ct-theme-ready input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ct-input-text) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--ct-input-bg) inset !important;
+  caret-color: var(--ct-primary) !important;
+}
+
+/* Scrollbars and selections use the active preset. */
+html.ct-theme-ready ::selection { background: color-mix(in srgb, var(--ct-primary) 35%, transparent); color: var(--ct-heading); }
+html.ct-theme-ready ::-webkit-scrollbar-track { background: var(--ct-bg); }
+html.ct-theme-ready ::-webkit-scrollbar-thumb { background: var(--ct-surface-3); border: 2px solid var(--ct-bg); }
+html.ct-theme-ready ::-webkit-scrollbar-thumb:hover { background: var(--ct-primary); }
+
+/* Explicit semantic component classes for new/refactored UI. */
+html.ct-theme-ready .ct-card,
+html.ct-theme-ready .ct-panel,
+html.ct-theme-ready .ct-checkout-card,
+html.ct-theme-ready .ct-product-row {
+  background: var(--ct-surface) !important;
+  color: var(--ct-text) !important;
+  border: 1px solid var(--ct-border) !important;
+  box-shadow: var(--ct-shadow);
+}
+html.ct-theme-ready .ct-card-subtle,
+html.ct-theme-ready .ct-panel-subtle { background: var(--ct-surface-2) !important; color: var(--ct-text) !important; border-color: var(--ct-border) !important; }
+html.ct-theme-ready .ct-alert-success { background: color-mix(in srgb, var(--ct-success) 12%, var(--ct-surface)) !important; color: var(--ct-success) !important; border-color: color-mix(in srgb, var(--ct-success) 44%, var(--ct-border)) !important; }
+html.ct-theme-ready .ct-alert-danger { background: color-mix(in srgb, var(--ct-danger) 12%, var(--ct-surface)) !important; color: var(--ct-danger) !important; border-color: color-mix(in srgb, var(--ct-danger) 44%, var(--ct-border)) !important; }
+html.ct-theme-ready .ct-alert-warning { background: color-mix(in srgb, var(--ct-warning) 12%, var(--ct-surface)) !important; color: var(--ct-warning) !important; border-color: color-mix(in srgb, var(--ct-warning) 44%, var(--ct-border)) !important; }
+
+/* Ensure icons inherit readable foreground rather than stale hard-coded black. */
+html.ct-theme-ready button svg,
+html.ct-theme-ready a svg { color: currentColor; }
+
+/* =========================================================
+   Carrtell unified theme contract v2
+   Every public/admin route consumes the same semantic tokens.
+   ========================================================= */
+:root {
+  --site-bg: var(--ct-bg);
+  --page-bg: var(--ct-bg);
+  --card-bg: var(--ct-surface);
+  --panel-bg: var(--ct-surface);
+  --surface-color: var(--ct-surface);
+  --surface-secondary: var(--ct-surface-2);
+  --text-primary: var(--ct-text);
+  --text-secondary: var(--ct-muted);
+  --text-muted: var(--ct-muted);
+  --primary: var(--ct-primary);
+  --accent: var(--ct-accent);
+  --border-color: var(--ct-border);
+  --input-bg: var(--ct-input-bg);
+  --input-text: var(--ct-input-text);
+}
+
+html.ct-theme-ready body,
+html.ct-theme-ready #root,
+html.ct-theme-ready .ct-app-shell,
+html.ct-theme-ready main {
+  background-color: var(--ct-bg) !important;
+  color: var(--ct-text) !important;
+}
+
+/* Route-level layout primitives. */
+html.ct-theme-ready main > section:not([class*="bg-gradient"]),
+html.ct-theme-ready main > div > section:not([class*="bg-gradient"]),
+html.ct-theme-ready main article,
+html.ct-theme-ready .ct-card,
+html.ct-theme-ready .card,
+html.ct-theme-ready [data-theme-surface="card"] {
+  border-color: var(--ct-border) !important;
+  color: var(--ct-text) !important;
+}
+
+/* Hard-coded Tailwind surfaces are normalized into semantic layers. */
+html.ct-theme-ready :is(.bg-white,.bg-slate-50,.bg-gray-50,.bg-zinc-50,.bg-neutral-50) {
+  background-color: var(--ct-surface) !important;
+  color: var(--ct-text) !important;
+}
+html.ct-theme-ready :is(.bg-slate-100,.bg-gray-100,.bg-zinc-100,.bg-neutral-100,.bg-slate-200,.bg-gray-200) {
+  background-color: var(--ct-surface-2) !important;
+  color: var(--ct-text) !important;
+}
+html.ct-theme-ready :is(.bg-slate-700,.bg-gray-700,.bg-zinc-700,.bg-neutral-700,
+                         .bg-slate-800,.bg-gray-800,.bg-zinc-800,.bg-neutral-800,
+                         .bg-slate-900,.bg-gray-900,.bg-zinc-900,.bg-neutral-900,
+                         .bg-navy-800,.bg-navy-900) {
+  background-color: var(--ct-surface) !important;
+  color: var(--ct-text) !important;
+}
+html.ct-theme-ready :is([class*="bg-slate-950/"],[class*="bg-slate-900/"],[class*="bg-slate-800/"],
+                         [class*="bg-gray-950/"],[class*="bg-gray-900/"],
+                         [class*="bg-white/["],[class*="bg-white/5"],[class*="bg-white/10"]) {
+  background-color: var(--ct-surface-2) !important;
+  color: var(--ct-text) !important;
+}
+
+/* Text contract: never allow fixed dark text on dark themes or fixed white on light themes. */
+html.ct-theme-ready :is(.text-black,.text-slate-950,.text-slate-900,.text-slate-800,.text-gray-950,.text-gray-900,.text-navy-950) {
+  color: var(--ct-heading) !important;
+}
+html.ct-theme-ready :is(.text-white,.text-slate-50,.text-gray-50,.text-slate-100,.text-gray-100) {
+  color: var(--ct-heading) !important;
+}
+html.ct-theme-ready :is(.text-slate-200,.text-slate-300,.text-gray-200,.text-gray-300,.text-slate-700,.text-gray-700) {
+  color: var(--ct-text) !important;
+}
+html.ct-theme-ready :is(.text-slate-400,.text-slate-500,.text-slate-600,.text-gray-400,.text-gray-500,.text-gray-600) {
+  color: var(--ct-muted) !important;
+}
+
+/* Inputs, selects and editable fields use one contract everywhere. */
+html.ct-theme-ready :is(input,select,textarea) {
+  background-color: var(--ct-input-bg) !important;
+  color: var(--ct-input-text) !important;
+  border-color: var(--ct-border) !important;
+  caret-color: var(--ct-primary) !important;
+}
+html.ct-theme-ready :is(input,textarea)::placeholder { color: var(--ct-muted) !important; opacity: .82; }
+html.ct-theme-ready select option { background: var(--ct-surface) !important; color: var(--ct-text) !important; }
+html.ct-theme-ready :is(input,select,textarea):focus {
+  border-color: var(--ct-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-primary) 22%, transparent) !important;
+}
+
+/* Borders and separators. */
+html.ct-theme-ready :is(.border-white,.border-slate-100,.border-slate-200,.border-slate-300,
+                         .border-slate-700,.border-slate-800,.border-gray-200,.border-gray-300,
+                         .border-gray-700,.border-gray-800,[class*="border-white/"],[class*="border-slate-"]) {
+  border-color: var(--ct-border) !important;
+}
+html.ct-theme-ready hr { border-color: var(--ct-border) !important; }
+
+/* Primary/action controls. */
+html.ct-theme-ready :is(.bg-amber-300,.bg-amber-400,.bg-amber-500,.bg-yellow-300,.bg-yellow-400,.bg-yellow-500,.bg-gold-400,.bg-gold-500,.btn-primary) {
+  background-color: var(--ct-primary) !important;
+  color: var(--ct-primary-text) !important;
+  border-color: color-mix(in srgb, var(--ct-primary) 75%, var(--ct-border)) !important;
+}
+html.ct-theme-ready :is(.hover\:bg-amber-300,.hover\:bg-amber-400,.hover\:bg-gold-400):hover {
+  background-color: var(--ct-primary-hover) !important;
+  color: var(--ct-primary-text) !important;
+}
+html.ct-theme-ready :is(.text-amber-100,.text-amber-200,.text-amber-300,.text-amber-400,.text-gold-500,.text-gold-600,.text-gold-700) {
+  color: var(--ct-primary) !important;
+}
+
+/* Statuses and alerts. */
+html.ct-theme-ready :is([class*="bg-emerald-"],[class*="bg-green-"]) {
+  background-color: color-mix(in srgb, var(--ct-success) 14%, var(--ct-surface)) !important;
+  border-color: color-mix(in srgb, var(--ct-success) 45%, var(--ct-border)) !important;
+}
+html.ct-theme-ready :is(.text-emerald-100,.text-emerald-200,.text-emerald-300,.text-green-100,.text-green-200,.text-green-300) {
+  color: color-mix(in srgb, var(--ct-success) 78%, var(--ct-heading)) !important;
+}
+html.ct-theme-ready :is([class*="bg-red-"],[class*="bg-rose-"]) {
+  background-color: color-mix(in srgb, var(--ct-danger) 12%, var(--ct-surface)) !important;
+  border-color: color-mix(in srgb, var(--ct-danger) 45%, var(--ct-border)) !important;
+}
+html.ct-theme-ready :is(.text-red-100,.text-red-200,.text-red-300,.text-red-400,.text-rose-100,.text-rose-200,.text-rose-300) {
+  color: color-mix(in srgb, var(--ct-danger) 82%, var(--ct-heading)) !important;
+}
+
+/* Cart and checkout: cards, stepper, delivery methods, summaries. */
+html.ct-theme-ready main[class*="pt-32"] > div > section,
+html.ct-theme-ready main[class*="pt-32"] .rounded-3xl,
+html.ct-theme-ready main[class*="pt-32"] .rounded-2xl,
+html.ct-theme-ready main[class*="pt-32"] .rounded-\[2rem\] {
+  border-color: var(--ct-border) !important;
+}
+html.ct-theme-ready main[class*="pt-32"] .bg-slate-900\/75,
+html.ct-theme-ready main[class*="pt-32"] .bg-slate-950\/60,
+html.ct-theme-ready main[class*="pt-32"] .bg-slate-950\/50,
+html.ct-theme-ready main[class*="pt-32"] .bg-slate-950\/70 {
+  background-color: var(--ct-surface) !important;
+  color: var(--ct-text) !important;
+}
+html.ct-theme-ready main[class*="pt-32"] [class*="from-slate-900"] {
+  background-image: linear-gradient(135deg,var(--ct-surface),var(--ct-surface-2)) !important;
+  color: var(--ct-text) !important;
+}
+
+/* Dashboard/profile aliases and cards. */
+html.ct-theme-ready main [class*="bg-[var(--card-bg"] { background: var(--ct-surface) !important; }
+html.ct-theme-ready main [class*="bg-[var(--site-bg"] { background: var(--ct-bg) !important; }
+html.ct-theme-ready main [class*="text-[var(--text-primary"] { color: var(--ct-text) !important; }
+html.ct-theme-ready main [class*="text-[var(--text-muted"] { color: var(--ct-muted) !important; }
+html.ct-theme-ready main [class*="bg-[var(--primary"] { background: var(--ct-primary) !important; color: var(--ct-primary-text) !important; }
+
+/* Tables, modals, dropdowns and admin panels. */
+html.ct-theme-ready :is(table,thead,tbody,tr,td,th) { border-color: var(--ct-border) !important; }
+html.ct-theme-ready thead { background: var(--ct-surface-2) !important; color: var(--ct-heading) !important; }
+html.ct-theme-ready tbody tr { background: var(--ct-surface) !important; color: var(--ct-text) !important; }
+html.ct-theme-ready tbody tr:hover { background: var(--ct-surface-2) !important; }
+html.ct-theme-ready [role="dialog"],
+html.ct-theme-ready [role="menu"],
+html.ct-theme-ready .fixed[class*="z-"] > .rounded-2xl,
+html.ct-theme-ready .fixed[class*="z-"] > .rounded-3xl {
+  background-color: var(--ct-surface) !important;
+  color: var(--ct-text) !important;
+  border-color: var(--ct-border) !important;
+}
+
+/* Footer always belongs to the selected theme. */
+html.ct-theme-ready footer {
+  background: var(--ct-header) !important;
+  color: var(--ct-header-text) !important;
+  border-color: var(--ct-border) !important;
+}
+html.ct-theme-ready footer :is(h1,h2,h3,h4,h5,h6,p,a,span,li) { color: inherit !important; }
+
+/* Header remains readable in every preset. */
+html.ct-theme-ready header,
+html.ct-theme-ready nav[class*="fixed"][class*="top-0"] {
+  background-color: var(--ct-header) !important;
+  color: var(--ct-header-text) !important;
+  border-color: var(--ct-border) !important;
+}
+
+/* Decorative media/banner layers are intentionally exempt from surface normalization. */
+html.ct-theme-ready :is(.ct-keep-media-theme,[data-theme-media="true"]) { color: inherit; }
+
+/* Stage 17 — header fully follows the active appearance preset */
+.ct-site-header {
+  background: var(--ct-header) !important;
+  color: var(--ct-header-text) !important;
+  font-family: var(--ct-font-family) !important;
+}
+.ct-site-header .ct-header-mainrow,
+.ct-site-header .ct-category-bar { border-color: color-mix(in srgb, var(--ct-primary) 38%, var(--ct-border)) !important; }
+.ct-site-header .ct-header-logo { background: color-mix(in srgb, var(--ct-header) 72%, #000 28%) !important; border: 1px solid color-mix(in srgb, var(--ct-border) 72%, transparent); }
+.ct-site-header .ct-header-search {
+  background: var(--ct-input-bg) !important;
+  color: var(--ct-input-text) !important;
+  border-color: color-mix(in srgb, var(--ct-border) 86%, transparent) !important;
+}
+.ct-site-header .ct-header-search:focus-within { border-color: var(--ct-primary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-primary) 18%, transparent) !important; }
+.ct-site-header .ct-header-search input { color: var(--ct-input-text) !important; }
+.ct-site-header .ct-header-search input::placeholder { color: color-mix(in srgb, var(--ct-input-text) 52%, transparent) !important; }
+.ct-site-header .ct-header-search svg { color: var(--ct-muted) !important; }
+.ct-site-header .ct-header-actions > a,
+.ct-site-header .ct-header-actions > button,
+.ct-site-header .ct-header-actions > div > button {
+  background: color-mix(in srgb, var(--ct-header) 74%, var(--ct-surface) 26%) !important;
+  color: var(--ct-header-text) !important;
+  border-color: color-mix(in srgb, var(--ct-primary) 28%, var(--ct-border)) !important;
+}
+.ct-site-header .ct-header-actions > a:hover,
+.ct-site-header .ct-header-actions > button:hover,
+.ct-site-header .ct-header-actions > div > button:hover {
+  background: color-mix(in srgb, var(--ct-primary) 20%, var(--ct-header)) !important;
+  border-color: var(--ct-primary) !important;
+}
+.ct-site-header .ct-header-actions > a[href="/book"] {
+  background: var(--ct-primary) !important;
+  color: var(--ct-primary-text) !important;
+  border-color: color-mix(in srgb, var(--ct-primary) 80%, #fff 20%) !important;
+}
+.ct-site-header .ct-header-vehicle {
+  background: var(--ct-surface-2) !important;
+  color: var(--ct-text) !important;
+  border-color: var(--ct-border) !important;
+}
+.ct-site-header .ct-header-vehicle[data-selected="true"] {
+  background: var(--ct-success) !important;
+  color: #fff !important;
+  border-color: color-mix(in srgb, var(--ct-success) 70%, #fff 30%) !important;
+}
+.ct-site-header .ct-category-bar { background: color-mix(in srgb, var(--ct-header) 90%, var(--ct-surface) 10%) !important; color: var(--ct-header-text) !important; }
+.ct-site-header .ct-category-bar a { color: color-mix(in srgb, var(--ct-header-text) 78%, transparent) !important; }
+.ct-site-header .ct-category-bar a:hover { background: color-mix(in srgb, var(--ct-primary) 16%, transparent) !important; color: var(--ct-primary) !important; }
+.ct-site-header .ct-category-bar button { background: var(--ct-primary) !important; color: var(--ct-primary-text) !important; }
+.ct-site-header .ct-account-menu,
+.ct-site-header .ct-category-menu,
+.ct-site-header .ct-mobile-menu {
+  background: var(--ct-surface) !important;
+  color: var(--ct-text) !important;
+  border-color: var(--ct-border) !important;
+  box-shadow: var(--ct-shadow) !important;
+}
+.ct-site-header .ct-account-menu a,
+.ct-site-header .ct-category-menu a,
+.ct-site-header .ct-mobile-menu a { color: var(--ct-text) !important; }
+.ct-site-header .ct-account-menu a:hover,
+.ct-site-header .ct-category-menu a:hover,
+.ct-site-header .ct-mobile-menu a:hover { background: var(--ct-surface-2) !important; color: var(--ct-primary) !important; }
+
+
+/* Stage 18: preset-specific header palettes.
+   These selectors deliberately sit at the end of the stylesheet so no legacy
+   Tailwind class or earlier header rule can override the active preset. */
+html.ct-theme-ready .ct-site-header {
+  background: linear-gradient(110deg, var(--ct-header) 0%, var(--ct-header-2, var(--ct-header)) 100%) !important;
+  color: var(--ct-header-text) !important;
+  border-bottom-color: color-mix(in srgb, var(--ct-primary) 60%, var(--ct-border)) !important;
+}
+html.ct-theme-ready .ct-site-header .ct-header-mainrow { background: transparent !important; }
+html.ct-theme-ready .ct-site-header .ct-category-bar {
+  background: color-mix(in srgb, var(--ct-header) 88%, var(--ct-header-2, var(--ct-surface)) 12%) !important;
+}
+html[data-ct-theme-preset="carrtell-classic"].ct-theme-ready .ct-site-header {
+  background: linear-gradient(110deg, #7f1022 0%, #c51f38 55%, #9d1730 100%) !important;
+}
+html[data-ct-theme-preset="premium-dark"].ct-theme-ready .ct-site-header {
+  background: linear-gradient(110deg, #070b12 0%, #111827 58%, #2a2110 100%) !important;
+}
+html[data-ct-theme-preset="digikala-style"].ct-theme-ready .ct-site-header {
+  background: linear-gradient(110deg, #ffffff 0%, #f7f7f8 100%) !important;
+  box-shadow: 0 8px 24px rgba(31,41,55,.10) !important;
+}
+html[data-ct-theme-preset="auto-sport"].ct-theme-ready .ct-site-header {
+  background: linear-gradient(110deg, #041424 0%, #0b4d78 58%, #072f4e 100%) !important;
+}
+html[data-ct-theme-preset="luxury"].ct-theme-ready .ct-site-header {
+  background: linear-gradient(110deg, #21170f 0%, #5a4128 55%, #322318 100%) !important;
+}
+html[data-ct-theme-preset="eco-green"].ct-theme-ready .ct-site-header {
+  background: linear-gradient(110deg, #08351f 0%, #168648 58%, #0f5a34 100%) !important;
+}
+html[data-ct-theme-preset="digikala-style"].ct-theme-ready .ct-site-header .ct-header-logo {
+  background: #ffffff !important;
+}
+html[data-ct-theme-preset="digikala-style"].ct-theme-ready .ct-site-header .ct-header-search,
+html[data-ct-theme-preset="digikala-style"].ct-theme-ready .ct-site-header .ct-header-actions > a,
+html[data-ct-theme-preset="digikala-style"].ct-theme-ready .ct-site-header .ct-header-actions > button,
+html[data-ct-theme-preset="digikala-style"].ct-theme-ready .ct-site-header .ct-header-actions > div > button {
+  background: #f1f2f4 !important;
+  color: #111827 !important;
+  border-color: #d9dde3 !important;
+}
+
+
+/* Header live search must remain a single visual surface. */
+html.ct-theme-ready header .ct-new-search-form .ct-new-search-input,
+html.ct-theme-ready header .ct-new-search-form .ct-new-search-input:hover,
+html.ct-theme-ready header .ct-new-search-form .ct-new-search-input:focus,
+html.ct-theme-ready header .ct-new-search-form .ct-new-search-input:focus-visible,
+html.ct-theme-ready header .ct-new-search-form .ct-new-search-input:-webkit-autofill {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+}

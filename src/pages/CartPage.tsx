@@ -1,0 +1,868 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { LogIn, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, CreditCard, MapPin, PackageCheck, ShoppingCart, Truck, Wrench } from 'lucide-react';
+import MapLocationPicker from '../components/MapLocationPicker';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../auth/AuthProvider';
+import { emitAuthChanged } from '../auth/authApi';
+import { IRAN_PROVINCES, getProvinceCounties } from '../data/iranLocations';
+
+type CartItem = {
+  id: string;
+  product_id?: string;
+  name?: string;
+  title?: string;
+  image?: string;
+  image_url?: string;
+  price?: number;
+  sale_price?: number;
+  quantity?: number;
+  qty?: number;
+  brand_name?: string;
+  category_name?: string;
+};
+
+type CustomerAddress = {
+  id: string;
+  title?: string | null;
+  city?: string | null;
+  district?: string | null;
+  neighborhood?: string | null;
+  street?: string | null;
+  plaque?: string | null;
+  unit?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  full_address?: string | null;
+};
+
+type SelectedCar = {
+  id?: string;
+  car_id?: string;
+  name?: string;
+  title?: string;
+  brand?: string;
+  model?: string;
+  year?: string | number;
+};
+
+
+type StepKey = 'cart' | 'info' | 'address' | 'payment' | 'done';
+
+type AddressFieldErrors = {
+  province?: string;
+  county?: string;
+  street?: string;
+};
+
+const steps: { key: StepKey; label: string; icon: JSX.Element }[] = [
+  { key: 'cart', label: 'سبد خرید', icon: <ShoppingCart className="h-4 w-4" /> },
+  { key: 'info', label: 'اطلاعات', icon: <PackageCheck className="h-4 w-4" /> },
+  { key: 'address', label: 'آدرس', icon: <MapPin className="h-4 w-4" /> },
+  { key: 'payment', label: 'پرداخت', icon: <CreditCard className="h-4 w-4" /> },
+  { key: 'done', label: 'تکمیل', icon: <CheckCircle2 className="h-4 w-4" /> },
+];
+
+const inputClass = 'w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-400/70 focus:ring-2 focus:ring-amber-400/20';
+const selectClass = `${inputClass} [&>option]:bg-slate-950 [&>option]:text-white`;
+const cardClass = 'rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/20 backdrop-blur';
+
+function toNumber(value: unknown) {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function money(value: number) {
+  return `${Math.round(value).toLocaleString('fa-IR')} تومان`;
+}
+
+function getItemId(item: CartItem) {
+  return String(item.product_id || item.id);
+}
+
+function getItemName(item: CartItem) {
+  return item.name || item.title || 'محصول کارتل';
+}
+
+function getItemPrice(item: CartItem) {
+  return toNumber(item.sale_price || item.price);
+}
+
+function getItemQty(item: CartItem) {
+  return Math.max(1, toNumber(item.quantity || item.qty || 1));
+}
+
+function readJson<T>(keys: string[], fallback: T): T {
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      return JSON.parse(raw) as T;
+    } catch {
+      // ignore old invalid values
+    }
+  }
+  return fallback;
+}
+
+function normalizeStoredCart(value: unknown): CartItem[] {
+  if (Array.isArray(value)) return value as CartItem[];
+  if (!value || typeof value !== 'object') return [];
+
+  return Object.values(value as Record<string, any>)
+    .map((entry: any) => {
+      if (entry?.product) {
+        return {
+          ...entry.product,
+          id: entry.product.id,
+          product_id: entry.product.id,
+          quantity: Number(entry.quantity || 1),
+          qty: Number(entry.quantity || 1),
+        } as CartItem;
+      }
+      return entry as CartItem;
+    })
+    .filter((item: CartItem) => Boolean(item?.id || item?.product_id));
+}
+
+function readCartItems(): CartItem[] {
+  const keys = ['carrtell_cart_v1', 'cart', 'carrtell_cart', 'cart_items'];
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const normalized = normalizeStoredCart(JSON.parse(raw));
+      if (normalized.length) return normalized;
+    } catch {
+      // ignore invalid legacy values
+    }
+  }
+  return [];
+}
+
+function writeCart(items: CartItem[]) {
+  const normalized = items.map((item) => ({ ...item, quantity: getItemQty(item), qty: getItemQty(item) }));
+  const cartMap = Object.fromEntries(
+    normalized.map((item) => {
+      const id = getItemId(item);
+      return [id, { product: { ...item, id }, quantity: getItemQty(item) }];
+    }),
+  );
+
+  localStorage.setItem('carrtell_cart_v1', JSON.stringify(cartMap));
+  localStorage.setItem('cart', JSON.stringify(normalized));
+  localStorage.setItem('carrtell_cart', JSON.stringify(normalized));
+  window.dispatchEvent(new CustomEvent('carrtell-cart-updated', { detail: cartMap }));
+  window.dispatchEvent(new Event('cart:updated'));
+}
+
+function getCarTitle(car: SelectedCar | null) {
+  if (!car) return '';
+  return [car.brand, car.name || car.title || car.model, car.year].filter(Boolean).join(' ');
+}
+
+function addressText(address?: CustomerAddress | null) {
+  if (!address) return '';
+  return address.full_address || [address.city, address.district || address.neighborhood, address.street, address.plaque ? `پلاک ${address.plaque}` : '', address.unit ? `واحد ${address.unit}` : ''].filter(Boolean).join('، ');
+}
+
+export default function CartPage() {
+  const navigate = useNavigate();
+  const { user: authUser, isAuthenticated, loading: authLoading, refreshAuth } = useAuth();
+  const [step, setStep] = useState<StepKey>('cart');
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState('');
+  const [showNewAddressForm, setShowNewAddressForm] = useState(true);
+  const [addressFieldErrors, setAddressFieldErrors] = useState<AddressFieldErrors>({});
+  const [selectedCar, setSelectedCar] = useState<SelectedCar | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [createdOrderId, setCreatedOrderId] = useState('');
+  const [customer, setCustomer] = useState({ full_name: '', phone: '', note: '' });
+  const [newAddress, setNewAddress] = useState({ province: '', county: '', neighborhood: '', street: '', plaque: '', unit: '', latitude: '', longitude: '' });
+  const [saveAddressForLater, setSaveAddressForLater] = useState(false);
+  const [addressTitle, setAddressTitle] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState<'delivery' | 'service'>('delivery');
+  const [showLoginGate, setShowLoginGate] = useState(false);
+  const [dispatchFee, setDispatchFee] = useState(150000);
+  const [serviceLaborFee, setServiceLaborFee] = useState(200000);
+
+  const subtotal = useMemo(() => items.reduce((sum, item) => sum + getItemPrice(item) * getItemQty(item), 0), [items]);
+  const serviceFee = deliveryMode === 'service' ? dispatchFee + serviceLaborFee : 0;
+  const total = subtotal + serviceFee;
+  const freeShippingThreshold = 3000000;
+  const freeShippingRemaining = Math.max(0, freeShippingThreshold - subtotal);
+  const freeShippingProgress = Math.min(100, (subtotal / freeShippingThreshold) * 100);
+  const selectedAddress = addresses.find((a) => a.id === selectedAddressId) || null;
+  const carTitle = getCarTitle(selectedCar);
+
+  useEffect(() => {
+    setItems(readCartItems());
+    setSelectedCar(readJson<SelectedCar | null>(['carrtell_selected_car', 'selected_car', 'my_selected_car'], null));
+    const localAddresses = readJson<CustomerAddress[]>(['carrtell_saved_addresses'], []);
+    if (localAddresses.length) {
+      setAddresses(localAddresses);
+      setSelectedAddressId(String(localAddresses[0].id));
+      setShowNewAddressForm(false);
+    }
+
+    supabase.auth.getUser().then(async ({ data }) => {
+      const user = data.user;
+      if (!user) return;
+
+      const metadata = user.user_metadata || {};
+      setCustomer((prev) => ({
+        ...prev,
+        full_name: metadata.full_name || metadata.name || prev.full_name,
+        phone: metadata.phone || user.phone || prev.phone,
+      }));
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        setCustomer((prev) => ({
+          ...prev,
+          full_name: profile.full_name || prev.full_name,
+          phone: profile.phone || prev.phone,
+        }));
+      }
+
+      const addressQueries = [
+        supabase.from('customer_addresses').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('addresses').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      ];
+
+      for (const query of addressQueries) {
+        const { data: rows, error } = await query;
+        if (!error && rows && rows.length) {
+          setAddresses(rows as CustomerAddress[]);
+          setSelectedAddressId(String(rows[0].id));
+          break;
+        }
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const loadServiceFees = async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('group_key, setting_key, setting_value')
+        .in('setting_key', ['base_dispatch_fee', 'base_service_fee', 'service_fee']);
+
+      if (error || !data) return;
+      const dispatch = data.find((row: any) => row.setting_key === 'base_dispatch_fee');
+      const labor = data.find((row: any) => row.setting_key === 'base_service_fee' || row.setting_key === 'service_fee');
+      if (dispatch && toNumber(dispatch.setting_value) > 0) setDispatchFee(toNumber(dispatch.setting_value));
+      if (labor && toNumber(labor.setting_value) > 0) setServiceLaborFee(toNumber(labor.setting_value));
+    };
+    void loadServiceFees();
+  }, []);
+
+  useEffect(() => {
+    if (authUser) {
+      setCustomer((prev) => ({
+        ...prev,
+        full_name: authUser.fullName || prev.full_name,
+        phone: authUser.phone || prev.phone,
+      }));
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (items.length > 0 && !isAuthenticated && step === 'cart') {
+      setShowLoginGate(true);
+    }
+
+    if (isAuthenticated && sessionStorage.getItem('carrtell_checkout_resume') === 'info') {
+      sessionStorage.removeItem('carrtell_checkout_resume');
+      setShowLoginGate(false);
+      setStep('info');
+    }
+  }, [authLoading, isAuthenticated, items.length, step]);
+
+  useEffect(() => {
+    const sync = () => setItems(readCartItems());
+    window.addEventListener('carrtell-cart-updated', sync as EventListener);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('carrtell-cart-updated', sync as EventListener);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+
+  function updateQty(id: string, qty: number) {
+    const next = items
+      .map((item) => (getItemId(item) === id ? { ...item, quantity: Math.max(1, qty), qty: Math.max(1, qty) } : item))
+      .filter((item) => getItemQty(item) > 0);
+    setItems(next);
+    writeCart(next);
+  }
+
+  function removeItem(id: string) {
+    const next = items.filter((item) => getItemId(item) !== id);
+    setItems(next);
+    writeCart(next);
+  }
+
+  function beginCheckout() {
+    setMessage('');
+    if (!items.length) {
+      setMessage('سبد خرید خالی است.');
+      return;
+    }
+    if (!isAuthenticated) {
+      sessionStorage.setItem('carrtell_checkout_resume', 'info');
+      setShowLoginGate(true);
+      return;
+    }
+    setStep('info');
+  }
+
+  async function saveCustomerAndContinue() {
+    setMessage('');
+    if (!customer.full_name.trim()) {
+      setMessage('نام و نام خانوادگی را وارد کن.');
+      return;
+    }
+    if (!/^09\d{9}$/.test(customer.phone.replace(/\s/g, ''))) {
+      setMessage('شماره موبایل معتبر وارد کن؛ مانند 09123456789.');
+      return;
+    }
+
+    localStorage.setItem('carrtell_customer_profile', JSON.stringify({
+      phone: customer.phone.trim(),
+      fullName: customer.full_name.trim(),
+    }));
+    localStorage.setItem('carrtell_user_role', authUser?.role || 'customer');
+    emitAuthChanged();
+
+    const { data } = await supabase.auth.getUser();
+    if (data.user?.id) {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        full_name: customer.full_name.trim(),
+        phone: customer.phone.trim(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      await refreshAuth();
+    }
+
+    setStep('address');
+  }
+
+  function hasAddress() {
+    if (selectedAddressId && !showNewAddressForm) return true;
+    return Boolean(newAddress.province.trim() && newAddress.county.trim() && newAddress.street.trim());
+  }
+
+  function validateNewAddress() {
+    const errors: AddressFieldErrors = {};
+    if (!newAddress.province.trim()) errors.province = 'استان را انتخاب کن.';
+    if (!newAddress.county.trim()) errors.county = 'شهرستان را انتخاب کن.';
+    if (!newAddress.street.trim()) errors.street = 'آدرس دقیق را وارد کن.';
+    setAddressFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function canGoPayment() {
+    if (selectedAddressId && !showNewAddressForm) {
+      setAddressFieldErrors({});
+      return true;
+    }
+    return validateNewAddress();
+  }
+
+  async function saveAddressIfRequested() {
+    if (!saveAddressForLater || selectedAddressId) return true;
+    if (!addressTitle.trim()) {
+      setMessage('برای ذخیره آدرس، یک نام مثل خانه یا محل کار وارد کن.');
+      return false;
+    }
+    if (!hasAddress()) {
+      validateNewAddress();
+      return false;
+    }
+
+    setSavingAddress(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const payload = {
+        user_id: authData.user?.id || authUser?.id || null,
+        customer_phone: customer.phone.trim(),
+        title: addressTitle.trim(),
+        province: newAddress.province,
+        city: newAddress.county,
+        district: newAddress.neighborhood || null,
+        neighborhood: newAddress.neighborhood || null,
+        street: newAddress.street,
+        plaque: newAddress.plaque,
+        unit: newAddress.unit || null,
+        latitude: newAddress.latitude ? Number(newAddress.latitude) : null,
+        longitude: newAddress.longitude ? Number(newAddress.longitude) : null,
+        full_address: [newAddress.province, newAddress.county, newAddress.neighborhood, newAddress.street, newAddress.plaque ? `پلاک ${newAddress.plaque}` : '', newAddress.unit ? `واحد ${newAddress.unit}` : ''].filter(Boolean).join('، '),
+      };
+
+      let saved: any = null;
+      for (const table of ['customer_addresses', 'addresses']) {
+        const { data, error } = await supabase.from(table).insert(payload).select('*').single();
+        if (!error && data) { saved = data; break; }
+      }
+      if (!saved) {
+        saved = { ...payload, id: crypto.randomUUID() };
+        const local = JSON.parse(localStorage.getItem('carrtell_saved_addresses') || '[]');
+        localStorage.setItem('carrtell_saved_addresses', JSON.stringify([saved, ...local]));
+      }
+      setAddresses((prev) => [saved as CustomerAddress, ...prev]);
+      setSelectedAddressId(String(saved.id));
+      return true;
+    } catch {
+      setMessage('ذخیره آدرس انجام نشد؛ دوباره تلاش کن.');
+      return false;
+    } finally {
+      setSavingAddress(false);
+    }
+  }
+
+  async function goToPayment() {
+    setMessage('');
+    if (!canGoPayment()) return;
+    const saved = await saveAddressIfRequested();
+    if (saved) setStep('payment');
+  }
+
+  async function createOrder() {
+    if (!isAuthenticated) {
+      sessionStorage.setItem('carrtell_checkout_resume', 'info');
+      setShowLoginGate(true);
+      return;
+    }
+    if (!canGoPayment()) return;
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+      const carId = selectedCar?.car_id || selectedCar?.id || null;
+      const orderAddress = selectedAddress
+        ? addressText(selectedAddress)
+        : [newAddress.province, newAddress.county, newAddress.neighborhood, newAddress.street, `پلاک ${newAddress.plaque}`, newAddress.unit ? `واحد ${newAddress.unit}` : ''].filter(Boolean).join('، ');
+
+      const orderPayload = {
+        user_id: user?.id || authUser?.id || null,
+        customer_name: customer.full_name,
+        customer_phone: customer.phone,
+        status: 'pending_payment',
+        payment_status: 'unpaid',
+        total_amount: total,
+        subtotal,
+        delivery_type: deliveryMode,
+        car_id: carId,
+        car_name: carTitle || null,
+        address_id: selectedAddress?.id || null,
+        address_text: orderAddress,
+        latitude: selectedAddress?.latitude || (newAddress.latitude ? Number(newAddress.latitude) : null),
+        longitude: selectedAddress?.longitude || (newAddress.longitude ? Number(newAddress.longitude) : null),
+        customer_note: customer.note || null,
+        items: deliveryMode === 'service' ? [
+          ...items,
+          { id: 'service-dispatch-fee', name: 'هزینه ایاب و ذهاب سرویس در محل', price: dispatchFee, quantity: 1 },
+          { id: 'service-labor-fee', name: 'اجرت سرویس در محل', price: serviceLaborFee, quantity: 1 },
+        ] : items,
+      };
+
+      const { data: order, error } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      const orderId = String(order.id);
+      setCreatedOrderId(orderId);
+      sessionStorage.setItem('carrtell_last_order_id', orderId);
+      setStep('done');
+      navigate(`/payment?orderId=${encodeURIComponent(orderId)}`);
+    } catch (error: any) {
+      setMessage(error?.message || 'ثبت سفارش انجام نشد. جدول orders یا ستون‌های پرداخت را بررسی کن.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 pb-8 pt-32 text-white sm:px-6 lg:px-8 lg:pt-36" dir="rtl">
+      {showLoginGate && !isAuthenticated && !authLoading && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={() => setShowLoginGate(false)}>
+          <div className="w-full max-w-md rounded-[2rem] border border-amber-400/25 bg-slate-900 p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400 text-slate-950">
+              <LogIn className="h-7 w-7" />
+            </div>
+            <h2 className="mt-4 text-center text-2xl font-black">ورود برای ادامه خرید</h2>
+            <p className="mt-2 text-center text-sm leading-7 text-slate-300">محصولات سبد شما حفظ می‌شوند. ابتدا با شماره موبایل وارد شو، سپس اطلاعات مشتری، آدرس، نوع دریافت، پرداخت و فاکتور را مرحله‌به‌مرحله تکمیل می‌کنی.</p>
+            <button
+              type="button"
+              onClick={() => {
+                sessionStorage.setItem('carrtell_checkout_resume', 'info');
+                navigate('/login-otp?returnTo=%2Fcart');
+              }}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-3 font-black text-slate-950 hover:bg-amber-300"
+            >
+              <LogIn className="h-5 w-5" /> ورود / ثبت‌نام با موبایل
+            </button>
+            <button type="button" onClick={() => setShowLoginGate(false)} className="mt-3 w-full rounded-2xl border border-white/10 px-5 py-3 text-sm text-slate-300 hover:bg-white/5">بازگشت به سبد خرید</button>
+          </div>
+        </div>
+      )}
+      <div className="mx-auto max-w-7xl space-y-6">
+        <section className="rounded-[2rem] border border-amber-400/20 bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/25 p-5 shadow-2xl shadow-amber-950/20">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm text-amber-300">تکمیل خرید Carrtell</p>
+              <h1 className="mt-1 text-2xl font-black sm:text-3xl">سبد خرید و ثبت سفارش</h1>
+              <p className="mt-2 text-sm text-slate-300">پس از ورود، اطلاعات مشتری، آدرس، روش دریافت، پرداخت و فاکتور را مرحله‌به‌مرحله تکمیل کن.</p>
+            </div>
+            {step === 'cart' && (carTitle ? (
+              <div className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                سفارش برای خودروی شما: <b>{carTitle}</b>
+              </div>
+            ) : (
+              <Link to="/profile" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 hover:bg-white/10">
+                خودرو انتخاب نشده؛ از پروفایل یا هدر خودرو را انتخاب کن.
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-5">
+            {steps.map((item, index) => {
+              const activeIndex = steps.findIndex((s) => s.key === step);
+              const isActive = item.key === step;
+              const done = index < activeIndex;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setStep(item.key)}
+                  className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm transition ${
+                    isActive
+                      ? 'border-amber-300 bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20'
+                      : done
+                        ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+                        : 'border-white/10 bg-slate-950/60 text-slate-300 hover:bg-white/5'
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {message && step === 'address' && (
+          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">{message}</div>
+        )}
+
+        {isAuthenticated && step === 'cart' && (
+          <div className="flex items-center justify-between rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            <span className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> ورود شما تایید شده است.</span>
+            <span>{authUser?.phone || authUser?.fullName || 'مشتری Carrtell'}</span>
+          </div>
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          <section className="space-y-6">
+            {step === 'cart' && (
+              <div className={cardClass}>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-xl font-black">محصولات سبد خرید</h2>
+                  <Link to="/shop" className="text-sm text-amber-300 hover:text-amber-200">ادامه خرید</Link>
+                </div>
+                {items.length > 0 && (
+                  <div className="mb-5 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                      <span className="font-bold text-amber-100">
+                        {freeShippingRemaining > 0 ? `فقط ${money(freeShippingRemaining)} تا ارسال رایگان باقی مانده` : 'ارسال رایگان برای این سفارش فعال شد'}
+                      </span>
+                      <Truck className="h-5 w-5 text-amber-300" />
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                      <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${freeShippingProgress}%` }} />
+                    </div>
+                  </div>
+                )}
+                {!items.length ? (
+                  <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-slate-300">
+                    سبد خرید خالی است.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {items.map((item) => {
+                      const id = getItemId(item);
+                      return (
+                        <div key={id} className="flex gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                          <div className="h-20 w-20 overflow-hidden rounded-2xl bg-white/5">
+                            {(item.image_url || item.image) ? (
+                              <img src={item.image_url || item.image} alt={getItemName(item)} className="h-full w-full object-contain" />
+                            ) : null}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-white">{getItemName(item)}</h3>
+                            <p className="mt-1 text-sm text-slate-400">{item.brand_name || item.category_name || 'محصول خودرو'}</p>
+                            <p className="mt-2 text-amber-300">{money(getItemPrice(item))}</p>
+                          </div>
+                          <div className="flex flex-col items-end justify-between">
+                            <button onClick={() => removeItem(id)} className="text-xs text-red-300 hover:text-red-200">حذف</button>
+                            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900 px-2 py-1">
+                              <button onClick={() => updateQty(id, getItemQty(item) - 1)} className="px-2 text-lg">−</button>
+                              <span className="w-6 text-center">{getItemQty(item).toLocaleString('fa-IR')}</span>
+                              <button onClick={() => updateQty(id, getItemQty(item) + 1)} className="px-2 text-lg">+</button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="mt-5 flex justify-end">
+                  <button onClick={beginCheckout} className="rounded-2xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300">
+                    ادامه ثبت سفارش
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 'info' && (
+              <div className={cardClass}>
+                <h2 className="mb-4 text-xl font-black">اطلاعات مشتری</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2 text-sm text-slate-300">
+                    نام و نام خانوادگی
+                    <input className={inputClass} value={customer.full_name} onChange={(e) => setCustomer({ ...customer, full_name: e.target.value })} placeholder="مثلاً امین اورعی" />
+                  </label>
+                  <label className="space-y-2 text-sm text-slate-300">
+                    شماره تماس
+                    <input className={inputClass} value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="09xxxxxxxxx" />
+                  </label>
+                  <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+                    توضیحات سفارش
+                    <textarea className={inputClass} rows={4} value={customer.note} onChange={(e) => setCustomer({ ...customer, note: e.target.value })} placeholder="توضیحات اختیاری برای سفارش یا سرویس" />
+                  </label>
+                </div>
+                <div className="mt-5 flex justify-between">
+                  <button onClick={() => setStep('cart')} className="rounded-2xl border border-white/10 px-5 py-3 text-slate-200 hover:bg-white/5">بازگشت</button>
+                  <button onClick={() => void saveCustomerAndContinue()} className="rounded-2xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300">ادامه</button>
+                </div>
+              </div>
+            )}
+
+            {step === 'address' && (
+              <div className={cardClass}>
+                <h2 className="mb-4 text-xl font-black">آدرس و روش دریافت</h2>
+                <div className="mb-5 grid gap-3 md:grid-cols-2">
+                  <button onClick={() => setDeliveryMode('delivery')} className={`rounded-2xl border p-4 text-right ${deliveryMode === 'delivery' ? 'border-amber-300 bg-amber-400/10' : 'border-white/10 bg-slate-950/50'}`}>
+                    <Truck className="mb-2 h-5 w-5 text-amber-300" />
+                    <b>ارسال محصول</b>
+                    <p className="mt-1 text-sm text-slate-400">محصول برای مشتری ارسال شود.</p>
+                  </button>
+                  <button onClick={() => setDeliveryMode('service')} className={`rounded-2xl border p-4 text-right ${deliveryMode === 'service' ? 'border-amber-300 bg-amber-400/10' : 'border-white/10 bg-slate-950/50'}`}>
+                    <Wrench className="mb-2 h-5 w-5 text-amber-300" />
+                    <b>خرید + سرویس در محل</b>
+                    <p className="mt-1 text-sm text-slate-400">محصول همراه سرویس در محل انجام شود.</p><p className="mt-2 text-xs font-bold text-amber-200">ایاب‌وذهاب {money(dispatchFee)} + اجرت {money(serviceLaborFee)}</p>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {addresses.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h3 className="font-bold text-white">آدرس‌های ذخیره‌شده</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedAddressId('');
+                            setShowNewAddressForm(true);
+                            setAddressFieldErrors({});
+                            setMessage('');
+                          }}
+                          className="rounded-xl border border-amber-300/40 bg-amber-400/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-400/20"
+                        >
+                          + افزودن آدرس
+                        </button>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {addresses.map((address) => {
+                          const active = selectedAddressId === String(address.id) && !showNewAddressForm;
+                          return (
+                            <button
+                              key={address.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedAddressId(String(address.id));
+                                setShowNewAddressForm(false);
+                                setAddressFieldErrors({});
+                                setMessage('');
+                              }}
+                              className={`rounded-2xl border p-4 text-right transition ${active ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-slate-950/50 hover:border-amber-300/40'}`}
+                            >
+                              <div className="font-bold text-white">{address.title || 'آدرس ذخیره‌شده'}</div>
+                              <div className="mt-2 text-sm leading-6 text-slate-400">{addressText(address)}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {addresses.length === 0 && !showNewAddressForm && (
+                    <button type="button" onClick={() => setShowNewAddressForm(true)} className="rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950">افزودن آدرس</button>
+                  )}
+
+                  {showNewAddressForm && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2 text-sm text-slate-300">
+                        استان
+                        <select
+                          className={`${selectClass} ${addressFieldErrors.province ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20' : ''}`}
+                          value={newAddress.province}
+                          onChange={(e) => {
+                            setNewAddress({ ...newAddress, province: e.target.value, county: '' });
+                            setAddressFieldErrors((prev) => ({ ...prev, province: undefined, county: undefined }));
+                          }}
+                        >
+                          <option value="">انتخاب استان</option>
+                          {IRAN_PROVINCES.map((province) => <option key={province.name} value={province.name}>{province.name}</option>)}
+                        </select>
+                        {addressFieldErrors.province && <span className="block text-xs text-red-300">{addressFieldErrors.province}</span>}
+                      </label>
+                      <label className="space-y-2 text-sm text-slate-300">
+                        شهرستان
+                        <select
+                          className={`${selectClass} ${addressFieldErrors.county ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20' : ''}`}
+                          value={newAddress.county}
+                          disabled={!newAddress.province}
+                          onChange={(e) => {
+                            setNewAddress({ ...newAddress, county: e.target.value });
+                            setAddressFieldErrors((prev) => ({ ...prev, county: undefined }));
+                          }}
+                        >
+                          <option value="">انتخاب شهرستان</option>
+                          {getProvinceCounties(newAddress.province).map((county) => <option key={county} value={county}>{county}</option>)}
+                        </select>
+                        {addressFieldErrors.county && <span className="block text-xs text-red-300">{addressFieldErrors.county}</span>}
+                      </label>
+                      <label className="space-y-2 text-sm text-slate-300">
+                        محله
+                        <input className={inputClass} placeholder="نام محله" value={newAddress.neighborhood} onChange={(e) => setNewAddress({ ...newAddress, neighborhood: e.target.value })} />
+                      </label>
+                      <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+                        آدرس دقیق
+                        <textarea
+                          className={`${inputClass} ${addressFieldErrors.street ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20' : ''}`}
+                          rows={3}
+                          placeholder="خیابان، کوچه و نشانی دقیق"
+                          value={newAddress.street}
+                          onChange={(e) => {
+                            setNewAddress({ ...newAddress, street: e.target.value });
+                            setAddressFieldErrors((prev) => ({ ...prev, street: undefined }));
+                          }}
+                        />
+                        {addressFieldErrors.street && <span className="block text-xs text-red-300">{addressFieldErrors.street}</span>}
+                      </label>
+                      <input className={inputClass} placeholder="پلاک" value={newAddress.plaque} onChange={(e) => setNewAddress({ ...newAddress, plaque: e.target.value })} />
+                      <input className={inputClass} placeholder="واحد" value={newAddress.unit} onChange={(e) => setNewAddress({ ...newAddress, unit: e.target.value })} />
+                      <div className="md:col-span-2">
+                        <MapLocationPicker
+                          initialLatitude={newAddress.latitude ? Number(newAddress.latitude) : null}
+                          initialLongitude={newAddress.longitude ? Number(newAddress.longitude) : null}
+                          onConfirm={(location) => setNewAddress((prev) => ({ ...prev, latitude: String(location.latitude), longitude: String(location.longitude) }))}
+                        />
+                      </div>
+                      <div className="md:col-span-2 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                        <label className="flex cursor-pointer items-center gap-3 text-sm font-bold text-white">
+                          <input type="checkbox" checked={saveAddressForLater} onChange={(e) => setSaveAddressForLater(e.target.checked)} className="h-5 w-5 accent-amber-400" />
+                          این آدرس برای خریدهای بعدی در پروفایل من ذخیره شود
+                        </label>
+                        {saveAddressForLater && (
+                          <label className="mt-4 block space-y-2 text-sm text-slate-300">
+                            نام آدرس
+                            <input className={inputClass} value={addressTitle} onChange={(e) => setAddressTitle(e.target.value)} placeholder="مثلاً خانه، محل کار یا مغازه" />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5 flex justify-between">
+                  <button onClick={() => setStep('info')} className="rounded-2xl border border-white/10 px-5 py-3 text-slate-200 hover:bg-white/5">بازگشت</button>
+                  <button disabled={savingAddress} onClick={() => void goToPayment()} className="rounded-2xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300">{savingAddress ? 'در حال ذخیره...' : 'ادامه پرداخت'}</button>
+                </div>
+              </div>
+            )}
+
+            {step === 'payment' && (
+              <div className={cardClass}>
+                <h2 className="mb-4 text-xl font-black">بازبینی و پرداخت</h2>
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-300">
+                  <p>مشتری: <b className="text-white">{customer.full_name}</b></p>
+                  <p>شماره تماس: <b className="text-white">{customer.phone}</b></p>
+                  <p>روش دریافت: <b className="text-white">{deliveryMode === 'service' ? 'خرید + سرویس در محل' : 'ارسال محصول'}</b></p>
+                  <p>آدرس: <b className="text-white">{selectedAddress && !showNewAddressForm ? addressText(selectedAddress) : [newAddress.province, newAddress.county, newAddress.street, newAddress.plaque].filter(Boolean).join('، ')}</b></p>
+                  {carTitle && <p>خودرو: <b className="text-amber-200">{carTitle}</b></p>}
+                </div>
+                <div className="mt-5 flex justify-between">
+                  <button onClick={() => setStep('address')} className="rounded-2xl border border-white/10 px-5 py-3 text-slate-200 hover:bg-white/5">بازگشت</button>
+                  <button disabled={loading} onClick={createOrder} className="rounded-2xl bg-emerald-400 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-300 disabled:opacity-50">
+                    {loading ? 'در حال ثبت...' : 'ثبت سفارش و رفتن به پرداخت'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 'done' && (
+              <div className={cardClass}>
+                <CheckCircle2 className="mb-3 h-10 w-10 text-emerald-300" />
+                <h2 className="text-xl font-black">سفارش ثبت شد</h2>
+                <p className="mt-2 text-slate-300">برای پرداخت به صفحه پرداخت منتقل می‌شوی.</p>
+                {createdOrderId && <p className="mt-2 text-sm text-slate-400">کد سفارش: {createdOrderId}</p>}
+              </div>
+            )}
+          </section>
+
+          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+            <div className={cardClass}>
+              <h3 className="mb-4 text-lg font-black">خلاصه سفارش</h3>
+              <div className="space-y-3 text-sm text-slate-300">
+                <div className="flex justify-between"><span>تعداد کالا</span><b>{items.length.toLocaleString('fa-IR')}</b></div>
+                <div className="flex justify-between"><span>جمع کالاها</span><b>{money(subtotal)}</b></div>
+                <div className="flex justify-between"><span>روش دریافت</span><b>{deliveryMode === 'service' ? 'سرویس در محل' : 'ارسال'}</b></div>
+                {deliveryMode === 'service' && (
+                  <>
+                    <div className="flex justify-between"><span>هزینه ایاب و ذهاب</span><b>{money(dispatchFee)}</b></div>
+                    <div className="flex justify-between"><span>اجرت سرویس در محل</span><b>{money(serviceLaborFee)}</b></div>
+                  </>
+                )}
+                <div className="border-t border-white/10 pt-3 text-base">
+                  <div className="flex justify-between"><span>مبلغ قابل پرداخت</span><b className="text-amber-300">{money(total)}</b></div>
+                </div>
+              </div>
+            </div>
+
+          </aside>
+        </div>
+      </div>
+    </main>
+  );
+}

@@ -1,0 +1,167 @@
+:root {
+  --ct-bg: #09090b;
+  --ct-surface: #15151a;
+  --ct-surface-2: #202028;
+  --ct-text: #f8fafc;
+  --ct-muted: #cbd5e1;
+  --ct-border: #2f2f38;
+  --ct-primary: #f5b301;
+  --ct-primary-text: #111827;
+  --ct-accent: #f59e0b;
+  --ct-header: rgba(12, 12, 16, .92);
+  --ct-input-bg: #18181f;
+  --ct-input-text: #f8fafc;
+  --ct-font-family: Vazirmatn, system-ui, sans-serif;
+}
+
+html.ct-theme-ready body,
+html.ct-theme-ready #root {
+  background: var(--ct-bg);
+  color: var(--ct-text);
+  font-family: var(--ct-font-family);
+}
+
+html.ct-theme-ready input,
+html.ct-theme-ready select,
+html.ct-theme-ready textarea {
+  background-color: var(--ct-input-bg) !important;
+  color: var(--ct-input-text) !important;
+  border-color: var(--ct-border) !important;
+}
+
+html.ct-theme-ready input::placeholder,
+html.ct-theme-ready textarea::placeholder {
+  color: color-mix(in srgb, var(--ct-input-text) 55%, transparent);
+}
+
+html.ct-theme-ready option {
+  background: var(--ct-input-bg);
+  color: var(--ct-input-text);
+}
+
+/* compact site header */
+header,
+.site-header,
+.app-header,
+.main-header,
+[data-carrtell-header="true"] {
+  min-height: 56px !important;
+}
+
+header .container,
+header .max-w-7xl,
+.site-header .container,
+.app-header .container,
+.main-header .container {
+  padding-top: .45rem !important;
+  padding-bottom: .45rem !important;
+}
+
+header nav,
+.site-header nav,
+.app-header nav,
+.main-header nav {
+  gap: .45rem !important;
+}
+
+header a,
+header button,
+.site-header a,
+.site-header button,
+.app-header a,
+.app-header button,
+.main-header a,
+.main-header button {
+  min-height: 34px;
+}
+
+.ct-theme-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  min-height: 34px;
+  border: 1px solid var(--ct-border);
+  border-radius: 999px;
+  background: var(--ct-surface);
+  color: var(--ct-text);
+  padding: .35rem .65rem;
+  font-size: .78rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 22px rgba(0,0,0,.12);
+}
+
+.ct-theme-mode-toggle small {
+  font-size: .68rem;
+  opacity: .85;
+}
+
+/* selected car yellow banner compacting */
+.selected-car-banner,
+.car-selected-banner,
+.ct-selected-car-banner,
+[data-selected-car-banner="true"],
+[class*="SelectedCar"],
+[class*="selected-car"] {
+  padding-top: .45rem !important;
+  padding-bottom: .45rem !important;
+  min-height: 42px !important;
+}
+
+.selected-car-banner h1,
+.selected-car-banner h2,
+.selected-car-banner h3,
+.car-selected-banner h1,
+.car-selected-banner h2,
+.car-selected-banner h3,
+.ct-selected-car-banner h1,
+.ct-selected-car-banner h2,
+.ct-selected-car-banner h3,
+[data-selected-car-banner="true"] h1,
+[data-selected-car-banner="true"] h2,
+[data-selected-car-banner="true"] h3 {
+  font-size: .95rem !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+
+.selected-car-banner p,
+.car-selected-banner p,
+.ct-selected-car-banner p,
+[data-selected-car-banner="true"] p {
+  font-size: .78rem !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+}
+
+.selected-car-banner button,
+.car-selected-banner button,
+.ct-selected-car-banner button,
+[data-selected-car-banner="true"] button {
+  min-height: 30px !important;
+  padding: .35rem .65rem !important;
+  font-size: .75rem !important;
+}
+
+html[data-ct-user-mode="light"],
+html[data-ct-resolved-mode="light"] {
+  color-scheme: light;
+}
+
+html[data-ct-user-mode="dark"],
+html[data-ct-resolved-mode="dark"] {
+  color-scheme: dark;
+}
+
+@media (max-width: 768px) {
+  header,
+  .site-header,
+  .app-header,
+  .main-header {
+    min-height: 50px !important;
+  }
+  .ct-theme-mode-toggle small {
+    display: none;
+  }
+}

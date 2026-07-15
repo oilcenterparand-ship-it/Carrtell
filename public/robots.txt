@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /driver/
+Disallow: /dashboard
+Disallow: /profile/
+Disallow: /payment
+Disallow: /invoice/
+Disallow: /notifications
+
+Sitemap: /sitemap.xml

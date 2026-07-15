@@ -1,0 +1,267 @@
+import { supabase } from "../../lib/supabase";
+
+export type DriverJobStatus =
+  | "assigned"
+  | "on_way"
+  | "arrived"
+  | "working"
+  | "completed"
+  | "cancelled";
+
+export type DriverJob = {
+  id: string;
+  status?: DriverJobStatus | string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  car_name?: string | null;
+  current_km?: number | null;
+  final_km?: number | null;
+  next_service_km?: number | null;
+  address_text?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  driver_id?: string | null;
+  service_vehicle_id?: string | null;
+  scheduled_at?: string | null;
+  assigned_at?: string | null;
+  started_at?: string | null;
+  arrived_at?: string | null;
+  completed_at?: string | null;
+  used_products?: unknown;
+  driver_notes?: string | null;
+  created_at?: string | null;
+};
+
+export type DriverJobReportInput = {
+  finalKm: number;
+  usedProducts?: string;
+  notes?: string;
+};
+
+const TEST_JOB_ID = "test";
+const TEST_JOB_STORAGE_KEY = "carrtell_driver_test_job";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function makeDefaultTestJob(): DriverJob {
+  const now = new Date().toISOString();
+  return {
+    id: TEST_JOB_ID,
+    status: "assigned",
+    customer_name: "امین تست",
+    customer_phone: "09120000000",
+    car_name: "پژو ۲۰۶ تیپ ۲",
+    current_km: 85000,
+    final_km: null,
+    next_service_km: 92000,
+    address_text: "پرند، فاز صفر، خیابان تست، پلاک ۱۲، واحد ۳",
+    latitude: 35.4837,
+    longitude: 50.9187,
+    driver_id: "test-driver",
+    service_vehicle_id: "test-vehicle",
+    scheduled_at: now,
+    assigned_at: now,
+    created_at: now,
+    used_products: [],
+    driver_notes: "",
+  };
+}
+
+function getStoredTestJob(): DriverJob {
+  if (typeof window === "undefined") return makeDefaultTestJob();
+
+  try {
+    const raw = window.localStorage.getItem(TEST_JOB_STORAGE_KEY);
+    if (!raw) return makeDefaultTestJob();
+    return { ...makeDefaultTestJob(), ...JSON.parse(raw), id: TEST_JOB_ID };
+  } catch {
+    return makeDefaultTestJob();
+  }
+}
+
+function saveStoredTestJob(job: DriverJob) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(TEST_JOB_STORAGE_KEY, JSON.stringify(job));
+}
+
+function isTestJobId(id: string) {
+  return id === TEST_JOB_ID;
+}
+
+function assertValidJobId(id: string) {
+  if (isTestJobId(id)) return;
+  if (!UUID_RE.test(id)) {
+    throw new Error("مأموریت پیدا نشد. شناسه مأموریت معتبر نیست.");
+  }
+}
+
+export async function getCurrentAuthUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return data.user?.id ?? null;
+}
+
+export async function getDriverJobs(statuses?: string[]) {
+  const userId = await getCurrentAuthUserId();
+
+  let query = supabase
+    .from("service_requests")
+    .select("*")
+    .order("scheduled_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
+  if (userId) {
+    query = query.eq("driver_id", userId);
+  }
+
+  if (statuses?.length) {
+    query = query.in("status", statuses);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as DriverJob[];
+}
+
+export async function getDriverJobById(id: string) {
+  assertValidJobId(id);
+
+  if (isTestJobId(id)) {
+    return getStoredTestJob();
+  }
+
+  const { data, error } = await supabase
+    .from("service_requests")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("مأموریت پیدا نشد.");
+  return data as DriverJob;
+}
+
+export async function updateDriverJobStatus(id: string, status: DriverJobStatus) {
+  assertValidJobId(id);
+  const now = new Date().toISOString();
+
+  if (isTestJobId(id)) {
+    const current = getStoredTestJob();
+    const updated: DriverJob = { ...current, status };
+    if (status === "on_way") updated.started_at = now;
+    if (status === "arrived") updated.arrived_at = now;
+    if (status === "completed") updated.completed_at = now;
+    saveStoredTestJob(updated);
+    return updated;
+  }
+
+  const patch: Record<string, unknown> = { status, updated_at: now };
+
+  if (status === "on_way") patch.started_at = now;
+  if (status === "arrived") patch.arrived_at = now;
+  if (status === "working") patch.service_started_at = now;
+  if (status === "completed") patch.completed_at = now;
+
+  const { data, error } = await supabase
+    .from("service_requests")
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as DriverJob;
+}
+
+export async function completeDriverJob(id: string, report: DriverJobReportInput) {
+  assertValidJobId(id);
+  const now = new Date().toISOString();
+  const usedProducts = parseUsedProducts(report.usedProducts);
+
+  if (isTestJobId(id)) {
+    const current = getStoredTestJob();
+    const updated: DriverJob = {
+      ...current,
+      status: "completed",
+      completed_at: now,
+      final_km: report.finalKm,
+      used_products: usedProducts,
+      driver_notes: report.notes ?? "",
+    };
+    saveStoredTestJob(updated);
+    return updated;
+  }
+
+  const { data, error } = await supabase
+    .from("service_requests")
+    .update({
+      status: "completed",
+      completed_at: now,
+      final_km: report.finalKm,
+      used_products: usedProducts,
+      driver_notes: report.notes ?? "",
+      updated_at: now,
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  await createServiceHistoryFromJob(data as DriverJob).catch(() => undefined);
+  return data as DriverJob;
+}
+
+async function createServiceHistoryFromJob(job: DriverJob) {
+  if (!job.id || !job.final_km) return;
+
+  await supabase.from("service_history").insert({
+    service_request_id: job.id,
+    customer_name: job.customer_name ?? null,
+    customer_phone: job.customer_phone ?? null,
+    car_name: job.car_name ?? null,
+    service_km: job.final_km,
+    next_service_km: job.next_service_km ?? null,
+    used_products: job.used_products ?? [],
+    notes: job.driver_notes ?? null,
+    created_at: new Date().toISOString(),
+  });
+}
+
+function parseUsedProducts(value?: string) {
+  if (!value?.trim()) return [];
+
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, qty] = line.split("*").map((part) => part.trim());
+      return { name, quantity: Number(qty || 1) || 1 };
+    });
+}
+
+export const driverStatusLabels: Record<string, string> = {
+  pending: "در انتظار بررسی",
+  confirmed: "تأیید شده",
+  assigned: "اختصاص داده‌شده",
+  on_way: "در مسیر مشتری",
+  arrived: "رسیده به محل",
+  working: "در حال انجام سرویس",
+  completed: "تکمیل شده",
+  cancelled: "لغو شده",
+};
+
+export function getNextDriverAction(status?: string | null): DriverJobStatus | null {
+  if (!status || status === "confirmed" || status === "assigned") return "on_way";
+  if (status === "on_way") return "arrived";
+  if (status === "arrived") return "working";
+  return null;
+}
+
+export function getDriverActionLabel(status?: string | null) {
+  const next = getNextDriverAction(status);
+  if (next === "on_way") return "شروع حرکت";
+  if (next === "arrived") return "رسیدم به محل";
+  if (next === "working") return "شروع سرویس";
+  return "مرحله بعد";
+}

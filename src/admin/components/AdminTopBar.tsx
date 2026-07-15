@@ -1,0 +1,99 @@
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+export type AdminNavItem = { label: string; path: string; group: string; icon?: string; keywords?: string[] };
+
+export const adminNavItems: AdminNavItem[] = [
+  { group: 'داشبورد', label: 'داشبورد مدیریت', path: '/admin/dashboard', icon: '🏠' },
+  { group: 'داشبورد', label: 'مرکز مسیرها', path: '/admin/quick-links', icon: '🧭' },
+  { group: 'داشبورد', label: 'تست سلامت مسیرها', path: '/admin/navigation-audit', icon: '🛠' },
+  { group: 'داشبورد', label: 'سلامت سیستم', path: '/admin/system-health', icon: '✅' },
+  { group: 'داشبورد', label: 'گزارش خطاها', path: '/admin/bug-reports', icon: '🐞' },
+
+  { group: 'فروشگاه', label: 'محصولات', path: '/admin/products', icon: '🛢' },
+  { group: 'فروشگاه', label: 'دسته‌بندی‌ها', path: '/admin/categories', icon: '🗂' },
+  { group: 'فروشگاه', label: 'برندها', path: '/admin/brands', icon: '🏷' },
+  { group: 'فروشگاه', label: 'پکیج‌ها', path: '/admin/packages', icon: '🎁' },
+  { group: 'فروشگاه', label: 'محتوای صفحه اصلی', path: '/admin/home-content', icon: '🏪' },
+  { group: 'فروشگاه', label: 'خودروها', path: '/admin/cars', icon: '🚗' },
+  { group: 'فروشگاه', label: 'پیشنهادها', path: '/admin/recommendations', icon: '✨' },
+  { group: 'فروشگاه', label: 'اصالت کالا', path: '/admin/authenticity', icon: '🔎' },
+  { group: 'فروشگاه', label: 'مرجوعی / بررسی کالا', path: '/admin/returns', icon: '↩️' },
+
+  { group: 'سفارش و عملیات', label: 'سفارش‌ها', path: '/admin/orders', icon: '🧾' },
+  { group: 'سفارش و عملیات', label: 'درخواست‌های سرویس', path: '/admin/service-requests', icon: '🔧' },
+  { group: 'سفارش و عملیات', label: 'مرکز اعزام', path: '/admin/dispatch', icon: '🚚' },
+  { group: 'سفارش و عملیات', label: 'ناوگان سرویس', path: '/admin/service-fleet', icon: '🚐' },
+  { group: 'سفارش و عملیات', label: 'شعب', path: '/admin/branches', icon: '🏬' },
+
+  { group: 'مشتریان', label: 'مشتریان', path: '/admin/customers', icon: '👥' },
+  { group: 'مشتریان', label: 'CRM مشتریان', path: '/admin/customers-crm', icon: '💬' },
+  { group: 'مشتریان', label: 'باشگاه مشتریان', path: '/admin/loyalty', icon: '⭐' },
+  { group: 'مشتریان', label: 'تیکت پشتیبانی', path: '/admin/support', icon: '🎧' },
+  { group: 'مشتریان', label: 'اعلان‌ها', path: '/admin/notifications', icon: '🔔' },
+  { group: 'مشتریان', label: 'لاگ پیامک‌ها', path: '/admin/sms-logs', icon: '📨' },
+
+  { group: 'انبار و خرید', label: 'انبار', path: '/admin/inventory', icon: '📦' },
+  { group: 'انبار و خرید', label: 'تأمین‌کنندگان', path: '/admin/suppliers', icon: '🏭' },
+  { group: 'انبار و خرید', label: 'خرید کالا', path: '/admin/purchases', icon: '🛒' },
+
+  { group: 'مالی', label: 'مالی و سود', path: '/admin/finance', icon: '💰' },
+  { group: 'مالی', label: 'تنظیمات پرداخت', path: '/admin/payment-settings', icon: '💳' },
+  { group: 'مالی', label: 'گزارش سرمایه‌گذار', path: '/admin/investor-report', icon: '📈' },
+
+  { group: 'بازاریابی و محتوا', label: 'تخفیف‌ها و کمپین‌ها', path: '/admin/discounts', icon: '🎯' },
+  { group: 'بازاریابی و محتوا', label: 'مقالات / بلاگ', path: '/admin/blog', icon: '📝' },
+  { group: 'بازاریابی و محتوا', label: 'سئو و متاتگ', path: '/admin/seo', icon: '🌐' },
+  { group: 'بازاریابی و محتوا', label: 'نظرات', path: '/admin/reviews', icon: '💭' },
+
+  { group: 'سیستم', label: 'تنظیمات', path: '/admin/settings', icon: '⚙️' },
+  { group: 'سیستم', label: 'ظاهر سایت', path: '/admin/appearance', icon: '🎨' },
+  { group: 'سیستم', label: 'کارکنان', path: '/admin/staff', icon: '👤' },
+  { group: 'سیستم', label: 'نقش‌ها', path: '/admin/roles', icon: '🔐' },
+  { group: 'سیستم', label: 'گزارش فعالیت‌ها', path: '/admin/audit-logs', icon: '📜' },
+];
+
+export default function AdminTopBar() {
+  const [query, setQuery] = useState('');
+  const navigate = useNavigate();
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return adminNavItems.filter((item) =>
+      [item.label, item.path, item.group, ...(item.keywords || [])].join(' ').toLowerCase().includes(q)
+    ).slice(0, 8);
+  }, [query]);
+
+  return (
+    <div className="sticky top-0 z-40 border-b border-slate-700/60 bg-slate-950/95 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-2 overflow-x-auto text-sm">
+          <Link to="/admin/quick-links" className="rounded-xl bg-slate-800 px-3 py-2 text-slate-100 hover:bg-slate-700">🧭 مرکز مسیرها</Link>
+          <Link to="/admin/navigation-audit" className="rounded-xl bg-amber-500 px-3 py-2 font-bold text-slate-950 hover:bg-amber-400">🛠 تست سلامت</Link>
+          <Link to="/admin/system-health" className="rounded-xl bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-500">✅ وضعیت سیستم</Link>
+          <Link to="/admin/bug-reports" className="rounded-xl bg-rose-600 px-3 py-2 text-white hover:bg-rose-500">🐞 خطاها</Link>
+        </div>
+        <div className="relative w-full lg:w-96">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="جستجوی سریع در پنل مدیریت..."
+            className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white outline-none placeholder:text-slate-400 focus:border-amber-400"
+          />
+          {results.length > 0 && (
+            <div className="absolute left-0 right-0 top-11 z-50 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
+              {results.map((item) => (
+                <button key={item.path} onClick={() => { setQuery(''); navigate(item.path); }} className="flex w-full items-center justify-between px-4 py-3 text-right text-sm text-slate-100 hover:bg-slate-800">
+                  <span>{item.icon} {item.label}</span>
+                  <span className="text-xs text-slate-400 ltr:font-mono">{item.path}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// SMS Settings route: /admin/sms-settings

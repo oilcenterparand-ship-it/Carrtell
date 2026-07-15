@@ -1,0 +1,12 @@
+import { useState } from 'react';
+import { requestOtp, verifyOtp } from '../services/smsOtpApi';
+
+export default function OtpLoginPage() {
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [sent, setSent] = useState(false);
+  const [msg, setMsg] = useState('');
+  async function send() { const r = await requestOtp(phone); setSent(true); setMsg(r.dev_code ? `کد تست: ${r.dev_code}` : 'کد ارسال شد'); }
+  async function check() { const r = await verifyOtp(phone, code); setMsg(r.ok ? 'ورود تستی تایید شد' : 'کد نامعتبر یا منقضی است'); }
+  return <div dir="rtl" className="min-h-screen bg-slate-950 p-6 text-white flex items-center justify-center"><div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 space-y-4"><h1 className="text-2xl font-black">ورود با موبایل</h1><input placeholder="شماره موبایل" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full rounded-2xl bg-slate-800 p-3" />{sent && <input placeholder="کد ورود" value={code} onChange={e=>setCode(e.target.value)} className="w-full rounded-2xl bg-slate-800 p-3" />}<button onClick={sent ? check : send} className="w-full rounded-2xl bg-amber-400 p-3 font-black text-slate-950">{sent ? 'تایید کد' : 'دریافت کد'}</button>{msg && <p className="text-center text-emerald-300">{msg}</p>}</div></div>
+}
