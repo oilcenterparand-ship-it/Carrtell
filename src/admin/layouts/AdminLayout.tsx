@@ -6,19 +6,24 @@ import { useAdminRoutes } from '../hooks/useAdminRoutes';
 
 function AdminLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const navItems = useAdminRoutes();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div dir="rtl" className="min-h-screen bg-[#f5f6f8] text-slate-900">
       <AdminHeader onToggleSidebar={() => setSidebarOpen((open) => !open)} />
-      <div className="flex min-h-[calc(100vh-72px)]">
+      <div className="mx-auto flex min-h-[calc(100vh-72px)] max-w-[1800px]">
         <Sidebar
           navItems={navItems}
           isOpen={isSidebarOpen}
+          isCollapsed={isSidebarCollapsed}
           onClose={() => setSidebarOpen(false)}
+          onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)}
         />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <Outlet />
+        <main className="min-w-0 flex-1 p-3 sm:p-5 lg:p-7">
+          <div className="mx-auto w-full max-w-[1500px]">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

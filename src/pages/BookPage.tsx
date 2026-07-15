@@ -1,451 +1,136 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Car, Check, CheckCircle2, ChevronLeft, Clock3, Loader2, MapPin, PackageSearch, Phone, Sparkles, UserRound, WalletCards, Wrench } from 'lucide-react';
+import { getActiveCarsForCustomer, getCarTitle, type Car as AdminCar } from '../admin/services/carsApi';
+import { getProducts, type Product } from '../admin/services/productsApi';
+import { formatCustomerAddress, getCustomerAddresses, type CustomerAddress } from '../customer/services/addressApi';
+import { createServiceRequest } from '../customer/services/serviceRequestsApi';
+import { readSelectedCustomerCar, saveSelectedCustomerCar } from '../customer/services/selectedCar';
 import {
-  Car, Droplets, Calendar, Clock, MapPin, CreditCard,
-  ChevronLeft, ChevronRight, CheckCircle2, Filter,
-  Star, Shield, Info, Navigation, Truck
-} from 'lucide-react';
-import { vehicles, products, formatPrice } from '../data/products';
+  calculateServicePricing,
+  getBookingServices,
+  getBookingSlots,
+  getServicePricingSettings,
+  type BookingService,
+  type BookingSlot,
+  type ServicePricingSettings,
+} from '../customer/services/serviceBookingApi';
 
-type Step = 1 | 2 | 3 | 4 | 5;
+const money = (value: number) => `${Number(value || 0).toLocaleString('fa-IR')} تومان`;
+const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
 
-const timeSlots = [
-  '۰۸:۰۰', '۰۸:۳۰', '۰۹:۰۰', '۰۹:۳۰', '۱۰:۰۰', '۱۰:۳۰',
-  '۱۱:۰۰', '۱۱:۳۰', '۱۲:۰۰', '۱۳:۰۰', '۱۳:۳۰', '۱۴:۰۰',
-  '۱۴:۳۰', '۱۵:۰۰', '۱۵:۳۰', '۱۶:۰۰', '۱۶:۳۰', '۱۷:۰۰',
-];
+function getDateOptions() {
+  return Array.from({ length: 10 }).map((_, index) => {
+    const date = new Date(); date.setDate(date.getDate() + index + 1);
+    const value = date.toISOString().slice(0, 10);
+    return { value, label: new Intl.DateTimeFormat('fa-IR', { weekday: 'long', month: 'long', day: 'numeric' }).format(date) };
+  });
+}
 
 export default function BookPage() {
-  const [step, setStep] = useState<Step>(1);
-  const [selectedVehicle, setSelectedVehicle] = useState('');
-  const [selectedOil, setSelectedOil] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
-  const [location, setLocation] = useState('');
-  const [distance, setDistance] = useState(0);
+  const [cars, setCars] = useState<AdminCar[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [services, setServices] = useState<BookingService[]>([]);
+  const [slots, setSlots] = useState<BookingSlot[]>([]);
+  const [pricing, setPricing] = useState<ServicePricingSettings>({ travel_fee: 0, night_fee: 0, holiday_fee: 0, out_of_area_fee: 0, night_start_hour: 18, club_discount_percent: 0, service_area_cities: [] });
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedCarId, setSelectedCarId] = useState(readSelectedCustomerCar()?.id || '');
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [currentKm, setCurrentKm] = useState('');
+  const [date, setDate] = useState(tomorrow());
+  const [slotId, setSlotId] = useState('');
+  const [addressId, setAddressId] = useState('');
+  const [manualAddress, setManualAddress] = useState('');
+  const [city, setCity] = useState('پرند');
+  const [note, setNote] = useState('');
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [requestNumber, setRequestNumber] = useState('');
+  const [error, setError] = useState('');
 
-  const vehicle = vehicles.find(v => v.id === selectedVehicle);
-  const oil = products.find(p => p.id === selectedOil);
-  const filter = products.find(p => p.id === selectedFilter);
+  const selectedCar = useMemo(() => cars.find((item) => item.id === selectedCarId) || null, [cars, selectedCarId]);
+  const selectedServices = useMemo(() => services.filter((item) => selectedServiceIds.includes(item.id)), [services, selectedServiceIds]);
+  const selectedSlot = useMemo(() => slots.find((item) => item.id === slotId) || null, [slots, slotId]);
+  const selectedAddress = useMemo(() => addresses.find((item) => item.id === addressId) || null, [addresses, addressId]);
+  const dateOptions = useMemo(getDateOptions, []);
 
-  const serviceFee = useMemo(() => {
-    const baseFee = 50000;
-    const distFee = distance * 2000;
-    return baseFee + distFee;
-  }, [distance]);
+  const recommendedProducts = useMemo(() => {
+    if (!selectedCar) return [];
+    const categories = selectedServices.flatMap((item) => item.recommended_categories || []);
+    return products.filter((product) => {
+      if (product.is_active === false || Number(product.stock || 0) <= 0) return false;
+      const compatible = product.compatible_all_cars || product.compatible_car_ids?.includes(selectedCar.id || '');
+      const categoryMatch = categories.some((cat) => String(product.category || '').includes(cat) || cat.includes(String(product.category || '')));
+      return compatible && (categoryMatch || categories.length === 0);
+    }).slice(0, 8);
+  }, [products, selectedCar, selectedServices]);
 
-  const totalPrice = useMemo(() => {
-    let total = serviceFee;
-    if (oil) total += oil.price;
-    if (filter) total += filter.price;
-    return total;
-  }, [oil, filter, serviceFee]);
+  const price = useMemo(() => calculateServicePricing({ services: selectedServices, pricing, date, slot: selectedSlot, city, isClubMember: true }), [selectedServices, pricing, date, selectedSlot, city]);
 
-  const recommendedOils = useMemo(() => {
-    if (!vehicle) return products.filter(p => p.category === 'engine-oil').slice(0, 4);
-    return products.filter(p => p.category === 'engine-oil' && p.viscosity === vehicle.recommendedOil);
-  }, [vehicle]);
+  useEffect(() => {
+    Promise.all([getActiveCarsForCustomer(), getProducts().catch(() => []), getBookingServices(), getServicePricingSettings()]).then(([carItems, productItems, serviceItems, pricingSettings]) => {
+      setCars(carItems); setProducts(productItems); setServices(serviceItems); setPricing(pricingSettings);
+      if (!selectedCarId && carItems[0]?.id) setSelectedCarId(carItems[0].id);
+      if (serviceItems[0]?.id) setSelectedServiceIds([serviceItems[0].id]);
+    }).finally(() => setLoading(false));
+  }, []);
 
-  const compatibleFilters = useMemo(() => {
-    if (!vehicle) return products.filter(p => p.category === 'oil-filter').slice(0, 3);
-    return products.filter(p => p.category === 'oil-filter' && p.compatibleVehicles.some(v => vehicle.model.includes(v) || v.includes(vehicle.model)));
-  }, [vehicle]);
+  useEffect(() => { getBookingSlots(date).then((items) => { setSlots(items); if (!items.some((x) => x.id === slotId && x.remaining > 0)) setSlotId(items.find((x) => x.remaining > 0)?.id || ''); }); }, [date]);
+  useEffect(() => { if (selectedCar) saveSelectedCustomerCar(selectedCar); }, [selectedCar]);
+  useEffect(() => {
+    if (customerPhone.trim().length < 10) { setAddresses([]); return; }
+    getCustomerAddresses(customerPhone.trim()).then((items) => { setAddresses(items); const first = items.find((x) => x.is_default) || items[0]; if (first?.id) { setAddressId(first.id); setCity(first.city || city); } });
+  }, [customerPhone]);
 
-  const steps = [
-    { num: 1, icon: Car, label: 'خودرو' },
-    { num: 2, icon: Droplets, label: 'روغن و فیلتر' },
-    { num: 3, icon: Calendar, label: 'زمان' },
-    { num: 4, icon: MapPin, label: 'مکان' },
-    { num: 5, icon: CreditCard, label: 'پرداخت' },
-  ];
+  function toggleService(id: string) { setSelectedServiceIds((items) => items.includes(id) ? items.filter((x) => x !== id) : [...items, id]); }
+  function next() {
+    setError('');
+    if (step === 1 && (!selectedCar || !selectedServiceIds.length)) return setError('خودرو و حداقل یک خدمت را انتخاب کنید.');
+    if (step === 2 && !date) return setError('روز و بازه زمانی را انتخاب کنید.');
+    if (step === 3 && (!customerPhone.trim() || !(selectedAddress || manualAddress.trim()))) return setError('شماره موبایل و آدرس الزامی است.');
+    setStep((value) => Math.min(4, value + 1));
+  }
 
-  const canProceed = () => {
-    switch (step) {
-      case 1: return !!selectedVehicle;
-      case 2: return !!selectedOil;
-      case 3: return !!selectedDate && !!selectedTime;
-      case 4: return !!location;
-      case 5: return true;
-      default: return false;
-    }
-  };
+  async function submit() {
+    if (!selectedCar || !selectedSlot || !selectedServices.length) return;
+    setSubmitting(true); setError('');
+    try {
+      const addressText = selectedAddress ? formatCustomerAddress(selectedAddress) : manualAddress.trim();
+      const request = await createServiceRequest({
+        customer_name: customerName.trim() || 'مشتری کارتل', customer_phone: customerPhone.trim(),
+        vehicle_id: selectedCar.id || null, vehicle_title: getCarTitle(selectedCar), current_km: Number(currentKm || 0),
+        last_service_km: Number(currentKm || 0), service_interval_km: Number(selectedCar.service_interval_km || 5000),
+        address_id: selectedAddress?.id || null, address_text: addressText, latitude: selectedAddress?.latitude || null, longitude: selectedAddress?.longitude || null,
+        city, preferred_date: date, preferred_time: selectedSlot.start_time, booking_slot_id: selectedSlot.id, booking_slot_label: selectedSlot.label,
+        service_title: selectedServices.map((item) => item.title).join(' + '), service_ids: selectedServiceIds,
+        service_items: selectedServices.map((item) => ({ id: item.id, title: item.title, labor_fee: item.base_labor_fee, estimated_minutes: item.estimated_minutes })),
+        suggested_product_ids: selectedProductIds, pricing_breakdown: price, estimated_total: price.total, note: note.trim() || null,
+      });
+      setRequestNumber(request.request_number);
+    } catch (e) { setError(e instanceof Error ? e.message : 'ثبت رزرو انجام نشد.'); }
+    finally { setSubmitting(false); }
+  }
 
-  const simulateDistance = () => {
-    const d = Math.floor(Math.random() * 15) + 2;
-    setDistance(d);
-  };
+  if (loading) return <main className="min-h-screen bg-slate-100 pt-32 text-slate-900" dir="rtl"><Loader2 className="mx-auto h-9 w-9 animate-spin" /></main>;
+  if (requestNumber) return <main className="min-h-screen bg-slate-100 px-4 pb-20 pt-32 text-slate-900" dir="rtl"><div className="mx-auto max-w-3xl rounded-[2rem] border border-emerald-200 bg-white p-8 text-center shadow-xl"><CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" /><h1 className="mt-5 text-3xl font-black">رزرو با موفقیت ثبت شد</h1><p className="mt-3 text-slate-500">شماره پیگیری: <b className="text-slate-900">{requestNumber}</b></p><div className="mt-8 grid grid-cols-5 gap-2 text-xs"><span className="rounded-xl bg-emerald-100 p-3 font-bold text-emerald-700">در انتظار تأیید</span><span className="rounded-xl bg-slate-100 p-3">تخصیص سرویس‌کار</span><span className="rounded-xl bg-slate-100 p-3">در مسیر</span><span className="rounded-xl bg-slate-100 p-3">در حال سرویس</span><span className="rounded-xl bg-slate-100 p-3">تکمیل</span></div></div></main>;
 
-  return (
-    <main className="pt-24 pb-16 min-h-screen">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="section-title !text-3xl md:!text-4xl mb-3">
-            رزرو <span className="gold-gradient-text">تعویض روغن</span>
-          </h1>
-          <p className="text-white/50 text-lg">
-            در ۵ مرحله ساده، تعویض روغن در محل خود را رزرو کنید
-          </p>
-        </div>
+  return <main className="min-h-screen bg-slate-100 px-4 pb-20 pt-28 text-slate-900" dir="rtl"><div className="mx-auto max-w-6xl">
+    <header className="mb-6 rounded-[2rem] bg-gradient-to-l from-slate-900 via-slate-800 to-amber-700 p-7 text-white shadow-xl"><div className="flex items-center gap-3"><Wrench className="h-8 w-8 text-amber-300" /><div><h1 className="text-3xl font-black">رزرو هوشمند سرویس در محل</h1><p className="mt-2 text-sm text-white/65">خدمت، زمان و آدرس را انتخاب کن؛ هزینه قبل از ثبت شفاف محاسبه می‌شود.</p></div></div></header>
+    <div className="mb-6 grid grid-cols-4 gap-2">{['خدمت و خودرو','زمان','آدرس','تأیید نهایی'].map((label,index) => <div key={label} className={`rounded-2xl px-3 py-3 text-center text-sm font-bold ${step >= index+1 ? 'bg-amber-400 text-slate-950' : 'bg-white text-slate-400'}`}>{index+1}. {label}</div>)}</div>
+    {error && <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-700">{error}</div>}
 
-        {/* Step Progress */}
-        <div className="flex items-center justify-between mb-12 px-4">
-          {steps.map((s, i) => (
-            <div key={s.num} className="flex items-center">
-              <div className={`flex flex-col items-center gap-2 ${
-                step >= s.num ? 'text-gold-500' : 'text-white/30'
-              }`}>
-                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all ${
-                  step > s.num
-                    ? 'bg-gold-500 text-navy-950'
-                    : step === s.num
-                    ? 'bg-gold-500/10 border border-gold-500/30 text-gold-500'
-                    : 'bg-white/5 border border-white/10 text-white/30'
-                }`}>
-                  {step > s.num ? <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" /> : <s.icon className="w-5 h-5 md:w-6 md:h-6" />}
-                </div>
-                <span className="text-xs font-medium hidden md:block">{s.label}</span>
-              </div>
-              {i < steps.length - 1 && (
-                <div className={`w-8 md:w-16 h-0.5 mx-1 md:mx-3 rounded transition-colors ${
-                  step > s.num ? 'bg-gold-500' : 'bg-white/10'
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Step Content */}
-        <div className="glass-card min-h-[400px]">
-          {/* Step 1: Vehicle Selection */}
-          {step === 1 && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">خودروی خود را انتخاب کنید</h2>
-              <p className="text-white/50 text-sm mb-6">مدل خودروی خود را انتخاب تا روغن مناسب را پیشنهاد دهیم</p>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {vehicles.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => setSelectedVehicle(v.id === selectedVehicle ? '' : v.id)}
-                    className={`p-4 rounded-xl border text-right transition-all ${
-                      selectedVehicle === v.id
-                        ? 'border-gold-500 bg-gold-500/10'
-                        : 'border-white/10 bg-white/[0.02] hover:bg-white/5 hover:border-white/20'
-                    }`}
-                  >
-                    <div className="font-bold text-sm mb-1">{v.model}</div>
-                    <div className="text-white/40 text-xs">{v.brand} - {v.engineType}</div>
-                    <div className="mt-2 text-xs">
-                      <span className="text-white/30">ویسکوزیته پیشنهادی: </span>
-                      <span className="text-gold-500 font-medium">{v.recommendedOil}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Oil & Filter Selection */}
-          {step === 2 && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">روغن و فیلتر را انتخاب کنید</h2>
-              <p className="text-white/50 text-sm mb-6">
-                {vehicle ? `روغن پیشنهادی برای ${vehicle.model}: ${vehicle.recommendedOil}` : 'ابتدا خودرو را انتخاب کنید'}
-              </p>
-
-              <div className="mb-8">
-                <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                  <Droplets className="w-4 h-4 text-gold-500" />
-                  روغن موتور
-                </h3>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {recommendedOils.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedOil(p.id === selectedOil ? '' : p.id)}
-                      className={`p-4 rounded-xl border text-right transition-all flex items-center gap-4 ${
-                        selectedOil === p.id
-                          ? 'border-gold-500 bg-gold-500/10'
-                          : 'border-white/10 bg-white/[0.02] hover:bg-white/5'
-                      }`}
-                    >
-                      <img src={p.image} alt={p.name} className="w-16 h-16 rounded-lg object-cover opacity-70" />
-                      <div className="flex-1">
-                        <div className="font-bold text-sm">{p.name}</div>
-                        <div className="text-white/40 text-xs mt-0.5">{p.brand} - {p.viscosity}</div>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className={`w-3 h-3 ${i < Math.floor(p.rating) ? 'fill-gold-500 text-gold-500' : 'text-white/20'}`} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="text-left">
-                        <div className="font-extrabold text-sm gold-gradient-text">{formatPrice(p.price)}</div>
-                        <div className="text-white/30 text-xs">تومان</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-gold-500" />
-                  فیلتر روغن
-                  <span className="text-white/30 text-xs font-normal">(اختیاری)</span>
-                </h3>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {compatibleFilters.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedFilter(p.id === selectedFilter ? '' : p.id)}
-                      className={`p-4 rounded-xl border text-right transition-all flex items-center gap-4 ${
-                        selectedFilter === p.id
-                          ? 'border-gold-500 bg-gold-500/10'
-                          : 'border-white/10 bg-white/[0.02] hover:bg-white/5'
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <div className="font-bold text-sm">{p.name}</div>
-                        <div className="text-white/40 text-xs mt-0.5">{p.brand}</div>
-                      </div>
-                      <div className="text-left">
-                        <div className="font-extrabold text-sm gold-gradient-text">{formatPrice(p.price)}</div>
-                        <div className="text-white/30 text-xs">تومان</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Date & Time */}
-          {step === 3 && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">زمان سرویس را انتخاب کنید</h2>
-              <p className="text-white/50 text-sm mb-6">تاریخ و ساعت دلخواه خود را برگزینید</p>
-
-              <div className="mb-8">
-                <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gold-500" />
-                  تاریخ
-                </h3>
-                <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-                  {Array.from({ length: 10 }).map((_, i) => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + i + 1);
-                    const dateStr = d.toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' });
-                    const weekday = d.toLocaleDateString('fa-IR', { weekday: 'short' });
-                    const val = d.toISOString().split('T')[0];
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => setSelectedDate(val === selectedDate ? '' : val)}
-                        className={`p-3 rounded-xl border text-center transition-all ${
-                          selectedDate === val
-                            ? 'border-gold-500 bg-gold-500/10'
-                            : 'border-white/10 bg-white/[0.02] hover:bg-white/5'
-                        }`}
-                      >
-                        <div className="text-xs text-white/40 mb-1">{weekday}</div>
-                        <div className="font-bold text-sm">{dateStr}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gold-500" />
-                  ساعت
-                </h3>
-                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
-                  {timeSlots.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setSelectedTime(t === selectedTime ? '' : t)}
-                      className={`py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                        selectedTime === t
-                          ? 'border-gold-500 bg-gold-500/10 text-gold-500'
-                          : 'border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/5'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Location */}
-          {step === 4 && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">مکان سرویس</h2>
-              <p className="text-white/50 text-sm mb-6">آدرس محل خود را وارد کنید یا روی نقشه کلیک کنید</p>
-
-              <div className="relative aspect-video bg-navy-800 rounded-xl overflow-hidden mb-6 border border-white/10">
-                <img
-                  src="https://images.pexels.com/photos/2036869/pexels-photo-2036869.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                  alt="Map"
-                  className="w-full h-full object-cover opacity-20"
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="w-12 h-12 text-gold-500 mx-auto mb-3 animate-bounce" />
-                    <p className="text-sm text-white/60">روی نقشه کلیک کنید یا آدرس را وارد کنید</p>
-                  </div>
-                </div>
-                <div className="absolute top-3 left-3 flex gap-2">
-                  <button
-                    onClick={simulateDistance}
-                    className="bg-navy-950/80 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2 text-xs font-medium flex items-center gap-2 hover:bg-white/5 transition-colors"
-                  >
-                    <Navigation className="w-4 h-4 text-gold-500" />
-                    محاسبه فاصله
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">آدرس کامل</label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="مثال: پردیس، فاز ۴، بلوار نور، پلاک ۱۲"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/30 focus:outline-none focus:border-gold-500/40 transition-colors"
-                  />
-                </div>
-
-                {distance > 0 && (
-                  <div className="glass-card !p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Truck className="w-5 h-5 text-gold-500" />
-                      <span className="text-sm">فاصله از انبار</span>
-                    </div>
-                    <span className="font-bold text-sm">{distance} کیلومتر</span>
-                  </div>
-                )}
-
-                <div className="glass-card !p-4 flex items-center gap-3">
-                  <Info className="w-5 h-5 text-accent-400 shrink-0" />
-                  <p className="text-white/40 text-xs leading-6">
-                    هزینه سرویس بر اساس فاصله از انبار محاسبه می‌شود. پایه: ۵۰,۰۰۰ تومان + ۲,۰۰۰ تومان به ازای هر کیلومتر
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Payment */}
-          {step === 5 && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">خلاصه و پرداخت</h2>
-              <p className="text-white/50 text-sm mb-6">اطلاعات سفارش خود را بررسی و پرداخت کنید</p>
-
-              <div className="space-y-3 mb-6">
-                {vehicle && (
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <Car className="w-5 h-5 text-gold-500" />
-                      <span className="text-sm">خودرو</span>
-                    </div>
-                    <span className="font-bold text-sm">{vehicle.model} ({vehicle.brand})</span>
-                  </div>
-                )}
-                {oil && (
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <Droplets className="w-5 h-5 text-gold-500" />
-                      <span className="text-sm">روغن موتور</span>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-sm">{oil.name}</div>
-                      <div className="text-white/40 text-xs">{formatPrice(oil.price)} تومان</div>
-                    </div>
-                  </div>
-                )}
-                {filter && (
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <Filter className="w-5 h-5 text-gold-500" />
-                      <span className="text-sm">فیلتر روغن</span>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-sm">{filter.name}</div>
-                      <div className="text-white/40 text-xs">{formatPrice(filter.price)} تومان</div>
-                    </div>
-                  </div>
-                )}
-                {selectedDate && selectedTime && (
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 text-gold-500" />
-                      <span className="text-sm">زمان</span>
-                    </div>
-                    <span className="font-bold text-sm">
-                      {new Date(selectedDate).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' })} ساعت {selectedTime}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <Truck className="w-5 h-5 text-gold-500" />
-                    <span className="text-sm">هزینه سرویس</span>
-                  </div>
-                  <span className="font-bold text-sm">{formatPrice(serviceFee)} تومان</span>
-                </div>
-              </div>
-
-              <div className="p-5 rounded-xl bg-gold-500/5 border border-gold-500/20 mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold">مبلغ کل</span>
-                  <span className="text-2xl font-extrabold gold-gradient-text">{formatPrice(totalPrice)} تومان</span>
-                </div>
-              </div>
-
-              <div className="glass-card !p-4 flex items-center gap-3 mb-6">
-                <Shield className="w-5 h-5 text-green-400 shrink-0" />
-                <p className="text-white/40 text-xs">پرداخت امن از طریق درگاه بانکی. اطلاعات شما محرمانه می‌ماند.</p>
-              </div>
-
-              <button className="btn-primary w-full text-lg flex items-center justify-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                پرداخت آنلاین
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-8">
-          <button
-            onClick={() => setStep(Math.max(1, step - 1) as Step)}
-            className={`btn-ghost flex items-center gap-2 ${step === 1 ? 'invisible' : ''}`}
-          >
-            <ChevronRight className="w-5 h-5" />
-            مرحله قبل
-          </button>
-
-          <span className="text-white/30 text-sm">مرحله {step} از ۵</span>
-
-          <button
-            onClick={() => step < 5 && canProceed() && setStep((step + 1) as Step)}
-            disabled={!canProceed() || step === 5}
-            className={`btn-primary flex items-center gap-2 ${
-              !canProceed() || step === 5 ? 'opacity-40 pointer-events-none' : ''
-            }`}
-          >
-            مرحله بعد
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </main>
-  );
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        {step === 1 && <div className="space-y-6"><div><h2 className="mb-3 flex items-center gap-2 text-xl font-black"><Car className="h-5 w-5 text-amber-500" /> انتخاب خودرو</h2><select value={selectedCarId} onChange={(e) => setSelectedCarId(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 outline-none focus:border-amber-400">{cars.map((car) => <option key={car.id} value={car.id}>{getCarTitle(car)}</option>)}</select></div><div><h2 className="mb-3 text-xl font-black">خدمات موردنیاز</h2><div className="grid gap-3 md:grid-cols-2">{services.map((service) => { const active=selectedServiceIds.includes(service.id); return <button key={service.id} onClick={() => toggleService(service.id)} className={`rounded-2xl border p-4 text-right transition ${active ? 'border-amber-400 bg-amber-50 shadow-md' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}><div className="flex items-start gap-3"><span className="text-2xl">{service.icon}</span><div className="flex-1"><div className="flex items-center justify-between"><b>{service.title}</b>{active && <Check className="h-5 w-5 text-emerald-500" />}</div><p className="mt-1 text-xs leading-6 text-slate-500">{service.description}</p><div className="mt-2 text-sm font-bold text-amber-700">اجرت {money(service.base_labor_fee)}</div></div></div></button>})}</div></div></div>}
+        {step === 2 && <div className="space-y-6"><h2 className="flex items-center gap-2 text-xl font-black"><CalendarDays className="h-5 w-5 text-amber-500" /> انتخاب روز و ظرفیت</h2><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{dateOptions.map((item) => <button key={item.value} onClick={() => setDate(item.value)} className={`rounded-2xl border p-3 text-sm font-bold ${date===item.value?'border-amber-400 bg-amber-50':'border-slate-200 bg-slate-50'}`}>{item.label}</button>)}</div><div className="grid gap-3 md:grid-cols-3">{slots.map((slot) => <button disabled={slot.remaining<=0} key={slot.id} onClick={() => setSlotId(slot.id)} className={`rounded-2xl border p-4 ${slotId===slot.id?'border-amber-400 bg-amber-50':'border-slate-200 bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-45`}><Clock3 className="mx-auto mb-2 h-5 w-5"/><b>{slot.label}</b><p className={`mt-2 text-xs ${slot.remaining>1?'text-emerald-600':slot.remaining===1?'text-amber-600':'text-rose-600'}`}>{slot.remaining>0?`${slot.remaining.toLocaleString('fa-IR')} ظرفیت باقی‌مانده`:'تکمیل'}</p></button>)}</div></div>}
+        {step === 3 && <div className="space-y-5"><h2 className="flex items-center gap-2 text-xl font-black"><MapPin className="h-5 w-5 text-amber-500" /> اطلاعات مشتری و آدرس</h2><div className="grid gap-4 md:grid-cols-2"><label className="space-y-2"><span className="text-sm font-bold">نام مشتری</span><div className="relative"><UserRound className="absolute right-4 top-4 h-4 w-4 text-slate-400"/><input value={customerName} onChange={(e)=>setCustomerName(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-4 pr-11 outline-none focus:border-amber-400"/></div></label><label className="space-y-2"><span className="text-sm font-bold">شماره موبایل</span><div className="relative"><Phone className="absolute right-4 top-4 h-4 w-4 text-slate-400"/><input value={customerPhone} onChange={(e)=>setCustomerPhone(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-4 pr-11 outline-none focus:border-amber-400"/></div></label><label className="space-y-2"><span className="text-sm font-bold">کیلومتر فعلی</span><input type="number" value={currentKm} onChange={(e)=>setCurrentKm(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-amber-400"/></label><label className="space-y-2"><span className="text-sm font-bold">شهر</span><input value={city} onChange={(e)=>setCity(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-amber-400"/></label></div>{addresses.length>0 && <div className="grid gap-2">{addresses.map((address)=><button key={address.id} onClick={()=>{setAddressId(address.id||'');setCity(address.city)}} className={`rounded-2xl border p-4 text-right ${addressId===address.id?'border-amber-400 bg-amber-50':'border-slate-200 bg-slate-50'}`}><b>{address.title}</b><p className="mt-1 text-xs text-slate-500">{formatCustomerAddress(address)}</p></button>)}</div>}<textarea value={manualAddress} onChange={(e)=>setManualAddress(e.target.value)} rows={3} placeholder="در صورت نداشتن آدرس ذخیره‌شده، آدرس دقیق را وارد کنید" className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 outline-none focus:border-amber-400"/><textarea value={note} onChange={(e)=>setNote(e.target.value)} rows={2} placeholder="توضیحات تکمیلی" className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 outline-none focus:border-amber-400"/></div>}
+        {step === 4 && <div className="space-y-6"><h2 className="text-xl font-black">پیشنهاد اقلام مناسب خودروی شما</h2>{recommendedProducts.length ? <div className="grid gap-3 md:grid-cols-2">{recommendedProducts.map((product)=>{const active=selectedProductIds.includes(product.id||'');return <button key={product.id} onClick={()=>setSelectedProductIds((items)=>active?items.filter((x)=>x!==product.id):[...items,product.id||''])} className={`flex items-center gap-3 rounded-2xl border p-3 text-right ${active?'border-amber-400 bg-amber-50':'border-slate-200 bg-slate-50'}`}><div className="h-16 w-16 rounded-xl bg-white p-2"><img src={product.image_url} className="h-full w-full object-contain"/></div><div className="min-w-0 flex-1"><b className="line-clamp-2 text-sm">{product.name}</b><p className="mt-1 text-xs text-slate-500">{product.recommendation_reason || 'سازگار با خودروی انتخاب‌شده'}</p><span className="mt-2 block text-sm font-black text-amber-700">{money(product.price)}</span></div>{active&&<CheckCircle2 className="h-5 w-5 text-emerald-500"/>}</button>})}</div>:<div className="rounded-2xl bg-slate-50 p-5 text-slate-500"><PackageSearch className="mb-2 h-6 w-6"/>محصول مکمل مشخصی پیدا نشد؛ رزرو سرویس بدون انتخاب کالا هم امکان‌پذیر است.</div>}<div className="rounded-2xl border border-slate-200 bg-slate-50 p-5"><h3 className="font-black">خلاصه رزرو</h3><div className="mt-3 grid gap-2 text-sm text-slate-600"><p>خودرو: <b className="text-slate-900">{selectedCar && getCarTitle(selectedCar)}</b></p><p>خدمات: <b className="text-slate-900">{selectedServices.map((x)=>x.title).join('، ')}</b></p><p>زمان: <b className="text-slate-900">{dateOptions.find((x)=>x.value===date)?.label} - {selectedSlot?.label}</b></p><p>آدرس: <b className="text-slate-900">{selectedAddress?formatCustomerAddress(selectedAddress):manualAddress}</b></p></div></div></div>}
+        <div className="mt-7 flex items-center justify-between border-t border-slate-100 pt-5"><button disabled={step===1} onClick={()=>setStep((x)=>Math.max(1,x-1))} className="rounded-xl border border-slate-200 px-5 py-3 font-bold disabled:opacity-40">مرحله قبل</button>{step<4?<button onClick={next} className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 font-black text-white">ادامه <ChevronLeft className="h-4 w-4"/></button>:<button onClick={submit} disabled={submitting} className="flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 font-black text-slate-950 disabled:opacity-60">{submitting?<Loader2 className="h-4 w-4 animate-spin"/>:<CheckCircle2 className="h-4 w-4"/>} ثبت نهایی رزرو</button>}</div>
+      </section>
+      <aside className="h-fit rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-28"><div className="mb-4 flex items-center gap-2"><WalletCards className="h-5 w-5 text-amber-500"/><h2 className="font-black">برآورد هزینه</h2></div><div className="space-y-3 text-sm"><div className="flex justify-between"><span>اجرت خدمات</span><b>{money(price.labor)}</b></div><div className="flex justify-between"><span>ایاب‌وذهاب</span><b>{money(price.travel)}</b></div>{price.night>0&&<div className="flex justify-between"><span>هزینه بازه شب</span><b>{money(price.night)}</b></div>}{price.holiday>0&&<div className="flex justify-between"><span>هزینه روز تعطیل</span><b>{money(price.holiday)}</b></div>}{price.outOfArea>0&&<div className="flex justify-between"><span>خارج از محدوده</span><b>{money(price.outOfArea)}</b></div>}{price.discount>0&&<div className="flex justify-between text-emerald-600"><span>تخفیف باشگاه</span><b>- {money(price.discount)}</b></div>}<div className="border-t border-slate-200 pt-4"><div className="flex items-center justify-between text-lg"><span className="font-black">جمع خدمات</span><b className="text-amber-700">{money(price.total)}</b></div><p className="mt-2 text-xs leading-6 text-slate-400">قیمت کالاهای انتخابی جداگانه به سبد خرید اضافه می‌شود.</p></div></div><div className="mt-5 rounded-2xl bg-amber-50 p-4 text-xs leading-6 text-amber-800"><Sparkles className="mb-2 h-5 w-5"/> نزدیک‌ترین سرویس‌کار فعال پس از تأیید مدیر به‌صورت خودکار تخصیص داده می‌شود.</div></aside>
+    </div>
+  </div></main>;
 }

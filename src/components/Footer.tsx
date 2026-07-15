@@ -5,20 +5,20 @@ import { MapPin, Phone, Mail, Instagram, MessageCircle } from 'lucide-react';
 export default function Footer() {
   return (
     <footer className="bg-neutral-950 text-white border-t border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           
           <div>
-            <Link to="/" className="flex items-center gap-3 mb-4">
+            <Link to="/" className="flex items-center gap-3 mb-2">
               
               <img
                 src={brandConfig.logo}
                 alt={brandConfig.name}
-                className="w-14 h-14 object-contain"
+                className="w-9 h-9 object-contain"
               />
 
               <div>
-                <div className="text-2xl font-black">
+                <div className="text-xl font-black">
                   {brandConfig.name}
                 </div>
 
@@ -29,18 +29,18 @@ export default function Footer() {
 
             </Link>
 
-            <p className="text-white/50 text-sm leading-7">
+            <p className="text-white/50 text-sm leading-6">
               {brandConfig.name} پلتفرم هوشمند فروش محصولات خودرو و رزرو سرویس در محل است.
             </p>
           </div>
 
 
           <div>
-            <h3 className="font-bold mb-4">
+            <h3 className="font-bold mb-2">
               دسترسی سریع
             </h3>
 
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {[
                 { to: '/shop', label: 'فروشگاه' },
                 { to: '/book', label: 'رزرو سرویس' },
@@ -61,11 +61,11 @@ export default function Footer() {
 
 
           <div>
-            <h3 className="font-bold mb-4">
+            <h3 className="font-bold mb-2">
               خدمات
             </h3>
 
-            <ul className="space-y-3">
+            <ul className="space-y-2">
 
               {[
                 'روغن موتور',
@@ -89,12 +89,12 @@ export default function Footer() {
 
 
           <div>
-            <h3 className="font-bold mb-4">
+            <h3 className="font-bold mb-2">
               تماس با ما
             </h3>
 
 
-            <ul className="space-y-4">
+            <ul className="space-y-3">
 
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-gold-500 shrink-0 mt-0.5" />
@@ -131,11 +131,11 @@ export default function Footer() {
             </ul>
 
 
-            <div className="flex items-center gap-3 mt-6">
+            <div className="flex items-center gap-3 mt-4">
 
               <a
                 href="#"
-                className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center hover:bg-gold-500/20 hover:text-gold-500 transition-all"
+                className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center hover:bg-gold-500/20 hover:text-gold-500 transition-all"
               >
                 <Instagram className="w-5 h-5" />
               </a>
@@ -143,7 +143,7 @@ export default function Footer() {
 
               <a
                 href="#"
-                className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center hover:bg-green-500/20 hover:text-green-400 transition-all"
+                className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center hover:bg-green-500/20 hover:text-green-400 transition-all"
               >
                 <MessageCircle className="w-5 h-5" />
               </a>
@@ -155,7 +155,7 @@ export default function Footer() {
         </div>
 
 
-        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mt-7 pt-5 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
 
           <p className="text-white/30 text-sm">
             ۱۴۰۴ {brandConfig.name}. تمامی حقوق محفوظ است.
