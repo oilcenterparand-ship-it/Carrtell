@@ -39,7 +39,7 @@ export function normalizeDispatchStatus(value?: string | null): DispatchStatus {
   return 'pending_review';
 }
 
-function normalizeRow(row: Record<string, any>): Record<string, any> {
+function normalizeRow(row: Record<string, any>) {
   return {
     ...row,
     status: normalizeDispatchStatus(row.status),
@@ -72,16 +72,7 @@ export async function getDispatchRequests(status?: string) {
   }
   const { data, error } = await query;
   if (error) throw error;
-  const rows = (data ?? []).map((row) => normalizeRow(row as Record<string, any>));
-  const orderIds = [...new Set(rows.map((row) => row.order_id).filter(Boolean))];
-  if (!orderIds.length) return rows;
-
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('id, order_number, total_amount, items, delivery_type, payment_status, customer_note')
-    .in('id', orderIds);
-  const byId = new Map((orders || []).map((order: any) => [String(order.id), order]));
-  return rows.map((row) => ({ ...row, order: row.order_id ? byId.get(String(row.order_id)) || null : null }));
+  return (data ?? []).map((row) => normalizeRow(row as Record<string, any>));
 }
 
 export async function getAvailableDrivers() {
@@ -190,15 +181,11 @@ export async function logDispatchEvent(
 // Compatibility exports used by the older DriverPage.
 export async function completeServiceRequest(
   requestId: string,
-  payload: {
-    final_km?: number;
-    next_service_km?: number;
-    used_products?: unknown[];
-    driver_notes?: string;
-  },
+  payload: { final_km?: number; used_products?: unknown[]; driver_notes?: string },
 ) {
+  const current = await supabase.from('service_requests').select('service_interval_km').eq('id', requestId).maybeSingle();
   const finalKm = Number(payload.final_km || 0);
-  const nextServiceKm = Number(payload.next_service_km || 0);
+  const interval = Number(current.data?.service_interval_km || 5000);
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('service_requests')
@@ -208,7 +195,7 @@ export async function completeServiceRequest(
       updated_at: now,
       final_km: finalKm || null,
       completed_current_km: finalKm || null,
-      next_service_km: nextServiceKm || null,
+      next_service_km: finalKm ? finalKm + interval : null,
       used_products: payload.used_products ?? [],
       driver_notes: payload.driver_notes ?? null,
       completion_note: payload.driver_notes ?? null,
@@ -230,16 +217,7 @@ export async function getDriverTasks(driverId?: string) {
   if (driverId) query = query.or(`assigned_driver_id.eq.${driverId},driver_id.eq.${driverId}`);
   const { data, error } = await query;
   if (error) throw error;
-  const rows = (data ?? []).map((row) => normalizeRow(row as Record<string, any>));
-  const orderIds = [...new Set(rows.map((row) => row.order_id).filter(Boolean))];
-  if (!orderIds.length) return rows;
-
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('id, order_number, total_amount, items, delivery_type, payment_status, customer_note')
-    .in('id', orderIds);
-  const byId = new Map((orders || []).map((order: any) => [String(order.id), order]));
-  return rows.map((row) => ({ ...row, order: row.order_id ? byId.get(String(row.order_id)) || null : null }));
+  return (data ?? []).map((row) => normalizeRow(row as Record<string, any>));
 }
 
 

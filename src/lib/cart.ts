@@ -4,11 +4,12 @@ export type CartItem = { product: Product; quantity: number };
 export type CartMap = Record<string, CartItem>;
 
 export const CART_STORAGE_KEY = 'carrtell_cart_v1';
+const LEGACY_CART_KEYS = ['cart', 'carrtell_cart', 'cart_items'];
 
 export function readCart(): CartMap {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(CART_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -17,7 +18,7 @@ export function readCart(): CartMap {
 
 export function writeCart(cart: CartMap) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+  window.sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
   window.dispatchEvent(new CustomEvent('carrtell-cart-updated', { detail: cart }));
 }
 
@@ -87,5 +88,16 @@ export function removeProductFromCart(productId?: string) {
 }
 
 export function clearCart() {
-  writeCart({});
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(CART_STORAGE_KEY);
+  window.localStorage.removeItem(CART_STORAGE_KEY);
+  LEGACY_CART_KEYS.forEach((key) => window.localStorage.removeItem(key));
+  window.dispatchEvent(new CustomEvent('carrtell-cart-updated', { detail: {} }));
+  window.dispatchEvent(new Event('cart:updated'));
+}
+
+export function clearLegacyPersistentCart() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(CART_STORAGE_KEY);
+  LEGACY_CART_KEYS.forEach((key) => window.localStorage.removeItem(key));
 }

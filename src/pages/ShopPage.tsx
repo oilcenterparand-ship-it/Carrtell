@@ -30,6 +30,8 @@ import { addProductToCart, readCart, type CartItem } from '../lib/cart';
 import { onSelectedCustomerCarChange, readSelectedCustomerCar, saveSelectedCustomerCar } from '../customer/services/selectedCar';
 import { getApprovedProductReviewSummaries, type ProductReviewSummary } from '../admin/services/customerReviewsApi';
 import '../styles/carrtellFonts.css';
+import { ShopPromoCards } from '../components/shop/ShopPromoCards';
+import { ShopProductGrid } from '../components/shop/ShopProductGrid';
 
 
 const FAVORITES_STORAGE_KEY = 'carrtell:favorites';
@@ -157,7 +159,7 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
   const shortDescription = getProductShortDescription(product);
   const cardFeatures = (product.card_features || '').trim() || [product.oil_grade, product.quality_level, product.transmission_type].filter(Boolean).join(' • ') || shortDescription;
   const hoverDetails = [product.name, product.brand && `برند ${product.brand}`, cardFeatures, shortDescription].filter(Boolean).join(' | ');
-  const cardWidth = grid ? 'w-full min-w-0 max-w-[176px] justify-self-center' : compact ? 'min-w-[138px] max-w-[138px] md:min-w-[148px] md:max-w-[148px]' : 'min-w-[148px] max-w-[148px] md:min-w-[160px] md:max-w-[160px]';
+  const cardWidth = grid ? 'w-full min-w-0 max-w-none justify-self-stretch' : compact ? 'min-w-[138px] max-w-[138px] md:min-w-[148px] md:max-w-[148px]' : 'min-w-[148px] max-w-[148px] md:min-w-[160px] md:max-w-[160px]';
   const cardBorderColor = theme.cardBorderColor;
   const compatibilityStatus = !selectedCarId
     ? null
@@ -172,12 +174,12 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
     <article
       title={`${hoverDetails} | قیمت ${formatPrice(finalPrice)} تومان`}
       aria-label={`مشاهده اطلاعات ${product.name}`}
-      className={`group relative flex ${grid ? 'h-[238px]' : 'h-[232px]'} ${cardWidth} flex-col overflow-hidden border shadow-md transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
-      style={{ background: theme.cardBackground, borderColor: cardBorderColor, borderRadius: theme.borderRadius, fontFamily: theme.productCardFontFamily || theme.fontFamily }}
+      className={`group relative flex ${grid ? 'h-[266px]' : 'h-[248px]'} ${cardWidth} flex-col overflow-hidden border bg-white shadow-[0_3px_12px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.015] transition duration-300 hover:-translate-y-1 hover:border-red-300 hover:shadow-[0_14px_34px_rgba(15,23,42,0.14)]`}
+      style={{ background: theme.cardBackground, borderColor: cardBorderColor || '#e5e7eb', borderRadius: '16px', fontFamily: theme.productCardFontFamily || theme.fontFamily }}
     >
-      <Link to={`/shop/product/${product.id}`} className={`relative flex ${grid ? 'h-[96px]' : 'h-[92px]'} shrink-0 items-center justify-center overflow-hidden`} style={{ background: imageBg }}>
+      <Link to={`/shop/product/${product.id}`} className={`relative flex ${grid ? 'h-[124px]' : 'h-[108px]'} shrink-0 items-center justify-center overflow-hidden border-b`} style={{ background: imageBg, borderColor: cardBorderColor || '#eef2f7' }}>
         {product.image_url ? (
-          <img src={product.image_url} alt={`${product.name}${product.brand ? ` از برند ${product.brand}` : ''}؛ ${cardFeatures}`} loading="lazy" className="h-full w-full object-contain p-2.5 transition duration-300 group-hover:scale-105" />
+          <img src={product.image_url} alt={`${product.name}${product.brand ? ` از برند ${product.brand}` : ''}؛ ${cardFeatures}`} loading="lazy" className="h-full w-full object-contain p-2.5 transition duration-300 group-hover:scale-[1.07]" />
         ) : (
           <Droplets className="h-11 w-11 text-slate-300" />
         )}
@@ -197,13 +199,13 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
         {compatibilityStatus === 'compatible' && <span className="absolute bottom-2 right-2 rounded-lg bg-emerald-500 px-2 py-1 text-[10px] font-black text-white shadow-lg">مناسب خودروی شما</span>}
       </Link>
 
-      <div className="flex min-h-0 flex-1 flex-col p-2.5" style={{ background: infoBg, color: productTextColor }}>
-        <p className="mb-0.5 h-3.5 truncate text-[10px]" style={{ color: productMutedColor }}>{product.brand || 'Carrtell'}</p>
-        <Link to={`/shop/product/${product.id}`} className="block h-9 line-clamp-2 text-[12px] font-black leading-[1.05rem] transition group-hover:text-gold-500" style={{ color: productTextColor }}>
+      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2.5" style={{ background: infoBg, color: productTextColor }}>
+        <p className="mb-1 h-3.5 truncate text-[10px] font-bold" style={{ color: productMutedColor }}>{product.brand || 'Carrtell'}</p>
+        <Link to={`/shop/product/${product.id}`} className="block h-10 line-clamp-2 text-[12px] font-black leading-[1.2rem] tracking-[-0.01em] transition group-hover:text-red-600" style={{ color: productTextColor }}>
           {product.name}
         </Link>
         <p
-          className="mt-0.5 h-5 overflow-hidden text-[9px] leading-5 line-clamp-1"
+          className="mt-0.5 h-5 overflow-hidden text-[9px] font-medium leading-5 line-clamp-1"
           style={{ color: productMutedColor }}
           title={hoverDetails}
         >
@@ -220,11 +222,11 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
         ) : (
           <div className="mt-0.5 h-4" />
         )}
-        <div className="mt-auto flex h-8 items-end justify-between gap-1.5">
+        <div className="mt-auto flex h-10 items-end justify-between gap-2 border-t pt-2" style={{ borderColor: cardBorderColor || '#eef2f7' }}>
           <div className="min-w-0">
             <p className="h-3 text-[10px] leading-3 text-slate-400 line-through">{amazingActive ? formatPrice(product.price) : ''}</p>
             <div className="flex items-baseline gap-1">
-              <b className="truncate text-xs" style={{ color: priceColor }}>{formatPrice(finalPrice)}</b>
+              <b className="truncate text-[13px] font-black" style={{ color: priceColor }}>{formatPrice(finalPrice)}</b>
               <span className="text-[10px]" style={{ color: productMutedColor }}>تومان</span>
             </div>
           </div>
@@ -232,11 +234,11 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
             type="button"
             disabled={!isAvailable}
             onClick={(event) => { event.preventDefault(); event.stopPropagation(); onAddToCart(product); }}
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition active:scale-95 ${isAvailable ? 'text-navy-950 hover:brightness-95' : 'bg-slate-100 text-slate-300'}`}
-            style={isAvailable ? { background: theme.addButtonBackground || theme.primaryColor } : undefined}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition hover:scale-105 active:scale-95 ${isAvailable ? 'border-red-200 bg-white text-red-600 hover:bg-red-50' : 'border-slate-200 bg-slate-100 text-slate-300'}`}
+            style={isAvailable ? { borderColor: theme.addButtonBackground || theme.primaryColor, color: theme.addButtonBackground || theme.primaryColor } : undefined}
             aria-label="افزودن به سبد خرید"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -293,7 +295,9 @@ export default function ShopPage() {
   const [sortBy, setSortBy] = useState('popular');
   const [activeBrand, setActiveBrand] = useState('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'low-stock' | 'amazing'>('all');
-  const [showShopFilters, setShowShopFilters] = useState(true);
+  const [showShopFilters, setShowShopFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showCarFilter, setShowCarFilter] = useState(false);
   const [carFilterSearch, setCarFilterSearch] = useState('');
@@ -302,7 +306,7 @@ export default function ShopPage() {
   const [theme, setTheme] = useState<ThemeSettings>(defaultThemeSettings);
   const [todayShoppingSettings, setTodayShoppingSettings] = useState<TodayShoppingSettings>(defaultTodayShoppingSettings);
   const [reviewSummaries, setReviewSummaries] = useState<Record<string, ProductReviewSummary>>({});
-  const [visibleProductCount, setVisibleProductCount] = useState(25);
+  const [visibleProductCount, setVisibleProductCount] = useState(12);
 
   useEffect(() => {
     async function load() {
@@ -382,8 +386,8 @@ export default function ShopPage() {
   }, [banners.length]);
 
   useEffect(() => {
-    setVisibleProductCount(25);
-  }, [search, activeCategory, activeBrand, activeCarId, availabilityFilter, sortBy]);
+    setVisibleProductCount(12);
+  }, [search, activeCategory, activeBrand, activeCarId, availabilityFilter, sortBy, minPrice, maxPrice]);
 
   const reservedQuantityByProductId = useMemo(() => Object.fromEntries(Object.entries(cart).map(([id, item]) => [id, item.quantity])), [cart]);
   const availableProducts = useMemo(() => {
@@ -447,6 +451,8 @@ export default function ShopPage() {
   }, [cars, carFilterSearch]);
 
   const brandOptions = useMemo(() => Array.from(new Set(products.map((product) => product.brand).filter((brand): brand is string => Boolean(brand)))).sort((a, b) => a.localeCompare(b, 'fa')), [products]);
+  const highestProductPrice = useMemo(() => Math.max(0, ...products.map((product) => getProductFinalPrice(product))), [products, nowTick]);
+  const effectiveMaxPrice = maxPrice ?? highestProductPrice;
 
   const filtered = useMemo(() => {
     let result = products;
@@ -456,6 +462,10 @@ export default function ShopPage() {
     if (availabilityFilter === 'available') result = result.filter((p) => isProductAvailable(p, reservedQuantityByProductId[p.id || ''] || 0));
     if (availabilityFilter === 'low-stock') result = result.filter((p) => !p.is_out_of_stock && Number(p.stock || 0) > 0 && Number(p.stock || 0) <= 2);
     if (availabilityFilter === 'amazing') result = result.filter(isAmazingActive);
+    result = result.filter((p) => {
+      const price = getProductFinalPrice(p);
+      return price >= minPrice && price <= effectiveMaxPrice;
+    });
     const query = search.trim().toLowerCase();
     if (query) result = result.filter((p) => getProductSearchText(p, categories, cars).includes(query));
     switch (sortBy) {
@@ -466,9 +476,9 @@ export default function ShopPage() {
       case 'price-desc': return [...result].sort((a, b) => getProductFinalPrice(b) - getProductFinalPrice(a));
       default: return result;
     }
-  }, [products, search, activeCategory, activeBrand, activeCarId, availabilityFilter, sortBy, categories, cars, reservedQuantityByProductId, reviewSummaries]);
+  }, [products, search, activeCategory, activeBrand, activeCarId, availabilityFilter, sortBy, categories, cars, reservedQuantityByProductId, reviewSummaries, minPrice, effectiveMaxPrice]);
 
-  const activeFilterCount = [activeCategory !== 'all', activeBrand !== 'all', activeCarId !== 'all', availabilityFilter !== 'all', Boolean(search.trim())].filter(Boolean).length;
+  const activeFilterCount = [activeCategory !== 'all', activeBrand !== 'all', activeCarId !== 'all', availabilityFilter !== 'all', Boolean(search.trim()), minPrice > 0, effectiveMaxPrice < highestProductPrice].filter(Boolean).length;
   const activeCar = activeCarId !== 'all' ? cars.find((car) => car.id === activeCarId) : null;
 
   function clearShopFilters() {
@@ -479,6 +489,8 @@ export default function ShopPage() {
     setActiveCarId('all');
     saveSelectedCustomerCar(null);
     setSortBy('popular');
+    setMinPrice(0);
+    setMaxPrice(null);
   }
 
   const cartItems = Object.values(cart);
@@ -509,7 +521,7 @@ export default function ShopPage() {
   const sectionBorderColor = theme.sectionBorderColor;
 
   return (
-    <main className="ct-shop-page min-h-screen pb-28 pt-24" style={{ background: theme.backgroundColor, color: theme.textColor, fontFamily: theme.fontFamily }}>
+    <main className="ct-shop-page min-h-screen pb-20 pt-24 md:pb-0" style={{ background: theme.backgroundColor, color: theme.textColor, fontFamily: theme.fontFamily }}>
       {showCategoryMenu && (
         <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setShowCategoryMenu(false)}>
           <div className="h-full w-[82%] max-w-sm overflow-y-auto p-5 shadow-2xl" style={{ background: theme.surfaceColor, color: categoryPanelTextColor }} onClick={(e) => e.stopPropagation()}>
@@ -519,6 +531,23 @@ export default function ShopPage() {
               {categoryOptions.map((category) => <button key={category.slug} onClick={() => { setActiveCategory(category.slug); setShowCategoryMenu(false); }} className="w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.searchBackground, color: searchTextColor }}>{category.title}</button>)}
             </div>
           </div>
+        </div>
+      )}
+
+      {showShopFilters && (
+        <div className="fixed inset-0 z-[60] bg-black/60 lg:hidden" onClick={() => setShowShopFilters(false)}>
+          <aside className="ml-auto h-full w-[88%] max-w-sm overflow-y-auto p-4 shadow-2xl" style={{ background: theme.surfaceColor, color: surfaceTextColor }} onClick={(event) => event.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between"><b>فیلتر محصولات</b><button type="button" onClick={() => setShowShopFilters(false)}><X className="h-5 w-5" /></button></div>
+            <div className="space-y-4">
+              <label className="block"><span className="mb-1.5 block text-xs font-black">دسته‌بندی</span><select value={activeCategory} onChange={(event) => setActiveCategory(event.target.value)} className="h-10 w-full rounded-xl border px-3 text-xs font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه دسته‌ها</option>{categoryOptions.map((category) => <option key={category.slug} value={category.slug}>{category.title}</option>)}</select></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-black">برند</span><select value={activeBrand} onChange={(event) => setActiveBrand(event.target.value)} className="h-10 w-full rounded-xl border px-3 text-xs font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه برندها</option>{brandOptions.map((brand) => <option key={brand} value={brand}>{brand}</option>)}</select></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-black">وضعیت موجودی</span><select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} className="h-10 w-full rounded-xl border px-3 text-xs font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه وضعیت‌ها</option><option value="available">فقط موجود</option><option value="low-stock">موجودی محدود</option><option value="amazing">شگفت‌انگیز</option></select></label>
+              <div><span className="mb-2 block text-xs font-black">بازه قیمت</span><div className="grid grid-cols-2 gap-2"><input type="number" min={0} value={minPrice} onChange={(event) => setMinPrice(Math.max(0, Number(event.target.value) || 0))} placeholder="حداقل" className="h-10 rounded-xl border px-2 text-xs outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} /><input type="number" min={0} value={maxPrice ?? ''} onChange={(event) => setMaxPrice(event.target.value ? Math.max(0, Number(event.target.value)) : null)} placeholder={`حداکثر ${formatPrice(highestProductPrice)}`} className="h-10 rounded-xl border px-2 text-xs outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} /></div></div>
+              <button type="button" onClick={() => setShowCarFilter(true)} className="h-10 w-full rounded-xl border text-xs font-black" style={{ borderColor: theme.cardBorderColor }}>انتخاب خودرو</button>
+              <button type="button" onClick={clearShopFilters} className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-xs font-black" style={{ borderColor: theme.cardBorderColor }}><RotateCcw className="h-4 w-4" /> پاک کردن همه فیلترها</button>
+              <button type="button" onClick={() => setShowShopFilters(false)} className="h-11 w-full rounded-xl text-sm font-black" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>نمایش {filtered.length.toLocaleString('fa-IR')} محصول</button>
+            </div>
+          </aside>
         </div>
       )}
 
@@ -636,20 +665,22 @@ export default function ShopPage() {
         )}
 
 
+        <ShopPromoCards categories={categories} />
+
         <section
           id="main-store"
-          className="mb-6 overflow-hidden rounded-2xl bg-white"
+          className="mb-0 overflow-hidden rounded-2xl bg-white"
           style={{
             background: theme.productListBackground,
             color: productListTextColor,
-            border: '2px solid #ef233c',
+            border: '2px solid #ff1744',
             borderRadius: '18px',
-            boxShadow: '0 10px 30px rgba(239, 35, 60, 0.16)',
+            boxShadow: '0 0 0 1px rgba(255,23,68,0.15), 0 10px 28px rgba(255,23,68,0.18)',
             fontFamily: theme.productCardFontFamily || theme.fontFamily,
           }}
         >
-          <div className="border-b px-4 py-3" style={{ borderColor: sectionBorderColor }}>
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="border-b px-3 py-2" style={{ borderColor: sectionBorderColor }}>
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-black !text-red-600" style={{ color: '#dc2626' }}>فروشگاه اصلی</h2>
@@ -657,13 +688,13 @@ export default function ShopPage() {
                 </div>
                 <p className="mt-1 text-[11px]" style={{ color: theme.mutedTextColor }}>جستجو، فیلتر و مرتب‌سازی سریع محصولات</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => setShowShopFilters((current) => !current)} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black" style={{ borderColor: theme.cardBorderColor, background: theme.productFilterBackground, color: theme.productFilterTextColor }}>
-                  <SlidersHorizontal className="h-4 w-4" /> فیلترها
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button type="button" onClick={() => setShowShopFilters(true)} className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-black lg:hidden" style={{ borderColor: theme.cardBorderColor, background: theme.productFilterBackground, color: theme.productFilterTextColor }}>
+                  <SlidersHorizontal className="h-3.5 w-3.5" /> فیلترها
                   {activeFilterCount > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px]" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>{activeFilterCount}</span>}
-                  <ChevronDown className={`h-3.5 w-3.5 transition ${showShopFilters ? 'rotate-180' : ''}`} />
+                  <ChevronDown className="h-3.5 w-3.5 lg:hidden" />
                 </button>
-                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="rounded-xl border px-3 py-2 text-xs font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
+                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="h-8 rounded-lg border px-2.5 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
                   <option value="popular">پیشنهادی</option>
                   <option value="featured">ویژه‌ها</option>
                   <option value="best-seller">پرفروش‌ترین</option>
@@ -671,43 +702,21 @@ export default function ShopPage() {
                   <option value="price-asc">ارزان‌ترین</option>
                   <option value="price-desc">گران‌ترین</option>
                 </select>
-                <Link to="/shop/all-products" className="rounded-xl px-3 py-2 text-xs font-black" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>نمایش همه</Link>
+                <Link to="/shop/all-products" className="flex h-8 items-center rounded-lg px-2.5 text-[11px] font-black" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>نمایش همه</Link>
               </div>
             </div>
 
             {activeCar && (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-3 py-2" style={{ borderColor: `${theme.primaryColor}55`, background: `${theme.primaryColor}0d` }}>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 rounded-xl border px-2.5 py-1.5" style={{ borderColor: `${theme.primaryColor}55`, background: `${theme.primaryColor}0d` }}>
                 <div className="flex items-center gap-2 text-xs font-bold"><CarFront className="h-4 w-4" style={{ color: theme.primaryColor }} /><span>خودروی فعال: <b>{getCarTitle(activeCar)}</b></span></div>
                 <button type="button" onClick={() => setShowCarFilter(true)} className="text-[11px] font-black" style={{ color: theme.primaryColor }}>تغییر خودرو</button>
               </div>
             )}
 
-            {showShopFilters && (
-              <div className="mt-3 grid gap-2 md:grid-cols-[minmax(220px,1.4fr)_repeat(3,minmax(130px,1fr))_auto]">
-                <label className="relative block">
-                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: theme.mutedTextColor }} />
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="نام، برند، گرید یا خودرو..." className="h-10 w-full rounded-xl border pl-3 pr-9 text-xs outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} />
-                </label>
-                <select value={activeCategory} onChange={(event) => setActiveCategory(event.target.value)} className="h-10 rounded-xl border px-3 text-xs font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
-                  <option value="all">همه دسته‌ها</option>
-                  {categoryOptions.map((category) => <option key={category.slug} value={category.slug}>{category.title}</option>)}
-                </select>
-                <select value={activeBrand} onChange={(event) => setActiveBrand(event.target.value)} className="h-10 rounded-xl border px-3 text-xs font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
-                  <option value="all">همه برندها</option>
-                  {brandOptions.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
-                </select>
-                <select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} className="h-10 rounded-xl border px-3 text-xs font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
-                  <option value="all">همه وضعیت‌ها</option>
-                  <option value="available">فقط موجود</option>
-                  <option value="low-stock">موجودی محدود</option>
-                  <option value="amazing">شگفت‌انگیز</option>
-                </select>
-                <button type="button" onClick={clearShopFilters} disabled={activeFilterCount === 0} className="flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40" style={{ borderColor: theme.cardBorderColor, color: theme.mutedTextColor }}><RotateCcw className="h-3.5 w-3.5" /> پاک کردن</button>
-              </div>
-            )}
+
 
             {activeFilterCount > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <div className="mt-2 flex flex-wrap gap-1">
                 {search.trim() && <button onClick={() => setSearch('')} className="rounded-full border px-2.5 py-1 text-[10px] font-bold" style={{ borderColor: theme.cardBorderColor }}>جستجو: {search} ×</button>}
                 {activeCategory !== 'all' && <button onClick={() => setActiveCategory('all')} className="rounded-full border px-2.5 py-1 text-[10px] font-bold" style={{ borderColor: theme.cardBorderColor }}>{categoryOptions.find((item) => item.slug === activeCategory)?.title || activeCategory} ×</button>}
                 {activeBrand !== 'all' && <button onClick={() => setActiveBrand('all')} className="rounded-full border px-2.5 py-1 text-[10px] font-bold" style={{ borderColor: theme.cardBorderColor }}>{activeBrand} ×</button>}
@@ -717,42 +726,40 @@ export default function ShopPage() {
             )}
           </div>
 
-          <div className="px-3 py-3 md:px-4 md:py-4">
-            {filtered.length > 0 && (
-              <>
-                <div className="grid grid-cols-2 justify-items-center gap-x-1.5 gap-y-2 sm:grid-cols-3 lg:grid-cols-5 xl:gap-x-2">
-                  {filtered.slice(0, visibleProductCount).map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      reservedQuantity={product.id ? reservedQuantityByProductId[product.id] || 0 : 0}
-                      onAddToCart={addToCart}
-                      grid
-                      theme={theme}
-                      selectedCarId={activeCarId !== 'all' ? activeCarId : undefined}
-                      ratingSummary={product.id ? reviewSummaries[product.id] : undefined}
-                    />
-                  ))}
-                </div>
-                {visibleProductCount < filtered.length ? (
-                  <div className="mt-5 flex flex-col items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setVisibleProductCount((current) => Math.min(current + 25, filtered.length))}
-                      className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-red-500 bg-white text-red-600 shadow-sm transition hover:bg-red-50 active:scale-95"
-                      aria-label="نمایش محصولات بیشتر"
-                      title="نمایش ۲۵ محصول بیشتر"
-                    >
-                      <Plus className="h-6 w-6" />
-                    </button>
-                    <span className="text-xs font-black text-red-600">نمایش ۲۵ محصول بیشتر</span>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-center text-xs font-bold" style={{ color: theme.mutedTextColor }}>همه محصولات نمایش داده شد.</p>
-                )}
-              </>
-            )}
-            {filtered.length === 0 && <div className="py-12 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-slate-300" /><p className="font-black text-slate-500">محصولی با این فیلترها پیدا نشد</p><button type="button" onClick={clearShopFilters} className="mt-3 text-xs font-black" style={{ color: theme.primaryColor }}>حذف همه فیلترها</button></div>}
+          <div className="flex flex-col gap-3 px-1.5 py-2 md:px-2 lg:flex-row-reverse lg:items-start">
+            <aside className="hidden w-[220px] shrink-0 rounded-2xl border p-3 lg:sticky lg:top-24 lg:block" style={{ borderColor: theme.cardBorderColor, background: theme.productFilterBackground, color: theme.productFilterTextColor }}>
+              <div className="mb-3 flex items-center justify-between"><b className="text-sm">فیلتر محصولات</b>{activeFilterCount > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-black" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>{activeFilterCount}</span>}</div>
+              <div className="space-y-3">
+                <label className="block"><span className="mb-1 block text-[11px] font-black">دسته‌بندی</span><select value={activeCategory} onChange={(event) => setActiveCategory(event.target.value)} className="h-9 w-full rounded-lg border px-2 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه دسته‌ها</option>{categoryOptions.map((category) => <option key={category.slug} value={category.slug}>{category.title}</option>)}</select></label>
+                <label className="block"><span className="mb-1 block text-[11px] font-black">برند</span><select value={activeBrand} onChange={(event) => setActiveBrand(event.target.value)} className="h-9 w-full rounded-lg border px-2 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه برندها</option>{brandOptions.map((brand) => <option key={brand} value={brand}>{brand}</option>)}</select></label>
+                <label className="block"><span className="mb-1 block text-[11px] font-black">وضعیت</span><select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} className="h-9 w-full rounded-lg border px-2 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه وضعیت‌ها</option><option value="available">فقط موجود</option><option value="low-stock">موجودی محدود</option><option value="amazing">شگفت‌انگیز</option></select></label>
+                <div><span className="mb-1 block text-[11px] font-black">بازه قیمت</span><div className="space-y-1.5"><input type="number" min={0} value={minPrice} onChange={(event) => setMinPrice(Math.max(0, Number(event.target.value) || 0))} placeholder="حداقل قیمت" className="h-9 w-full rounded-lg border px-2 text-[11px] outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} /><input type="number" min={0} value={maxPrice ?? ''} onChange={(event) => setMaxPrice(event.target.value ? Math.max(0, Number(event.target.value)) : null)} placeholder={`حداکثر ${formatPrice(highestProductPrice)}`} className="h-9 w-full rounded-lg border px-2 text-[11px] outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} /></div></div>
+                <button type="button" onClick={() => setShowCarFilter(true)} className="h-9 w-full rounded-lg border text-[11px] font-black" style={{ borderColor: theme.cardBorderColor }}>{activeCar ? getCarTitle(activeCar) : 'انتخاب خودرو'}</button>
+                <button type="button" onClick={clearShopFilters} disabled={activeFilterCount === 0} className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border text-[11px] font-black disabled:opacity-40" style={{ borderColor: theme.cardBorderColor }}><RotateCcw className="h-3.5 w-3.5" /> پاک کردن فیلترها</button>
+              </div>
+            </aside>
+            <div className="min-w-0 flex-1">
+            <ShopProductGrid
+              products={filtered}
+              visibleCount={visibleProductCount}
+              mutedTextColor={theme.mutedTextColor}
+              primaryColor={theme.primaryColor}
+              onLoadMore={() => setVisibleProductCount((current) => Math.min(current + 12, filtered.length))}
+              onClearFilters={clearShopFilters}
+              renderProduct={(product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  reservedQuantity={product.id ? reservedQuantityByProductId[product.id] || 0 : 0}
+                  onAddToCart={addToCart}
+                  grid
+                  theme={theme}
+                  selectedCarId={activeCarId !== 'all' ? activeCarId : undefined}
+                  ratingSummary={product.id ? reviewSummaries[product.id] : undefined}
+                />
+              )}
+            />
+            </div>
           </div>
         </section>
 

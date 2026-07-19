@@ -75,6 +75,7 @@ export default function OperationsCenter() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => navigate('/admin/phone-order')} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-emerald-900/20">ثبت سفارش تلفنی</button>
             <span className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs text-slate-400">آخرین بروزرسانی: {updated}</span>
             <label className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-xs">
               <input type="checkbox" checked={autoRefresh} onChange={event => setAutoRefresh(event.target.checked)} /> بروزرسانی خودکار

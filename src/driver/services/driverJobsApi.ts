@@ -33,10 +33,12 @@ export type DriverJob = {
   driver_notes?: string | null;
   completion_note?: string | null;
   created_at?: string | null;
+  queue_position?: number | null;
 };
 
 export type DriverJobReportInput = {
   finalKm: number;
+  nextServiceKm?: number;
   usedProducts?: string;
   notes?: string;
   serviceType?: string;
@@ -68,6 +70,7 @@ function normalizeJob(row: Record<string, any>): DriverJob {
     service_vehicle_id: row.service_vehicle_id || row.fleet_vehicle_id || null,
     fleet_vehicle_id: row.fleet_vehicle_id || row.service_vehicle_id || null,
     driver_notes: row.driver_notes || row.completion_note || null,
+    scheduled_at: row.scheduled_at || [row.preferred_date, row.preferred_time].filter(Boolean).join('T') || null,
   };
 }
 
@@ -97,7 +100,7 @@ export async function getCurrentAuthUserId() {
 
 export async function getDriverJobs(statuses?: string[]) {
   const userId = await getCurrentAuthUserId();
-  let query = supabase.from('service_requests').select('*').order('created_at', { ascending: false });
+  let query = supabase.from('service_requests').select('*').order('queue_position', { ascending: true, nullsFirst: false }).order('scheduled_at', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true });
   if (userId) query = query.or(`assigned_driver_id.eq.${userId},driver_id.eq.${userId}`);
   if (statuses?.length) {
     const expanded = statuses.flatMap((status) => status === 'en_route' ? ['en_route', 'on_way', 'dispatched'] : status === 'in_progress' ? ['in_progress', 'working', 'in_service'] : [status]);
@@ -142,18 +145,16 @@ export async function completeDriverJob(id: string, report: DriverJobReportInput
   assertValidJobId(id);
   const now = new Date().toISOString();
   const usedProducts = parseUsedProducts(report.usedProducts);
+  if (!report.nextServiceKm || report.nextServiceKm <= report.finalKm) throw new Error('کیلومتر سرویس بعدی را به‌صورت دستی و بیشتر از کیلومتر فعلی وارد کن.');
   if (isTestJobId(id)) {
     const current = getStoredTestJob();
-    const interval = Number(current.service_interval_km || 5000);
-    const updated: DriverJob = { ...current, status: 'completed', completed_at: now, final_km: report.finalKm, completed_current_km: report.finalKm, next_service_km: report.finalKm + interval, used_products: usedProducts, consumed_products: report.usedProducts || '', driver_notes: report.notes || '', completion_note: report.notes || '' };
+    const updated: DriverJob = { ...current, status: 'completed', completed_at: now, final_km: report.finalKm, completed_current_km: report.finalKm, next_service_km: report.nextServiceKm, used_products: usedProducts, consumed_products: report.usedProducts || '', driver_notes: report.notes || '', completion_note: report.notes || '' };
     saveStoredTestJob(updated);
     return updated;
   }
   const { data: current, error: currentError } = await supabase.from('service_requests').select('*').eq('id', id).single();
   if (currentError) throw currentError;
-  const interval = Number(current.service_interval_km || 5000);
-  const nextKm = report.finalKm + interval;
-  const { data, error } = await supabase.from('service_requests').update({ status: 'completed', completed_at: now, final_km: report.finalKm, completed_current_km: report.finalKm, next_service_km: nextKm, used_products: usedProducts, consumed_products: report.usedProducts || '', driver_notes: report.notes || '', completion_note: report.notes || '', updated_at: now }).eq('id', id).select('*').single();
+  const { data, error } = await supabase.from('service_requests').update({ status: 'completed', completed_at: now, final_km: report.finalKm, completed_current_km: report.finalKm, next_service_km: report.nextServiceKm, used_products: usedProducts, consumed_products: report.usedProducts || '', driver_notes: report.notes || '', completion_note: report.notes || '', updated_at: now }).eq('id', id).select('*').single();
   if (error) throw error;
   const normalized = normalizeJob(data as Record<string, any>);
   await createServiceHistoryFromJob(normalized, report).catch(() => undefined);

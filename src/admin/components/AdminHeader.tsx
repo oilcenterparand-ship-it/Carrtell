@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, CircleUserRound, ExternalLink, Menu, PackageCheck, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { adminNavigationItems } from '../navigation/adminNavigation';
-import { getAdminOrderSummaries, subscribeToOrders, type AdminOrderSummary } from '../services/orderStatsApi';
+import { getAdminOrderSummaries, getPendingOnsiteRequests, subscribeToOrders, type AdminOrderSummary, type AdminOnsiteRequestSummary } from '../services/orderStatsApi';
 
 interface AdminHeaderProps {
   onToggleSidebar: () => void;
@@ -15,6 +15,7 @@ function formatPrice(value: number) {
 function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<AdminOrderSummary[]>([]);
+  const [onsiteRequests, setOnsiteRequests] = useState<AdminOnsiteRequestSummary[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,7 +26,9 @@ function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   async function loadPendingOrders() {
     try {
       setLoading(true);
-      setOrders(await getAdminOrderSummaries(6));
+      const [nextOrders, nextOnsite] = await Promise.all([getAdminOrderSummaries(6), getPendingOnsiteRequests(6)]);
+      setOrders(nextOrders);
+      setOnsiteRequests(nextOnsite);
     } catch (error) {
       console.error('Admin notifications error:', error);
     } finally {
@@ -70,7 +73,7 @@ function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
     navigate(path);
   }
 
-  const pendingCount = orders.length;
+  const pendingCount = orders.length + onsiteRequests.length;
 
   return (
     <header className="sticky top-0 z-[9990] h-[72px] border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
@@ -169,6 +172,18 @@ function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
                     <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   </button>
                 </div>
+
+                {onsiteRequests.length > 0 && (
+                  <Link to="/admin/dispatch" onClick={() => setIsOpen(false)} className="m-3 block rounded-2xl border-2 border-red-200 bg-red-50 p-3 transition hover:border-red-400">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <b className="text-sm text-red-700">سرویس در محل جدید</b>
+                        <p className="mt-1 text-xs text-red-600">{onsiteRequests.length.toLocaleString('fa-IR')} سفارش منتظر مشاهده یا اختصاص تکنسین</p>
+                      </div>
+                      <span className="grid h-9 min-w-9 place-items-center rounded-full bg-red-500 px-2 text-sm font-black text-white">{onsiteRequests.length.toLocaleString('fa-IR')}</span>
+                    </div>
+                  </Link>
+                )}
 
                 <div className="max-h-80 overflow-y-auto p-3">
                   {isLoading && orders.length === 0 ? (

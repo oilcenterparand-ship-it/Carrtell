@@ -19,9 +19,11 @@ import {
 import {
   getAdminOrderStats,
   getAdminOrderSummaries,
+  getPendingOnsiteRequests,
   subscribeToOrders,
   type AdminOrderStats,
   type AdminOrderSummary,
+  type AdminOnsiteRequestSummary,
 } from '../services/orderStatsApi';
 
 function formatPrice(value: number) {
@@ -67,18 +69,21 @@ function StatCard({ title, value, subtitle, icon: Icon, tone }: { title: string;
 function Dashboard() {
   const [stats, setStats] = useState<AdminOrderStats>(initialStats);
   const [pendingOrders, setPendingOrders] = useState<AdminOrderSummary[]>([]);
+  const [onsiteRequests, setOnsiteRequests] = useState<AdminOnsiteRequestSummary[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   async function loadDashboard() {
     try {
       setLoading(true);
-      const [nextStats, nextPending] = await Promise.all([
+      const [nextStats, nextPending, nextOnsite] = await Promise.all([
         getAdminOrderStats(),
         getAdminOrderSummaries(6),
+        getPendingOnsiteRequests(6),
       ]);
       setStats(nextStats);
       setPendingOrders(nextPending);
+      setOnsiteRequests(nextOnsite);
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Dashboard load error:', error);
@@ -147,6 +152,29 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {onsiteRequests.length > 0 && (
+        <Link to="/admin/dispatch" className="block rounded-[30px] border-2 border-red-300 bg-gradient-to-l from-red-50 via-white to-white p-5 shadow-lg shadow-red-100 transition hover:-translate-y-0.5 hover:border-red-400 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-red-500 text-white shadow-lg shadow-red-200"><Truck className="h-7 w-7" /></div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-black text-red-700">سفارش جدید سرویس در محل ثبت شد</h2>
+                  <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-black text-white">{onsiteRequests.length.toLocaleString('fa-IR')} سفارش</span>
+                </div>
+                <p className="mt-2 text-sm leading-7 text-slate-600">جزئیات سفارش را ببین و از همان صفحه تکنسین را اختصاص بده.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {onsiteRequests.slice(0, 3).map((request) => (
+                    <span key={request.id} className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 ring-1 ring-red-100">{request.customer_name || 'مشتری'} · {request.preferred_date || 'بدون تاریخ'} · {request.preferred_time || 'بدون ساعت'}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <span className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 px-5 py-3 text-sm font-black text-white">مشاهده و اختصاص تکنسین <ArrowLeft className="h-4 w-4" /></span>
+          </div>
+        </Link>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {cards.map((card) => <StatCard key={card.title} {...card} />)}

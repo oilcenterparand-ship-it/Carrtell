@@ -7,7 +7,7 @@ import { emitAuthChanged } from '../auth/authApi';
 export default function OtpLoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const returnTo = params.get('returnTo') || '/dashboard';
+  const requestedReturnTo = params.get('returnTo') || '/';
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
@@ -55,9 +55,22 @@ export default function OtpLoginPage() {
       }));
       localStorage.setItem('carrtell_user_role', result.role || 'customer');
       emitAuthChanged();
-      sessionStorage.setItem('carrtell_checkout_resume', 'info');
+
+      // ورود و ثبت‌نام عادی همیشه به صفحه اصلی فروشگاه برمی‌گردد.
+      // فقط وقتی کاربر واقعاً از مسیر سبد خرید آمده باشد، ادامه خرید فعال می‌شود.
+      const shouldResumeCheckout = requestedReturnTo.startsWith('/cart');
+
+      if (shouldResumeCheckout) {
+        sessionStorage.setItem('carrtell_checkout_resume', 'info');
+      } else {
+        sessionStorage.removeItem('carrtell_checkout_resume');
+      }
+
       setMsg('ورود با موفقیت انجام شد.');
-      window.setTimeout(() => navigate(returnTo, { replace: true }), 250);
+      window.setTimeout(
+        () => navigate(shouldResumeCheckout ? '/cart' : '/', { replace: true }),
+        250,
+      );
     } catch (error: any) {
       setMsg(error?.message || 'تایید کد انجام نشد.');
     } finally {
@@ -75,7 +88,7 @@ export default function OtpLoginPage() {
           {sent ? <KeyRound className="h-7 w-7" /> : <Phone className="h-7 w-7" />}
         </div>
         <h1 className="mt-4 text-center text-2xl font-black">{sent ? 'تایید کد ورود' : 'ورود با شماره موبایل'}</h1>
-        <p className="mt-2 text-center text-sm leading-7 text-slate-400">بعد از ورود، خریدت از همان مرحله ادامه پیدا می‌کند و سبد خرید حفظ می‌شود.</p>
+        <p className="mt-2 text-center text-sm leading-7 text-slate-400">بعد از ورود، وارد صفحه اصلی فروشگاه می‌شوی.</p>
 
         <div className="mt-6 space-y-4">
           <input
@@ -104,7 +117,7 @@ export default function OtpLoginPage() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 p-3 font-black text-slate-950 hover:bg-amber-300 disabled:opacity-60"
           >
             {loading && <Loader2 className="h-5 w-5 animate-spin" />}
-            {sent ? 'تایید و ادامه خرید' : 'دریافت کد ورود'}
+            {sent ? 'تایید و ورود به فروشگاه' : 'دریافت کد ورود'}
           </button>
           {sent && (
             <button type="button" disabled={loading} onClick={() => { setSent(false); setCode(''); setMsg(''); }} className="w-full rounded-2xl border border-white/10 p-3 text-sm text-slate-300 hover:bg-white/5">

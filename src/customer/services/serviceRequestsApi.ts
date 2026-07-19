@@ -30,7 +30,7 @@ export type ServiceRequest = {
   current_km: number;
   last_service_km: number;
   service_interval_km: number;
-  next_service_km: number;
+  next_service_km?: number | null;
   address_id?: string | null;
   address_text: string;
   latitude?: number | null;
@@ -95,6 +95,7 @@ export type ServiceProgressInput = {
   status: ServiceRequestStatus;
   technician_name?: string | null;
   completed_current_km?: number | null;
+  next_service_km?: number | null;
   driver_note?: string | null;
   completion_note?: string | null;
   consumed_products?: string | null;
@@ -371,7 +372,6 @@ export async function updateServiceRequestProgress(id: string, input: ServicePro
   const currentItems = readLocal().map(normalizeRequest);
   const current = currentItems.find((item) => item.id === id);
   const nextCurrentKm = Number(input.completed_current_km || current?.current_km || 0);
-  const nextIntervalKm = Number(current?.service_interval_km || 5000);
 
   const updatePayload: Partial<ServiceRequest> = {
     status: input.status,
@@ -388,7 +388,7 @@ export async function updateServiceRequestProgress(id: string, input: ServicePro
     updatePayload.current_km = nextCurrentKm;
     updatePayload.completed_current_km = nextCurrentKm;
     updatePayload.last_service_km = nextCurrentKm;
-    updatePayload.next_service_km = calcNextServiceKm(nextCurrentKm, nextIntervalKm);
+    updatePayload.next_service_km = Number(input.next_service_km || 0) || null;
   }
 
   const { data, error } = await supabase

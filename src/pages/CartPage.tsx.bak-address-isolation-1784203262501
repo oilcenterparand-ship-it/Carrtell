@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, Clock3, LogIn, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, LogIn, ShieldCheck, Trash2 } from 'lucide-react';
 import { CheckCircle2, CreditCard, MapPin, PackageCheck, ShoppingCart, Truck, Wrench } from 'lucide-react';
 import MapLocationPicker from '../components/MapLocationPicker';
 import { supabase } from '../lib/supabase';
@@ -77,30 +77,6 @@ function toNumber(value: unknown) {
 
 function money(value: number) {
   return `${Math.round(value).toLocaleString('fa-IR')} تومان`;
-}
-
-const SERVICE_TIME_SLOTS = [
-  { value: '08:00', label: '۸ تا ۱۰' },
-  { value: '10:00', label: '۱۰ تا ۱۲' },
-  { value: '12:00', label: '۱۲ تا ۱۴' },
-  { value: '14:00', label: '۱۴ تا ۱۶' },
-  { value: '16:00', label: '۱۶ تا ۱۸' },
-  { value: '18:00', label: '۱۸ تا ۲۰' },
-];
-
-function toLocalIsoDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function persianServiceDate(date: Date) {
-  return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'long',
-  }).format(date);
 }
 
 function getItemId(item: CartItem) {
@@ -208,14 +184,6 @@ export default function CartPage() {
   const [showLoginGate, setShowLoginGate] = useState(false);
   const [dispatchFee, setDispatchFee] = useState(150000);
   const [serviceLaborFee, setServiceLaborFee] = useState(200000);
-  const [serviceDate, setServiceDate] = useState('');
-  const [serviceTime, setServiceTime] = useState('');
-  const availableServiceDates = useMemo(() => Array.from({ length: 14 }, (_, index) => {
-    const date = new Date();
-    date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() + index);
-    return { value: toLocalIsoDate(date), label: persianServiceDate(date), isToday: index === 0 };
-  }), []);
 
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + getItemPrice(item) * getItemQty(item), 0), [items]);
   const serviceFee = deliveryMode === 'service' ? dispatchFee + serviceLaborFee : 0;
@@ -235,23 +203,23 @@ export default function CartPage() {
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId) || null;
   const carTitle = getCarTitle(selectedCar);
   const customerInfoValid = Boolean(customer.full_name.trim() && /^09\d{9}$/.test(customer.phone.replace(/\s/g, '')));
-  const postalRequired = false;
-  const postalCodeValid = !newAddress.postal_code.trim() || /^\d{10}$/.test(newAddress.postal_code.replace(/\D/g, ''));
+  const postalRequired = deliveryMode === 'delivery' && shippingMethod !== 'pickup';
+  const postalCodeValid = !postalRequired || /^\d{10}$/.test(newAddress.postal_code.replace(/\D/g, ''));
   const addressReady = shippingMethod === 'pickup'
     ? true
     : Boolean((selectedAddressId && !showNewAddressForm) || (newAddress.province.trim() && newAddress.county.trim() && newAddress.street.trim() && postalCodeValid));
-  const serviceScheduleReady = deliveryMode !== 'service' || Boolean(serviceDate && serviceTime);
 
 
   useEffect(() => {
     clearLegacyPersistentCart();
-    localStorage.removeItem('carrtell_saved_addresses');
     setItems(readCartItems());
     setSelectedCar(readJson<SelectedCar | null>(['carrtell_selected_car', 'selected_car', 'my_selected_car'], null));
-    // آدرس عمومی قدیمی عمداً خوانده نمی‌شود؛ آدرس باید بعد از تشخیص کاربر بارگذاری شود.
-    setAddresses([]);
-    setSelectedAddressId('');
-    setShowNewAddressForm(true);
+    const localAddresses = readJson<CustomerAddress[]>(['carrtell_saved_addresses'], []);
+    if (localAddresses.length) {
+      setAddresses(localAddresses);
+      setSelectedAddressId(String(localAddresses[0].id));
+      setShowNewAddressForm(false);
+    }
 
     supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user;
@@ -293,66 +261,6 @@ export default function CartPage() {
       }
     });
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadAddressesForCurrentUser = async () => {
-      setAddresses([]);
-      setSelectedAddressId('');
-      setShowNewAddressForm(true);
-
-      if (!isAuthenticated) return;
-
-      const cleanPhone = String(authUser?.phone || customer.phone || '').replace(/\s|-/g, '').trim();
-      const userId = authUser?.id || null;
-      const identityKey = userId || cleanPhone;
-      if (!identityKey) return;
-
-      const queries = userId
-        ? [
-            supabase.from('customer_addresses').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-            supabase.from('addresses').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-          ]
-        : [
-            supabase.from('customer_addresses').select('*').eq('customer_phone', cleanPhone).order('created_at', { ascending: false }),
-            supabase.from('addresses').select('*').eq('customer_phone', cleanPhone).order('created_at', { ascending: false }),
-          ];
-
-      for (const query of queries) {
-        const { data: rows, error } = await query;
-        if (!error && rows && rows.length) {
-          if (cancelled) return;
-          const ownedRows = (rows as CustomerAddress[]).filter((row: any) => {
-            if (userId && row.user_id) return row.user_id === userId;
-            return String(row.customer_phone || '').replace(/\s|-/g, '').trim() === cleanPhone;
-          });
-          if (ownedRows.length) {
-            setAddresses(ownedRows);
-            setSelectedAddressId(String(ownedRows[0].id || ''));
-            setShowNewAddressForm(false);
-            return;
-          }
-        }
-      }
-
-      // fallback محلی نیز برای هر کاربر کلید جدا دارد.
-      try {
-        const localKey = `carrtell_saved_addresses:${identityKey}`;
-        const localRows = JSON.parse(localStorage.getItem(localKey) || '[]') as CustomerAddress[];
-        if (!cancelled && localRows.length) {
-          setAddresses(localRows);
-          setSelectedAddressId(String(localRows[0].id || ''));
-          setShowNewAddressForm(false);
-        }
-      } catch {
-        // آدرس محلی خراب نادیده گرفته می‌شود.
-      }
-    };
-
-    void loadAddressesForCurrentUser();
-    return () => { cancelled = true; };
-  }, [isAuthenticated, authUser?.id, authUser?.phone]);
 
   useEffect(() => {
     const loadServiceFees = async () => {
@@ -474,16 +382,12 @@ export default function CartPage() {
     if (!newAddress.province.trim()) errors.province = 'استان را انتخاب کن.';
     if (!newAddress.county.trim()) errors.county = 'شهرستان را انتخاب کن.';
     if (!newAddress.street.trim()) errors.street = 'آدرس دقیق را وارد کن.';
-    if (newAddress.postal_code.trim() && !/^\d{10}$/.test(newAddress.postal_code.replace(/\D/g, ''))) errors.postalCode = 'در صورت واردکردن کدپستی، باید ۱۰ رقم باشد.';
+    if (postalRequired && !/^\d{10}$/.test(newAddress.postal_code.replace(/\D/g, ''))) errors.postalCode = 'کدپستی باید ۱۰ رقم باشد.';
     setAddressFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
 
   function canGoPayment() {
-    if (deliveryMode === 'service' && !serviceScheduleReady) {
-      setMessage('تاریخ و ساعت دریافت سرویس را انتخاب کن.');
-      return false;
-    }
     if (selectedAddressId && !showNewAddressForm) {
       setAddressFieldErrors({});
       return true;
@@ -529,11 +433,8 @@ export default function CartPage() {
       }
       if (!saved) {
         saved = { ...payload, id: crypto.randomUUID() };
-        const cleanPhone = customer.phone.replace(/\s|-/g, '').trim();
-        const identityKey = authData.user?.id || authUser?.id || cleanPhone;
-        const localKey = `carrtell_saved_addresses:${identityKey}`;
-        const local = JSON.parse(localStorage.getItem(localKey) || '[]');
-        localStorage.setItem(localKey, JSON.stringify([saved, ...local]));
+        const local = JSON.parse(localStorage.getItem('carrtell_saved_addresses') || '[]');
+        localStorage.setItem('carrtell_saved_addresses', JSON.stringify([saved, ...local]));
       }
       setAddresses((prev) => [saved as CustomerAddress, ...prev]);
       setSelectedAddressId(String(saved.id));
@@ -604,47 +505,29 @@ export default function CartPage() {
         ] : items,
       };
 
-      const serviceDraft = deliveryMode === 'service'
-        ? {
-            customer_name: customer.full_name,
-            customer_phone: customer.phone,
-            car_id: carId,
-            car_name: carTitle || null,
-            vehicle_title: carTitle || null,
-            address_text: orderAddress,
-            latitude: selectedAddress?.latitude || (newAddress.latitude ? Number(newAddress.latitude) : null),
-            longitude: selectedAddress?.longitude || (newAddress.longitude ? Number(newAddress.longitude) : null),
-            preferred_date: serviceDate,
-            preferred_time: serviceTime,
-            scheduled_at: `${serviceDate}T${serviceTime}:00`,
-            status: 'pending_review',
-            service_items: items,
-            estimated_total: total,
-            customer_note: customer.note || null,
-          }
-        : null;
+      let { data: order, error } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select('id')
+        .single();
 
-      const { data: checkoutResult, error } = await supabase.rpc(
-        'carrtell_create_checkout_order',
-        {
-          p_order: orderPayload,
-          p_service: serviceDraft,
-        },
-      );
-
-      if (error) throw error;
-
-      const order =
-        checkoutResult && typeof checkoutResult === 'object'
-          ? checkoutResult
-          : null;
-
-      if (!order?.id) {
-        throw new Error('شناسه سفارش از سرور دریافت نشد.');
+      // سازگاری با دیتابیس‌های قدیمی که هنوز ستون user_id ندارند.
+      // پس از اجرای migration جدید، سفارش از همان تلاش اول با user_id ثبت می‌شود.
+      if (error && /user_id/i.test(`${error.message || ''} ${error.details || ''}`)) {
+        const { user_id: _unusedUserId, ...legacyOrderPayload } = orderPayload;
+        const retryResult = await supabase
+          .from('orders')
+          .insert(legacyOrderPayload)
+          .select('id')
+          .single();
+        order = retryResult.data;
+        error = retryResult.error;
       }
 
-      const orderId = String(order.id);
+      if (error) throw error;
+      if (!order?.id) throw new Error('شناسه سفارش از سرور دریافت نشد.');
 
+      const orderId = String(order.id);
       setCreatedOrderId(orderId);
       sessionStorage.setItem('carrtell_last_order_id', orderId);
       setStep('done');
@@ -657,7 +540,7 @@ export default function CartPage() {
   }
 
   return (
-    <main className="cart-page-theme min-h-screen bg-slate-50 px-4 pb-8 pt-32 text-slate-900 sm:px-6 lg:px-8 lg:pt-36" dir="rtl">
+    <main className="min-h-screen bg-slate-950 px-4 pb-8 pt-32 text-white sm:px-6 lg:px-8 lg:pt-36" dir="rtl">
       {showLoginGate && !isAuthenticated && !authLoading && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={() => setShowLoginGate(false)}>
           <div className="w-full max-w-md rounded-[2rem] border border-amber-400/25 bg-slate-900 p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
@@ -853,66 +736,17 @@ export default function CartPage() {
               <div className={cardClass}>
                 <h2 className="mb-4 text-xl font-black">آدرس و روش دریافت</h2>
                 <div className="mb-5 grid gap-3 md:grid-cols-2">
-                  <button type="button" onClick={() => { setDeliveryMode('delivery'); setServiceDate(''); setServiceTime(''); setAddressFieldErrors({}); setMessage(''); }} className={`rounded-2xl border p-4 text-right ${deliveryMode === 'delivery' ? 'border-amber-300 bg-amber-400/10' : 'border-white/10 bg-slate-950/50'}`}>
+                  <button onClick={() => setDeliveryMode('delivery')} className={`rounded-2xl border p-4 text-right ${deliveryMode === 'delivery' ? 'border-amber-300 bg-amber-400/10' : 'border-white/10 bg-slate-950/50'}`}>
                     <Truck className="mb-2 h-5 w-5 text-amber-300" />
                     <b>ارسال محصول</b>
                     <p className="mt-1 text-sm text-slate-400">محصول برای مشتری ارسال شود.</p>
                   </button>
-                  <button type="button" onClick={() => { setDeliveryMode('service'); setAddressFieldErrors({}); setMessage(''); }} className={`rounded-2xl border p-4 text-right ${deliveryMode === 'service' ? 'border-amber-300 bg-amber-400/10' : 'border-white/10 bg-slate-950/50'}`}>
+                  <button onClick={() => setDeliveryMode('service')} className={`rounded-2xl border p-4 text-right ${deliveryMode === 'service' ? 'border-amber-300 bg-amber-400/10' : 'border-white/10 bg-slate-950/50'}`}>
                     <Wrench className="mb-2 h-5 w-5 text-amber-300" />
                     <b>خرید + سرویس در محل</b>
                     <p className="mt-1 text-sm text-slate-400">محصول همراه سرویس در محل انجام شود.</p><p className="mt-2 text-xs font-bold text-amber-200">ایاب‌وذهاب {money(dispatchFee)} + اجرت {money(serviceLaborFee)}</p>
                   </button>
                 </div>
-
-                {deliveryMode === 'service' && (
-                  <div className="mb-5 overflow-hidden rounded-3xl border border-red-200 bg-white shadow-sm">
-                    <div className="border-b border-red-100 bg-gradient-to-l from-red-50 to-white px-5 py-4">
-                      <h3 className="flex items-center gap-2 font-black text-slate-900"><CalendarDays className="h-5 w-5 text-red-600" /> تاریخ و ساعت دریافت خدمات</h3>
-                      <p className="mt-1 text-xs text-slate-500">زمان انتخاب‌شده به مدیر و تکنسین نمایش داده می‌شود.</p>
-                    </div>
-
-                    <div className="space-y-6 p-5">
-                      <div>
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <span className="text-sm font-black text-slate-800">۱. روز مراجعه را انتخاب کن</span>
-                          {serviceDate && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">تاریخ انتخاب شد</span>}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                          {availableServiceDates.map((date) => (
-                            <button
-                              key={date.value}
-                              type="button"
-                              onClick={() => { setServiceDate(date.value); setMessage(''); }}
-                              className={`rounded-2xl border px-3 py-3 text-center transition ${serviceDate === date.value ? 'border-red-600 bg-red-600 text-white shadow-md shadow-red-200' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-red-300 hover:bg-red-50'}`}
-                            >
-                              <span className="block text-sm font-black">{date.label}</span>
-                              {date.isToday && <span className={`mt-1 block text-[11px] ${serviceDate === date.value ? 'text-red-100' : 'text-red-600'}`}>امروز</span>}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="mb-3 flex items-center gap-2 text-sm font-black text-slate-800"><Clock3 className="h-4 w-4 text-red-600" /> ۲. بازه ساعت مراجعه را انتخاب کن</div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {SERVICE_TIME_SLOTS.map((slot) => (
-                            <button
-                              key={slot.value}
-                              type="button"
-                              onClick={() => { setServiceTime(slot.value); setMessage(''); }}
-                              className={`rounded-2xl border px-3 py-3 text-sm font-black transition ${serviceTime === slot.value ? 'border-red-600 bg-red-600 text-white shadow-md shadow-red-200' : 'border-slate-200 bg-white text-slate-700 hover:border-red-300 hover:bg-red-50'}`}
-                            >
-                              {slot.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {!serviceScheduleReady && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">برای ادامه، یک روز و یک بازه زمانی انتخاب کن.</p>}
-                    </div>
-                  </div>
-                )}
 
                 {deliveryMode === 'delivery' && (
                   <div className="mb-5 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
@@ -1086,7 +920,7 @@ export default function CartPage() {
 
                 <div className="mt-5 flex justify-between">
                   <button onClick={() => setStep('info')} className="rounded-2xl border border-white/10 px-5 py-3 text-slate-200 hover:bg-white/5">بازگشت</button>
-                  <button disabled={savingAddress || !addressReady || !serviceScheduleReady} onClick={() => void goToPayment()} className="rounded-2xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40">{savingAddress ? 'در حال ذخیره...' : 'ادامه پرداخت'}</button>
+                  <button disabled={savingAddress || !addressReady} onClick={() => void goToPayment()} className="rounded-2xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40">{savingAddress ? 'در حال ذخیره...' : 'ادامه پرداخت'}</button>
                 </div>
               </div>
             )}
@@ -1099,7 +933,6 @@ export default function CartPage() {
                   <p>شماره تماس: <b className="text-white">{customer.phone}</b></p>
                   <p>روش دریافت: <b className="text-white">{deliveryMode === 'service' ? 'خرید + سرویس در محل' : shippingMethod === 'pickup' ? 'تحویل حضوری' : shippingMethod === 'express' ? 'ارسال سریع' : 'ارسال عادی'}</b></p>
                   <p>آدرس: <b className="text-white">{shippingMethod === 'pickup' ? 'تحویل حضوری از شعبه' : selectedAddress && !showNewAddressForm ? addressText(selectedAddress) : [newAddress.province, newAddress.county, newAddress.street, newAddress.plaque, newAddress.postal_code].filter(Boolean).join('، ')}</b></p>
-                  {deliveryMode === 'service' && <p>زمان سرویس: <b className="text-white">{serviceDate ? new Intl.DateTimeFormat('fa-IR-u-ca-persian', { dateStyle: 'full' }).format(new Date(`${serviceDate}T12:00:00`)) : '-'}، بازه {SERVICE_TIME_SLOTS.find((slot) => slot.value === serviceTime)?.label || '-'}</b></p>}
                   {carTitle && <p>خودرو: <b className="text-amber-200">{carTitle}</b></p>}
                 </div>
                 <div className="mt-5 flex justify-between">

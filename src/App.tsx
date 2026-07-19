@@ -29,7 +29,7 @@ import NotificationsAdminPage from './admin/pages/Notifications';
 import SupportPage from "./pages/SupportPage";
 import LoyaltyAdminPage from './admin/pages/Loyalty';
 import WalletPage from './pages/WalletPage';
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import Header from './components/Layout';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
@@ -43,6 +43,7 @@ import InvestorPage from './pages/InvestorPage';
 import PackageListPage from './pages/PackageListPage';
 import CartPage from './pages/CartPage';
 import PaymentPage from './pages/PaymentPage';
+import OrderSuccessPage from './pages/OrderSuccessPage';
 import InvoicePage from './pages/InvoicePage';
 import ReviewPage from './pages/ReviewPage';
 import DriverPage from './pages/DriverPage';
@@ -65,6 +66,7 @@ import AdminServiceRequests from './admin/pages/ServiceRequests';
 import AdminServiceBookingSettings from './admin/pages/ServiceBookingSettings';
 import AdminServiceCatalog from './admin/pages/ServiceCatalog';
 import OperationsCenter from './admin/pages/OperationsCenter';
+import PhoneOrder from './admin/pages/PhoneOrder';
 import AdminDispatch from './admin/pages/Dispatch';
 import AdminPaymentSettings from './admin/pages/PaymentSettings';
 import DriverDashboard from "./driver/pages/DriverDashboard";
@@ -110,9 +112,9 @@ function App() {
           <Route path="/admin/loyalty" element={<LoyaltyAdminPage />} />
           <Route path="/profile/wallet" element={<WalletPage />} />
           <Route element={<SiteLayout />}>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<ShopPage />} />
             <Route path="/home" element={<HomePage />} />
-            <Route path="/shop" element={<ShopPage />} />
+            <Route path="/shop" element={<Navigate to="/" replace />} />
             <Route path="/shop/product/:id" element={<ProductDetailPage />} />
             <Route path="/shop/all-products" element={<StoreCollectionPage kind="all" />} />
             <Route path="/shop/special-offers" element={<StoreCollectionPage kind="special" />} />
@@ -122,6 +124,7 @@ function App() {
             <Route path="/shop/packages/:carId" element={<PackageListPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/payment" element={<PaymentPage />} />
+            <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
             <Route path="/invoice/:orderId" element={<InvoicePage />} />
             <Route path="/review/:orderId" element={<ReviewPage />} />
             <Route path="/book" element={<BookPage />} />
@@ -134,6 +137,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="operations-center" element={<OperationsCenter />} />
+            <Route path="phone-order" element={<PhoneOrder />} />
             <Route path="quick-links" element={<AdminQuickLinks />} />
             <Route path="inventory" element={<InventoryPro />} />
             <Route path="campaigns" element={<CampaignsAdminPage />} />

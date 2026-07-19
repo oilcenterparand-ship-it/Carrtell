@@ -129,6 +129,10 @@ export default function ProductDetailPage() {
       .filter(Boolean) as Car[];
   }, [product, cars]);
 
+  const selectedCarCompatibility = selectedCustomerCar?.id
+    ? productMatchesCar(product as Product, selectedCustomerCar.id)
+    : null;
+
   const relatedProducts = useMemo(() => {
     if (!product) return [];
     const explicitIds = product.related_product_ids || [];
@@ -205,6 +209,11 @@ export default function ProductDetailPage() {
           <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
             <div className="grid gap-4 md:grid-cols-[0.88fr_1.12fr]">
               <div className="order-2 md:order-1">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  {product.is_best_seller && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700">پرفروش</span>}
+                  {amazingActive && <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-600">پیشنهاد ویژه</span>}
+                  {isAvailable && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">آماده ارسال</span>}
+                </div>
                 <h1 className="text-xl font-black leading-8 text-slate-950 md:text-2xl">{product.name}</h1>
                 <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-slate-500">{product.card_features || product.description || 'اطلاعات تکمیلی این محصول از پنل مدیریت قابل ثبت است.'}</p>
                 <div className="my-4 h-px bg-slate-100" />
@@ -230,7 +239,7 @@ export default function ProductDetailPage() {
             </div>
           </article>
 
-          <aside className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+          <aside className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5 lg:sticky lg:top-24 lg:self-start">
             <div className="flex items-end justify-between gap-3">
               <div>
                 {amazingActive && <p className="text-sm text-slate-400 line-through">{formatPrice(Number(product.price || 0))} تومان</p>}
@@ -242,6 +251,18 @@ export default function ProductDetailPage() {
                 <button type="button" onClick={() => setQuantity((current) => Math.max(1, current - 1))} className="h-full w-12 text-slate-500 hover:bg-slate-50"><Minus className="mx-auto h-4.5 w-4.5" /></button>
               </div>
             </div>
+
+            {selectedCustomerCar?.id && (
+              <div className={`mt-4 flex items-center gap-3 rounded-2xl border px-3.5 py-3 ${selectedCarCompatibility ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                <CarFront className={`h-5 w-5 shrink-0 ${selectedCarCompatibility ? 'text-emerald-600' : 'text-amber-600'}`} />
+                <div className="min-w-0">
+                  <p className={`text-xs font-black ${selectedCarCompatibility ? 'text-emerald-800' : 'text-amber-800'}`}>
+                    {selectedCarCompatibility ? 'برای خودروی انتخابی شما مناسب است' : 'سازگاری با خودروی انتخابی تأیید نشده'}
+                  </p>
+                  <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">{selectedCustomerCar.title || 'خودروی انتخاب‌شده در پروفایل'}</p>
+                </div>
+              </div>
+            )}
 
             <button type="button" disabled={!isAvailable} onClick={addToCart} className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400" style={isAvailable ? { background: primary } : undefined}>
               <ShoppingCart className="h-5 w-5" />

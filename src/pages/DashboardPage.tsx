@@ -27,7 +27,6 @@ import { getOrderItems, getOrdersByPhone, type Order } from '../admin/services/o
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import {
   buildReminders,
-  calcNextServiceKm,
   deleteCustomerVehicle,
   getCustomerVehicles,
   getServiceStatusClass,
@@ -387,7 +386,9 @@ export default function DashboardPage() {
     if (!serviceKm) return alert('کیلومتر انجام سرویس را وارد کن.');
     setSavingService(true);
     try {
-      const nextKm = Number(serviceForm.next_service_km || calcNextServiceKm(serviceKm, defaultVehicle.service_interval_km));
+      const nextKm = Number(serviceForm.next_service_km || 0);
+      if (!nextKm) return alert('کیلومتر سرویس بعدی را به‌صورت دستی وارد کن.');
+      if (nextKm <= serviceKm) return alert('کیلومتر سرویس بعدی باید بیشتر از کیلومتر انجام سرویس باشد.');
       const changedItems = serviceCatalog.filter((item) => serviceForm.changed_ids.includes(item.id)).map((item) => ({ id: item.id, title: item.title, emoji: item.emoji || '🔧' }));
       await saveServiceHistory({
         customer_phone: profile.phone,
@@ -649,8 +650,8 @@ export default function DashboardPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <input value={serviceForm.service_type} onChange={(e) => setServiceForm({ ...serviceForm, service_type: e.target.value })} placeholder="عنوان سرویس" className={fieldClass} />
                 <input type="date" value={serviceForm.service_date} onChange={(e) => setServiceForm({ ...serviceForm, service_date: e.target.value })} className={fieldClass} />
-                <input type="number" value={serviceForm.service_km || ''} onChange={(e) => { const value = Number(e.target.value || 0); setServiceForm({ ...serviceForm, service_km: value, next_service_km: value ? calcNextServiceKm(value, defaultVehicle?.service_interval_km || 5000) : 0 }); }} placeholder="کیلومتر انجام سرویس" className={fieldClass} />
-                <input type="number" value={serviceForm.next_service_km || ''} onChange={(e) => setServiceForm({ ...serviceForm, next_service_km: Number(e.target.value || 0) })} placeholder="کیلومتر سرویس بعدی" className={fieldClass} />
+                <input type="number" value={serviceForm.service_km || ''} onChange={(e) => setServiceForm({ ...serviceForm, service_km: Number(e.target.value || 0) })} placeholder="کیلومتر انجام سرویس" className={fieldClass} />
+                <input type="number" value={serviceForm.next_service_km || ''} onChange={(e) => setServiceForm({ ...serviceForm, next_service_km: Number(e.target.value || 0) })} placeholder="کیلومتر سرویس بعدی (ثبت دستی)" className={fieldClass} />
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{serviceCatalog.map((item) => { const active = serviceForm.changed_ids.includes(item.id); return <button type="button" key={item.id} onClick={() => setServiceForm({ ...serviceForm, changed_ids: active ? serviceForm.changed_ids.filter((id) => id !== item.id) : [...serviceForm.changed_ids, item.id] })} className={`rounded-2xl border p-3 text-right text-sm ${active ? 'border-emerald-400/50 bg-emerald-400/15 text-emerald-100' : 'border-slate-200 bg-slate-50 text-slate-500'}`}><span className="ml-2">{item.emoji || '🔧'}</span>{item.title}</button>})}</div>
               <input value={serviceForm.products_used} onChange={(e) => setServiceForm({ ...serviceForm, products_used: e.target.value })} placeholder="محصولات مصرفی، با کاما جدا کن" className={`mt-3 ${fieldClass}`} />

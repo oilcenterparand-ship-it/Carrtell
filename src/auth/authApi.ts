@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { clearCart } from '../lib/cart';
 
 export type UserRole = 'admin' | 'driver' | 'customer';
 
@@ -180,5 +181,7 @@ export async function signOutCarrtell() {
   localStorage.removeItem(LOCAL_PROFILE_KEY);
   localStorage.removeItem(LOCAL_ROLE_KEY);
   localStorage.removeItem(LOCAL_DEV_ADMIN_KEY);
+  clearCart();
+  sessionStorage.removeItem('carrtell_checkout_resume');
   emitAuthChanged();
 }

@@ -604,46 +604,57 @@ export default function CartPage() {
         ] : items,
       };
 
-      const serviceDraft = deliveryMode === 'service'
-        ? {
-            customer_name: customer.full_name,
-            customer_phone: customer.phone,
-            car_id: carId,
-            car_name: carTitle || null,
-            vehicle_title: carTitle || null,
-            address_text: orderAddress,
-            latitude: selectedAddress?.latitude || (newAddress.latitude ? Number(newAddress.latitude) : null),
-            longitude: selectedAddress?.longitude || (newAddress.longitude ? Number(newAddress.longitude) : null),
-            preferred_date: serviceDate,
-            preferred_time: serviceTime,
-            scheduled_at: `${serviceDate}T${serviceTime}:00`,
-            status: 'pending_review',
-            service_items: items,
-            estimated_total: total,
-            customer_note: customer.note || null,
-          }
-        : null;
+      let { data: order, error } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select('id, order_number')
+        .single();
 
-      const { data: checkoutResult, error } = await supabase.rpc(
-        'carrtell_create_checkout_order',
-        {
-          p_order: orderPayload,
-          p_service: serviceDraft,
-        },
-      );
-
-      if (error) throw error;
-
-      const order =
-        checkoutResult && typeof checkoutResult === 'object'
-          ? checkoutResult
-          : null;
-
-      if (!order?.id) {
-        throw new Error('شناسه سفارش از سرور دریافت نشد.');
+      // سازگاری با دیتابیس‌های قدیمی که هنوز ستون user_id ندارند.
+      // پس از اجرای migration جدید، سفارش از همان تلاش اول با user_id ثبت می‌شود.
+      if (error && /user_id/i.test(`${error.message || ''} ${error.details || ''}`)) {
+        const { user_id: _unusedUserId, ...legacyOrderPayload } = orderPayload;
+        const retryResult = await supabase
+          .from('orders')
+          .insert(legacyOrderPayload)
+          .select('id, order_number')
+          .single();
+        order = retryResult.data;
+        error = retryResult.error;
       }
 
+      if (error) throw error;
+      if (!order?.id) throw new Error('شناسه سفارش از سرور دریافت نشد.');
+
       const orderId = String(order.id);
+
+      if (deliveryMode === 'service') {
+        const scheduledAt = `${serviceDate}T${serviceTime}:00`;
+        const servicePayload = {
+          order_id: orderId,
+          request_number: order.order_number ? `SR-${order.order_number}` : `SR-${orderId.slice(0, 8).toUpperCase()}`,
+          customer_name: customer.full_name,
+          customer_phone: customer.phone,
+          car_id: carId,
+          car_name: carTitle || null,
+          vehicle_title: carTitle || null,
+          address_text: orderAddress,
+          latitude: selectedAddress?.latitude || (newAddress.latitude ? Number(newAddress.latitude) : null),
+          longitude: selectedAddress?.longitude || (newAddress.longitude ? Number(newAddress.longitude) : null),
+          preferred_date: serviceDate,
+          preferred_time: serviceTime,
+          scheduled_at: scheduledAt,
+          status: 'pending_review',
+          service_items: items,
+          estimated_total: total,
+          customer_note: customer.note || null,
+        };
+
+        const { error: serviceError } = await supabase
+          .from('service_requests')
+          .upsert(servicePayload, { onConflict: 'order_id' });
+        if (serviceError) throw serviceError;
+      }
 
       setCreatedOrderId(orderId);
       sessionStorage.setItem('carrtell_last_order_id', orderId);

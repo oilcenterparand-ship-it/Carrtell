@@ -12,6 +12,7 @@ export function useAdminRoutes() {
       { path: '/admin', label: 'داشبورد', icon: 'home' },
       { path: '/admin/dashboard', label: 'داشبورد KPI', icon: 'home' },
       { path: '/admin/operations-center', label: 'مرکز عملیات زنده', icon: 'orders' },
+      { path: '/admin/phone-order', label: 'ثبت سفارش تلفنی', icon: 'orders' },
       { path: '/admin/quick-links', label: 'مرکز مسیرها', icon: 'settings' },
       { path: '/admin/home-content', label: 'صفحه اصلی', icon: 'homeContent' },
       { path: '/admin/products', label: 'محصولات', icon: 'box' },

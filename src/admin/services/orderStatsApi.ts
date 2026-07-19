@@ -24,6 +24,24 @@ export type AdminOrderSummary = {
   created_at: string;
 };
 
+
+export type AdminOnsiteRequestSummary = {
+  id: string;
+  order_id?: string | null;
+  request_number?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  vehicle_title?: string | null;
+  car_name?: string | null;
+  preferred_date?: string | null;
+  preferred_time?: string | null;
+  scheduled_at?: string | null;
+  assigned_driver_id?: string | null;
+  assigned_driver_name?: string | null;
+  status?: string | null;
+  created_at: string;
+};
+
 export type AdminOrderStats = {
   total: number;
   pendingReview: number;
@@ -119,4 +137,16 @@ export function subscribeToOrders(onChange: () => void) {
     window.removeEventListener('focus', handleFocus);
     document.removeEventListener('visibilitychange', handleVisibility);
   };
+}
+
+
+export async function getPendingOnsiteRequests(limit = 8) {
+  const { data, error } = await supabase
+    .from('service_requests')
+    .select('id, order_id, request_number, customer_name, customer_phone, vehicle_title, car_name, preferred_date, preferred_time, scheduled_at, assigned_driver_id, assigned_driver_name, status, created_at')
+    .in('status', ['pending_review', 'pending', 'confirmed'])
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data || []) as AdminOnsiteRequestSummary[];
 }

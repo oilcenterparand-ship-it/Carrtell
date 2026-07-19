@@ -24,10 +24,9 @@ type Draft = {
 
 function emptyDraft(task?: any): Draft {
   const current = Number(task?.current_km || task?.final_km || 0);
-  const interval = Number(task?.service_interval_km || 5000);
   return {
     finalKm: current ? String(current) : '',
-    nextKm: current ? String(current + interval) : '',
+    nextKm: '',
     serviceDate: new Date().toISOString().slice(0, 10),
     serviceType: task?.service_title || 'سرویس دوره‌ای روغن و فیلتر',
     notes: '', warnings: '', products: '', changedIds: [],
@@ -83,11 +82,12 @@ export default function DriverPage() {
     const finalKm = Number(draft.finalKm || 0);
     const nextKm = Number(draft.nextKm || 0);
     if (!finalKm) return alert('کیلومتر فعلی خودرو را وارد کن.');
-    if (nextKm && nextKm <= finalKm) return alert('کیلومتر سرویس بعدی باید بیشتر از کیلومتر فعلی باشد.');
+    if (!nextKm) return alert('کیلومتر سرویس بعدی را به‌صورت دستی وارد کن.');
+    if (nextKm <= finalKm) return alert('کیلومتر سرویس بعدی باید بیشتر از کیلومتر فعلی باشد.');
     setSavingId(task.id);
     try {
       const changedItems = catalog.filter(item => draft.changedIds.includes(item.id)).map(item => ({ id: item.id, title: item.title, emoji: item.emoji || '🔧' }));
-      await completeServiceRequest(task.id, { final_km: finalKm, driver_notes: draft.notes, used_products: draft.products.split(',').map(x => x.trim()).filter(Boolean) });
+      await completeServiceRequest(task.id, { final_km: finalKm, next_service_km: nextKm, driver_notes: draft.notes, used_products: draft.products.split(',').map(x => x.trim()).filter(Boolean) });
       await saveServiceHistory({
         customer_phone: task.customer_phone || '',
         vehicle_id: task.customer_vehicle_id || task.vehicle_id || null,
@@ -149,8 +149,8 @@ export default function DriverPage() {
 
                 <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                   <label className="text-xs text-slate-400">تاریخ سرویس<input type="date" value={draft.serviceDate} onChange={e=>updateDraft(task.id,{serviceDate:e.target.value})} className={`mt-1 ${field}`}/></label>
-                  <label className="text-xs text-slate-400">کیلومتر فعلی<input inputMode="numeric" value={draft.finalKm} onChange={e=>{const v=e.target.value; const interval=Number(task.service_interval_km||5000);updateDraft(task.id,{finalKm:v,nextKm:v?String(Number(v)+interval):''});}} className={`mt-1 ${field}`}/></label>
-                  <label className="text-xs text-slate-400">کیلومتر سرویس بعدی<input inputMode="numeric" value={draft.nextKm} onChange={e=>updateDraft(task.id,{nextKm:e.target.value})} className={`mt-1 ${field}`}/></label>
+                  <label className="text-xs text-slate-400">کیلومتر فعلی<input inputMode="numeric" value={draft.finalKm} onChange={e=>updateDraft(task.id,{finalKm:e.target.value})} className={`mt-1 ${field}`}/></label>
+                  <label className="text-xs text-slate-400">کیلومتر سرویس بعدی (ثبت دستی)<input inputMode="numeric" value={draft.nextKm} onChange={e=>updateDraft(task.id,{nextKm:e.target.value})} className={`mt-1 ${field}`}/></label>
                   <label className="text-xs text-slate-400">عنوان سرویس<input value={draft.serviceType} onChange={e=>updateDraft(task.id,{serviceType:e.target.value})} className={`mt-1 ${field}`}/></label>
                 </div>
 
