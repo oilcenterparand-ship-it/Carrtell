@@ -30,6 +30,7 @@ import SupportPage from "./pages/SupportPage";
 import LoyaltyAdminPage from './admin/pages/Loyalty';
 import WalletPage from './pages/WalletPage';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import GlobalRouteGuard from './auth/GlobalRouteGuard';
 import AdminRouteGuard from './admin/auth/AdminRouteGuard';
 import AdminLogin from './admin/pages/AdminLogin';
@@ -89,6 +90,16 @@ import CampaignsAdminPage from './pages/CampaignsAdminPage';
 import AdminDiscountsCampaignsPage from './pages/AdminDiscountsCampaignsPage';
 import PaymentSettings from './admin/pages/PaymentSettings';
 
+
+function ScrollToTop() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname]);
+
+  return null;
+}
 function SiteLayout() {
   const location = useLocation();
   const isMobileStandalone = location.pathname === '/book' || location.pathname.startsWith('/service-payment/') || (location.pathname === '/dashboard' && location.hash.includes('orders'));
@@ -126,9 +137,9 @@ function App() {
           <Route path="/admin/loyalty" element={<LoyaltyAdminPage />} />
           <Route path="/profile/wallet" element={<WalletPage />} />
           <Route element={<SiteLayout />}>
-            <Route path="/" element={<ShopPage />} />
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/shop" element={<Navigate to="/" replace />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/home" element={<Navigate to="/" replace />} />
+            <Route path="/shop" element={<ShopPage />} />
             <Route path="/shop/product/:id" element={<ProductDetailPage />} />
             <Route path="/shop/all-products" element={<StoreCollectionPage kind="all" />} />
             <Route path="/shop/special-offers" element={<StoreCollectionPage kind="special" />} />
