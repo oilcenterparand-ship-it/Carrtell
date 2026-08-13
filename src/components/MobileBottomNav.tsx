@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Home, ShoppingBag, Wrench, Package, UserRound } from 'lucide-react';
+import { Home, ShoppingBag, Wrench, UserRound } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 
@@ -12,10 +12,9 @@ type MobileNavItem = {
 };
 
 const items: MobileNavItem[] = [
-  { to: '/', label: 'خانه', Icon: Home, matches: (pathname) => pathname === '/' },
-  { to: '/shop', label: 'فروشگاه', Icon: ShoppingBag, matches: (pathname) => pathname.startsWith('/shop') || pathname.startsWith('/product/') || pathname.startsWith('/collection/') },
+  { to: '/', label: 'خانه', Icon: Home, matches: (pathname) => pathname === '/' || pathname === '/home' },
+  { to: '/shop', label: 'فروشگاه', Icon: ShoppingBag, matches: (pathname) => pathname === '/shop' || pathname.startsWith('/shop/') || pathname.startsWith('/package-categories/') },
   { to: '/book', label: 'رزرو سرویس', Icon: Wrench, matches: (pathname) => pathname === '/book', featured: true },
-  { to: '/dashboard#orders', label: 'سفارش‌ها', Icon: Package, matches: (pathname) => pathname === '/dashboard' && window.location.hash === '#orders' },
 ];
 
 export default function MobileBottomNav() {
