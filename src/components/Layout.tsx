@@ -73,7 +73,7 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { role, user, loading: authLoading, signOut } = useAuth();
-  const showStorefrontBars = location.pathname === '/' || location.pathname.startsWith('/shop');
+  const showStorefrontBars = !(location.pathname === '/' || location.pathname.startsWith('/shop')); // Shop renders its compact category rail below Smart Match
 
   const keepDrawerMegaOpen = () => {
     if (drawerMegaCloseTimer.current !== null) {
@@ -229,7 +229,7 @@ export default function Header() {
 
   const roleShortcut = role === 'admin'
     ? { to: '/admin', label: 'پنل مدیریت', Icon: ShieldCheck }
-    : role === 'driver'
+    : role === 'technician'
       ? { to: '/driver', label: 'پنل سرویس‌کار', Icon: Wrench }
       : null;
   const RoleIcon = roleShortcut?.Icon;
@@ -371,14 +371,14 @@ export default function Header() {
                   aria-expanded={accountOpen}
                 >
                   <CircleUserRound className="h-5 w-5" />
-                  <span>سلام {user.fullName?.split(' ')[0] || 'کاربر'}</span>
+                  <span>{user.fullName?.trim() ? `سلام، ${user.fullName.trim()}` : 'سلام، خوش آمدید'}</span>
                   <ChevronDown className={`h-4 w-4 transition ${accountOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {accountOpen && (
                   <div className="ct-new-account-menu">
                     <div className="ct-new-account-menu-head">
-                      <b>سلام {user.fullName?.split(' ')[0] || 'کاربر'}</b>
+                      <b>{user.fullName?.trim() ? `سلام، ${user.fullName.trim()}` : 'سلام، خوش آمدید'}</b>
                       <span>{user.phone || 'حساب کاربری'}</span>
                     </div>
                     <nav>

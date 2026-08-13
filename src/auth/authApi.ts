@@ -1,98 +1,33 @@
 import { supabase } from '../lib/supabase';
 import { clearCart } from '../lib/cart';
 
-export type UserRole = 'admin' | 'driver' | 'customer';
-
-export type CarrtellAuthUser = {
-  id?: string;
-  phone?: string | null;
-  email?: string | null;
-  role: UserRole;
-  fullName?: string | null;
-};
-
-const LOCAL_PROFILE_KEY = 'carrtell_customer_profile';
-const LOCAL_ROLE_KEY = 'carrtell_user_role';
-const LOCAL_DEV_ADMIN_KEY = 'carrtell_dev_admin';
+export type UserRole = 'admin' | 'technician' | 'driver' | 'customer';
+export type CarrtellAuthUser = { id: string; phone: string | null; email: string | null; role: UserRole; fullName: string | null };
 const AUTH_EVENT = 'carrtell-auth-updated';
+const ROLES: UserRole[] = ['admin', 'technician', 'driver', 'customer'];
 
-const USER_ROLES: UserRole[] = ['admin', 'driver', 'customer'];
-
-function isValidRole(value: unknown): value is UserRole {
-  return typeof value === 'string' && USER_ROLES.includes(value as UserRole);
+export function normalizeIranPhone(input: string) {
+  const digits = String(input || '').replace(/\D/g, '');
+  if (/^09\d{9}$/.test(digits)) return `+98${digits.slice(1)}`;
+  if (/^9\d{9}$/.test(digits)) return `+98${digits}`;
+  if (/^989\d{9}$/.test(digits)) return `+${digits}`;
+  throw new Error('شماره موبایل معتبر وارد کنید؛ مانند 09123456789.');
 }
-
-function normalizeIranPhone(phone: string) {
-  const digits = phone.trim().replace(/[\s-]/g, '');
-  if (digits.startsWith('+')) return digits;
-  if (digits.startsWith('0098')) return `+98${digits.slice(4)}`;
-  if (digits.startsWith('98')) return `+${digits}`;
-  if (digits.startsWith('0')) return `+98${digits.slice(1)}`;
-  return digits;
+function normalizeRole(value: unknown): UserRole {
+  if (value === 'driver') return 'technician';
+  return typeof value === 'string' && ROLES.includes(value as UserRole) ? value as UserRole : 'customer';
 }
-
-export function emitAuthChanged() {
-  window.dispatchEvent(new CustomEvent(AUTH_EVENT));
-}
-
+export function emitAuthChanged() { window.dispatchEvent(new CustomEvent(AUTH_EVENT)); }
 export function onAuthChanged(callback: () => void) {
-  window.addEventListener(AUTH_EVENT, callback);
-  window.addEventListener('storage', callback);
-  return () => {
-    window.removeEventListener(AUTH_EVENT, callback);
-    window.removeEventListener('storage', callback);
-  };
+  window.addEventListener(AUTH_EVENT, callback); window.addEventListener('storage', callback);
+  return () => { window.removeEventListener(AUTH_EVENT, callback); window.removeEventListener('storage', callback); };
 }
-
-function readStoredRole(): UserRole | null {
-  const localRole = localStorage.getItem(LOCAL_ROLE_KEY);
-  return isValidRole(localRole) ? localRole : null;
-}
-
-export function readLocalCustomer(): CarrtellAuthUser | null {
-  try {
-    const raw = localStorage.getItem(LOCAL_PROFILE_KEY);
-    if (!raw) return null;
-    const profile = JSON.parse(raw) as { phone?: string; fullName?: string };
-    if (!profile.phone) return null;
-
-    const storedRole = readStoredRole();
-    const devAdminEnabled = import.meta.env.DEV && localStorage.getItem(LOCAL_DEV_ADMIN_KEY) === 'true';
-
-    return {
-      phone: profile.phone,
-      fullName: profile.fullName || null,
-      role: storedRole || (devAdminEnabled ? 'admin' : 'customer'),
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function setLocalRole(role: UserRole) {
-  localStorage.setItem(LOCAL_ROLE_KEY, role);
-  emitAuthChanged();
-}
-
-export function enableLocalDevAdmin() {
-  localStorage.setItem(LOCAL_DEV_ADMIN_KEY, 'true');
-  localStorage.setItem(LOCAL_ROLE_KEY, 'admin');
-  emitAuthChanged();
-}
-
-export function disableLocalDevAdmin() {
-  localStorage.removeItem(LOCAL_DEV_ADMIN_KEY);
-  localStorage.removeItem(LOCAL_ROLE_KEY);
-  emitAuthChanged();
-}
-
 export async function sendMobileOtp(phone: string) {
   const normalized = normalizeIranPhone(phone);
-  const { error } = await supabase.auth.signInWithOtp({ phone: normalized });
+  const { error } = await supabase.auth.signInWithOtp({ phone: normalized, options: { shouldCreateUser: true } });
   if (error) throw error;
   return normalized;
 }
-
 export async function verifyMobileOtp(phone: string, token: string) {
   const normalized = normalizeIranPhone(phone);
   const { data, error } = await supabase.auth.verifyOtp({ phone: normalized, token, type: 'sms' });
@@ -100,88 +35,24 @@ export async function verifyMobileOtp(phone: string, token: string) {
   emitAuthChanged();
   return data;
 }
-
-async function profilesTableHasAnyUser() {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .limit(1);
-
+async function loadProfile(userId: string) {
+  const { data, error } = await supabase.from('profiles').select('role,full_name,phone').eq('id', userId).maybeSingle();
   if (error) throw error;
-  return Boolean(data?.length);
+  return data;
 }
-
-async function ensureProfileAndReadRole(user: { id: string; phone?: string | null; email?: string | null; user_metadata?: Record<string, unknown> }): Promise<UserRole> {
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!error && isValidRole(profile?.role)) {
-    localStorage.setItem(LOCAL_ROLE_KEY, profile.role);
-    return profile.role;
-  }
-
-  // اگر پروفایل وجود نداشت، برای کاربر فعلی می‌سازیم.
-  // در اولین نصب پروژه، اولین پروفایل مدیر می‌شود تا قفل ادمین پیش نیاید.
-  if (!error || error.code === 'PGRST116') {
-    const hasAnyProfile = await profilesTableHasAnyUser().catch(() => true);
-    const role: UserRole = hasAnyProfile ? 'customer' : 'admin';
-
-    const { data: created, error: insertError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        phone: user.phone || null,
-        full_name: typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null,
-        role,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
-      .select('role')
-      .single();
-
-    if (!insertError && isValidRole(created?.role)) {
-      localStorage.setItem(LOCAL_ROLE_KEY, created.role);
-      return created.role;
-    }
-  }
-
-  // اگر جدول profiles هنوز migration نشده باشد، حداقل نقش محلی را نگه می‌داریم.
-  const storedRole = readStoredRole();
-  return storedRole || 'customer';
-}
-
-export async function refreshStoredRoleFromSupabase(): Promise<UserRole | null> {
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return readStoredRole();
-  return ensureProfileAndReadRole(data.user);
-}
-
 export async function getCurrentCarrtellUser(): Promise<CarrtellAuthUser | null> {
-  const { data } = await supabase.auth.getUser();
-  const supabaseUser = data.user;
-
-  if (supabaseUser) {
-    const role = await ensureProfileAndReadRole(supabaseUser);
-    return {
-      id: supabaseUser.id,
-      phone: supabaseUser.phone,
-      email: supabaseUser.email,
-      role,
-      fullName: (supabaseUser.user_metadata?.full_name as string | undefined) || null,
-    };
-  }
-
-  return readLocalCustomer();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
+  if (!user) return null;
+  const profile = await loadProfile(user.id);
+  return { id: user.id, phone: profile?.phone || user.phone || null, email: user.email || null, role: normalizeRole(profile?.role), fullName: profile?.full_name || null };
 }
-
+export async function refreshStoredRoleFromSupabase() { return (await getCurrentCarrtellUser())?.role || null; }
 export async function signOutCarrtell() {
-  await supabase.auth.signOut();
-  localStorage.removeItem(LOCAL_PROFILE_KEY);
-  localStorage.removeItem(LOCAL_ROLE_KEY);
-  localStorage.removeItem(LOCAL_DEV_ADMIN_KEY);
-  clearCart();
-  sessionStorage.removeItem('carrtell_checkout_resume');
-  emitAuthChanged();
+  await supabase.auth.signOut({ scope: 'local' });
+  clearCart(); sessionStorage.removeItem('carrtell_checkout_resume'); emitAuthChanged();
 }
+
+export function enableLocalDevAdmin() { console.warn('Dev admin bypass is disabled in RC1-01B.'); }
+export function disableLocalDevAdmin() { /* disabled for security */ }
+export function setLocalRole(_role: UserRole) { console.warn('Local role changes are disabled.'); }

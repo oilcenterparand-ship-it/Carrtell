@@ -23,8 +23,14 @@ export type Order = {
   payment_provider?: string | null;
   payment_reference?: string | null;
   paid_at?: string | null;
+  payment_authority?: string | null;
+  payment_attempts?: number | null;
+  last_payment_error?: string | null;
+  inventory_applied?: boolean | null;
   total_amount: number;
   items_count: number;
+  items?: unknown[] | null;
+  fulfillment_warehouse_id?: string | null;
   created_at: string;
 };
 
@@ -108,6 +114,14 @@ export async function createOrder(input: CreateOrderInput) {
       payment_status: 'unpaid',
       total_amount: totalAmount,
       items_count: itemsCount,
+      items: normalizedItems.map((item) => ({
+        product_id: item.product.id,
+        product_name: item.product.name,
+        product_image_url: item.product.image_url || null,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        total_price: item.totalPrice,
+      })),
     })
     .select()
     .single();
@@ -154,17 +168,55 @@ export async function createOrder(input: CreateOrderInput) {
   const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
   if (itemsError) throw itemsError;
 
-  for (const item of normalizedItems) {
-    const latest = latestMap.get(item.product.id!);
-    const nextStock = Math.max(0, Number(latest.stock || 0) - item.quantity);
-    const { error: updateError } = await supabase
-      .from('products')
-      .update({ stock: nextStock, is_out_of_stock: nextStock <= 0 })
-      .eq('id', item.product.id);
-    if (updateError) throw updateError;
-  }
+  // موجودی فقط پس از تأیید قطعی پرداخت و داخل تابع اتمیک دیتابیس کم می‌شود.
+
 
   return order as Order;
+}
+
+
+export type OrderPaymentSnapshot = {
+  order: Order;
+  items: OrderItem[];
+};
+
+function normalizeEmbeddedOrderItems(order: Order): OrderItem[] {
+  const rawItems = Array.isArray(order.items) ? order.items : [];
+  return rawItems
+    .map((raw: any, index) => {
+      const quantity = Math.max(0, Number(raw?.quantity || 0));
+      const unitPrice = Math.max(0, Number(raw?.unit_price ?? raw?.price ?? 0));
+      if (!quantity || !String(raw?.name || raw?.product_name || '').trim()) return null;
+      return {
+        id: String(raw?.order_item_id || raw?.id || `embedded-${index}`),
+        order_id: order.id,
+        product_id: String(raw?.product_id || raw?.id || ''),
+        product_name: String(raw?.product_name || raw?.name || 'کالای سفارش'),
+        product_image_url: raw?.product_image_url || raw?.image_url || raw?.image || null,
+        quantity,
+        unit_price: unitPrice,
+        total_price: Math.max(0, Number(raw?.total_price ?? unitPrice * quantity)),
+      } as OrderItem;
+    })
+    .filter(Boolean) as OrderItem[];
+}
+
+export async function getOrderPaymentSnapshot(orderId: string): Promise<OrderPaymentSnapshot> {
+  const { data, error } = await supabase.rpc('carrtell_get_order_payment_snapshot', {
+    p_order_id: orderId,
+  });
+
+  if (!error && data && typeof data === 'object') {
+    const snapshot = data as any;
+    const order = snapshot.order as Order;
+    const items = Array.isArray(snapshot.items) ? snapshot.items as OrderItem[] : [];
+    if (order?.id) return { order, items };
+  }
+
+  const order = await getOrder(orderId);
+  const tableItems = await getOrderItems(orderId).catch(() => [] as OrderItem[]);
+  const embeddedItems = normalizeEmbeddedOrderItems(order);
+  return { order, items: tableItems.length ? tableItems : embeddedItems };
 }
 
 export async function getOrders() {
@@ -214,9 +266,7 @@ export async function getOrdersByPhone(phone: string) {
 }
 
 export async function getOrderWithItems(orderId: string) {
-  const order = await getOrder(orderId);
-  const items = await getOrderItems(orderId);
-  return { order, items };
+  return getOrderPaymentSnapshot(orderId);
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus) {

@@ -5,6 +5,8 @@ export type Product = {
   name: string;
   brand?: string;
   brand_id?: string | null;
+  warehouse_id?: string | null;
+  oil_base?: string;
   category?: string;
   oil_grade?: string;
   quality_level?: string;
@@ -45,6 +47,8 @@ const OPTIONAL_PRODUCT_COLUMNS = new Set([
   'recommendation_priority',
   'related_product_ids',
   'upsell_title',
+  'warehouse_id',
+  'oil_base',
 ]);
 
 function getMissingSchemaColumn(error: unknown): string | null {

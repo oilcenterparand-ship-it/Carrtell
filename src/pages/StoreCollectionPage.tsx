@@ -8,6 +8,7 @@ import {
   PackageCheck,
   Search,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getProducts, type Product } from '../admin/services/productsApi';
@@ -16,7 +17,7 @@ import { defaultThemeSettings, getThemeSettings, type ThemeSettings } from '../a
 import { CARRTELL_APPEARANCE_EVENT, loadCarrtellAppearance, type CarrtellThemePresetId } from '../lib/appearanceThemes';
 import { applyHomepagePreset } from '../lib/homepageThemePresets';
 import { addProductToCart } from '../lib/cart';
-import { onSelectedCustomerCarChange, readSelectedCustomerCar } from '../customer/services/selectedCar';
+import { onSelectedCustomerCarChange, readSelectedCustomerCar, saveSelectedCustomerCar } from '../customer/services/selectedCar';
 import { ProductCard } from './ShopPage';
 
 export type StoreCollectionKind = 'all' | 'special' | 'featured' | 'packages';
@@ -161,7 +162,7 @@ export default function StoreCollectionPage({ kind }: { kind: StoreCollectionKin
     >
       <div className="container-custom space-y-4">
         <section
-          className="rounded-3xl border p-4 shadow-sm md:p-5"
+          className="ct-collection-hero rounded-3xl border p-4 shadow-sm md:p-5"
           style={{ background: pageSectionBackground, borderColor: pageBorder, color: pageSectionText, borderRadius: theme.borderRadius }}
         >
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -179,12 +180,10 @@ export default function StoreCollectionPage({ kind }: { kind: StoreCollectionKin
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {selectedCar && (
-                <span
-                  className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold"
-                  style={{ background: pageCardBackground, borderColor: pageBorder, color: pageSectionText }}
-                >
+                <span className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold" style={{ background: pageCardBackground, borderColor: pageBorder, color: pageSectionText }}>
                   <CarFront className="h-4 w-4" style={{ color: accent }} />
                   {selectedCar.title}
+                  <button type="button" aria-label="حذف فیلتر خودرو" onClick={() => saveSelectedCustomerCar(null)} className="rounded-full p-0.5 hover:bg-white/10"><X className="h-3.5 w-3.5" /></button>
                 </span>
               )}
               <span
@@ -206,7 +205,7 @@ export default function StoreCollectionPage({ kind }: { kind: StoreCollectionKin
         </section>
 
         <section
-          className="rounded-3xl border p-3 shadow-sm"
+          className="ct-collection-search rounded-3xl border p-3 shadow-sm"
           style={{ background: pageSectionBackground, borderColor: pageBorder, borderRadius: theme.borderRadius }}
         >
           <div className="relative">

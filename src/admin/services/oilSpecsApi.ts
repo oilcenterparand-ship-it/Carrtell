@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase';
 
-export type OilSpecType = 'grade' | 'quality';
+export type OilSpecType = 'grade' | 'quality' | 'base';
 
 export type OilSpec = {
   id?: string;

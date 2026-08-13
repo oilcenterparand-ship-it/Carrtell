@@ -8,6 +8,8 @@ import { useAuth } from '../auth/AuthProvider';
 import { emitAuthChanged } from '../auth/authApi';
 import { IRAN_PROVINCES, getProvinceCounties } from '../data/iranLocations';
 import { clearLegacyPersistentCart } from '../lib/cart';
+import DiscountCodeBox from '../components/discounts/DiscountCodeBox';
+import type { DiscountCheckResult } from '../services/discountsClientApi';
 
 type CartItem = {
   id: string;
@@ -205,11 +207,11 @@ export default function CartPage() {
   const [savingAddress, setSavingAddress] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState<'delivery' | 'service'>('delivery');
   const [shippingMethod, setShippingMethod] = useState<'standard' | 'express' | 'pickup'>('standard');
-  const [showLoginGate, setShowLoginGate] = useState(false);
   const [dispatchFee, setDispatchFee] = useState(150000);
   const [serviceLaborFee, setServiceLaborFee] = useState(200000);
   const [serviceDate, setServiceDate] = useState('');
   const [serviceTime, setServiceTime] = useState('');
+  const [appliedDiscount, setAppliedDiscount] = useState<DiscountCheckResult | null>(null);
   const availableServiceDates = useMemo(() => Array.from({ length: 14 }, (_, index) => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);
@@ -228,7 +230,8 @@ export default function CartPage() {
           ? 0
           : 120000
     : 0;
-  const total = subtotal + serviceFee + shippingFee;
+  const discountAmount = Math.min(Number(appliedDiscount?.amount || 0), subtotal);
+  const total = Math.max(0, subtotal + serviceFee + shippingFee - discountAmount);
   const freeShippingThreshold = 3000000;
   const freeShippingRemaining = Math.max(0, freeShippingThreshold - subtotal);
   const freeShippingProgress = Math.min(100, (subtotal / freeShippingThreshold) * 100);
@@ -382,15 +385,19 @@ export default function CartPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (items.length > 0 && !isAuthenticated && step === 'cart') {
-      setShowLoginGate(true);
+
+    // کاربر مهمان هرگز نباید خارج از مرحله سبد خرید باقی بماند.
+    if (!isAuthenticated && step !== 'cart') {
+      setStep('cart');
     }
 
-    if (isAuthenticated && sessionStorage.getItem('carrtell_checkout_resume') === 'info') {
+    if (!isAuthenticated) {
       sessionStorage.removeItem('carrtell_checkout_resume');
-      setShowLoginGate(false);
-      setStep('info');
+      setStep('cart');
+      return;
     }
+
+    sessionStorage.removeItem('carrtell_checkout_resume');
   }, [authLoading, isAuthenticated, items.length, step]);
 
   useEffect(() => {
@@ -425,8 +432,7 @@ export default function CartPage() {
       return;
     }
     if (!isAuthenticated) {
-      sessionStorage.setItem('carrtell_checkout_resume', 'info');
-      setShowLoginGate(true);
+      navigate('/login-otp?returnTo=%2Fcart');
       return;
     }
     setStep('info');
@@ -557,8 +563,7 @@ export default function CartPage() {
 
   async function createOrder() {
     if (!isAuthenticated) {
-      sessionStorage.setItem('carrtell_checkout_resume', 'info');
-      setShowLoginGate(true);
+      navigate('/login-otp?returnTo=%2Fcart');
       return;
     }
     if (!customerInfoValid) {
@@ -589,6 +594,11 @@ export default function CartPage() {
         payment_status: 'unpaid',
         total_amount: total,
         subtotal,
+        shipping_amount: shippingFee,
+        service_amount: serviceFee,
+        discount_code: appliedDiscount?.code || null,
+        discount_id: appliedDiscount?.discountId || null,
+        discount_amount: discountAmount,
         delivery_type: deliveryMode === 'service' ? 'service' : shippingMethod,
         car_id: carId,
         car_name: carTitle || null,
@@ -656,30 +666,39 @@ export default function CartPage() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-slate-900" dir="rtl">
+        <div className="rounded-3xl border border-slate-200 bg-white px-8 py-6 text-center shadow-xl">
+          <p className="font-bold">در حال بررسی وضعیت ورود...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-slate-900" dir="rtl">
+        <section className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-7 text-center shadow-2xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500 text-white">
+            <LogIn className="h-8 w-8" />
+          </div>
+          <h1 className="mt-5 text-2xl font-black text-slate-950">برای مشاهده سبد خرید وارد شو</h1>
+          <p className="mt-3 text-sm leading-7 text-slate-600">سبد خرید و مراحل ثبت سفارش فقط بعد از ورود با شماره موبایل در دسترس است.</p>
+          <button
+            type="button"
+            onClick={() => navigate('/login-otp?returnTo=%2Fcart')}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-3.5 font-black text-white transition hover:bg-rose-600"
+          >
+            <LogIn className="h-5 w-5" /> ورود / ثبت‌نام با موبایل
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="cart-page-theme min-h-screen bg-slate-50 px-4 pb-8 pt-32 text-slate-900 sm:px-6 lg:px-8 lg:pt-36" dir="rtl">
-      {showLoginGate && !isAuthenticated && !authLoading && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={() => setShowLoginGate(false)}>
-          <div className="w-full max-w-md rounded-[2rem] border border-amber-400/25 bg-slate-900 p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400 text-slate-950">
-              <LogIn className="h-7 w-7" />
-            </div>
-            <h2 className="mt-4 text-center text-2xl font-black">ورود برای ادامه خرید</h2>
-            <p className="mt-2 text-center text-sm leading-7 text-slate-300">محصولات سبد شما حفظ می‌شوند. ابتدا با شماره موبایل وارد شو، سپس اطلاعات مشتری، آدرس، نوع دریافت، پرداخت و فاکتور را مرحله‌به‌مرحله تکمیل می‌کنی.</p>
-            <button
-              type="button"
-              onClick={() => {
-                sessionStorage.setItem('carrtell_checkout_resume', 'info');
-                navigate('/login-otp?returnTo=%2Fcart');
-              }}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-3 font-black text-slate-950 hover:bg-amber-300"
-            >
-              <LogIn className="h-5 w-5" /> ورود / ثبت‌نام با موبایل
-            </button>
-            <button type="button" onClick={() => setShowLoginGate(false)} className="mt-3 w-full rounded-2xl border border-white/10 px-5 py-3 text-sm text-slate-300 hover:bg-white/5">بازگشت به سبد خرید</button>
-          </div>
-        </div>
-      )}
       <div className="mx-auto max-w-7xl space-y-6">
         <section className="rounded-[2rem] border border-amber-400/20 bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/25 p-5 shadow-2xl shadow-amber-950/20">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -884,7 +903,7 @@ export default function CartPage() {
                               key={date.value}
                               type="button"
                               onClick={() => { setServiceDate(date.value); setMessage(''); }}
-                              className={`rounded-2xl border px-3 py-3 text-center transition ${serviceDate === date.value ? 'border-red-600 bg-red-600 text-white shadow-md shadow-red-200' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-red-300 hover:bg-red-50'}`}
+                              data-booking-slot className={`ct-booking-slot rounded-2xl border px-3 py-3 text-center transition ${serviceDate === date.value ? 'border-red-600 bg-red-600 text-white shadow-md shadow-red-200' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-red-300 hover:bg-red-50'}`}
                             >
                               <span className="block text-sm font-black">{date.label}</span>
                               {date.isToday && <span className={`mt-1 block text-[11px] ${serviceDate === date.value ? 'text-red-100' : 'text-red-600'}`}>امروز</span>}
@@ -901,7 +920,7 @@ export default function CartPage() {
                               key={slot.value}
                               type="button"
                               onClick={() => { setServiceTime(slot.value); setMessage(''); }}
-                              className={`rounded-2xl border px-3 py-3 text-sm font-black transition ${serviceTime === slot.value ? 'border-red-600 bg-red-600 text-white shadow-md shadow-red-200' : 'border-slate-200 bg-white text-slate-700 hover:border-red-300 hover:bg-red-50'}`}
+                              data-booking-slot className={`ct-booking-slot rounded-2xl border px-3 py-3 text-sm font-black transition ${serviceTime === slot.value ? 'border-red-600 bg-red-600 text-white shadow-md shadow-red-200' : 'border-slate-200 bg-white text-slate-700 hover:border-red-300 hover:bg-red-50'}`}
                             >
                               {slot.label}
                             </button>
@@ -1135,12 +1154,25 @@ export default function CartPage() {
                     <div className="flex justify-between"><span>اجرت سرویس در محل</span><b>{money(serviceLaborFee)}</b></div>
                   </>
                 )}
+                {discountAmount > 0 && <div className="flex justify-between text-emerald-300"><span>تخفیف ({appliedDiscount?.code})</span><b>- {money(discountAmount)}</b></div>}
                 <div className="border-t border-white/10 pt-3 text-base">
                   <div className="flex justify-between"><span>مبلغ قابل پرداخت</span><b className="text-amber-300">{money(total)}</b></div>
                 </div>
               </div>
+              {items.length > 0 && step !== 'done' && (
+                <div className="mt-4">
+                  <DiscountCodeBox
+                    total={subtotal}
+                    userId={authUser?.id || null}
+                    onApplied={(result) => setAppliedDiscount(result)}
+                  />
+                  {appliedDiscount?.ok && (
+                    <button type="button" onClick={() => setAppliedDiscount(null)} className="mt-2 text-xs text-rose-300 hover:text-rose-200">حذف کد تخفیف</button>
+                  )}
+                </div>
+              )}
               {step === 'cart' && items.length > 0 && (
-                <button type="button" onClick={beginCheckout} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-3.5 font-black text-slate-950 shadow-lg shadow-amber-500/10 hover:bg-amber-300">
+                <button type="button" onClick={beginCheckout} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-3.5 font-black text-slate-950 shadow-lg shadow-amber-500/10 hover:bg-amber-300">
                   ادامه ثبت سفارش <ArrowLeft className="h-4 w-4" />
                 </button>
               )}

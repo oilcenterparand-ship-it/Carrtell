@@ -9,7 +9,7 @@ const emptyForm: OilSpec = {
 };
 
 function typeLabel(type: OilSpecType) {
-  return type === 'grade' ? 'گرید روغن / ویسکوزیته' : 'سطح کیفی';
+  return type === 'grade' ? 'گرید روغن / ویسکوزیته' : type === 'quality' ? 'سطح کیفی' : 'نوع پایه روغن';
 }
 
 function OilSpecs() {
@@ -33,7 +33,7 @@ function OilSpecs() {
         acc[item.type].push(item);
         return acc;
       },
-      { grade: [], quality: [] }
+      { grade: [], quality: [], base: [] }
     );
   }, [items]);
 
@@ -105,12 +105,13 @@ function OilSpecs() {
           >
             <option value="grade">گرید روغن / ویسکوزیته</option>
             <option value="quality">سطح کیفی</option>
+            <option value="base">نوع پایه روغن (سنتتیک، نیمه‌سنتتیک، معدنی، گیاهی)</option>
           </select>
 
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder={form.type === 'grade' ? 'مثال: 10W-40' : 'مثال: API SN Plus'}
+            placeholder={form.type === 'grade' ? 'مثال: 10W-40' : form.type === 'quality' ? 'مثال: سطح کیفی ممتاز' : 'مثال: تمام سنتتیک'}
             className="rounded-xl bg-slate-800 p-3 text-white outline-none focus:ring-2 focus:ring-yellow-400/40 md:col-span-2"
           />
 
@@ -141,7 +142,7 @@ function OilSpecs() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {(['grade', 'quality'] as OilSpecType[]).map((type) => (
+        {(['grade', 'quality', 'base'] as OilSpecType[]).map((type) => (
           <div key={type} className="rounded-2xl bg-slate-900 p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-bold text-white">{typeLabel(type)}</h2>

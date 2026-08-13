@@ -1,93 +1,38 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { addCustomerNote, exportCustomersCsv, getCrmCustomers, getCustomerNotes, getCustomerTags } from '../services/crmApi';
+import { Search, Download, RefreshCw, Users, Crown, UserX, Wrench, ShoppingCart, Car, Phone, MessageSquare, CheckCircle2, Plus, X, Wallet, CalendarClock } from 'lucide-react';
+import { addCustomerInteraction, addCustomerNote, assignCustomerTag, createCustomerTask, createCustomerTag, exportCustomersCsv, getCrmCustomers, getCustomer360, getCustomerTags, removeCustomerTag, setCustomerTaskStatus, type CrmCustomer, type CustomerSegment, type CustomerTag } from '../services/crmApi';
 
-export default function CustomersCRM() {
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [tags, setTags] = useState<any[]>([]);
-  const [q, setQ] = useState('');
-  const [selected, setSelected] = useState<any | null>(null);
-  const [notes, setNotes] = useState<any[]>([]);
-  const [note, setNote] = useState('');
+const money=(n:number)=>new Intl.NumberFormat('fa-IR').format(n)+' تومان';
+const date=(v?:string|null)=>v?new Date(v).toLocaleDateString('fa-IR'):'—';
+const segmentMeta:Record<CustomerSegment,{label:string,cls:string}>={vip:{label:'VIP',cls:'bg-amber-500/15 text-amber-300'},high_value:{label:'ارزش بالا',cls:'bg-violet-500/15 text-violet-300'},active:{label:'فعال',cls:'bg-emerald-500/15 text-emerald-300'},new:{label:'جدید',cls:'bg-cyan-500/15 text-cyan-300'},inactive:{label:'غیرفعال',cls:'bg-rose-500/15 text-rose-300'},service_due:{label:'موعد سرویس',cls:'bg-orange-500/15 text-orange-300'}};
 
-  useEffect(() => {
-    getCrmCustomers().then(setCustomers);
-    getCustomerTags().then(setTags);
-  }, []);
-
-  useEffect(() => {
-    if (selected?.id) getCustomerNotes(selected.id).then(setNotes);
-  }, [selected?.id]);
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return customers;
-    return customers.filter((c) => `${c.full_name ?? ''} ${c.phone ?? ''} ${c.role ?? ''}`.toLowerCase().includes(term));
-  }, [customers, q]);
-
-  async function submitNote() {
-    if (!selected?.id || !note.trim()) return;
-    await addCustomerNote(selected.id, note.trim());
-    setNote('');
-    setNotes(await getCustomerNotes(selected.id));
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-950 text-white p-6" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black">CRM مشتریان کارتل</h1>
-            <p className="text-sm text-slate-300 mt-2">مدیریت مشتری‌ها، یادداشت داخلی، برچسب‌ها و خروجی کمپین</p>
-          </div>
-          <button onClick={() => exportCustomersCsv(filtered)} className="rounded-2xl bg-amber-500 text-slate-950 px-5 py-3 font-bold">خروجی CSV</button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4"><div className="text-slate-400 text-sm">کل مشتری‌ها</div><div className="text-3xl font-black mt-2">{customers.length}</div></div>
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4"><div className="text-slate-400 text-sm">نتایج فیلتر</div><div className="text-3xl font-black mt-2">{filtered.length}</div></div>
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4"><div className="text-slate-400 text-sm">برچسب‌ها</div><div className="text-3xl font-black mt-2">{tags.length}</div></div>
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4"><div className="text-slate-400 text-sm">آماده کمپین</div><div className="text-3xl font-black mt-2">SMS</div></div>
-        </div>
-
-        <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="جستجوی نام، شماره، نقش..." className="w-full rounded-2xl bg-slate-900 border border-white/10 px-4 py-3 outline-none focus:border-amber-400" />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 rounded-3xl border border-white/10 bg-white/5 overflow-hidden">
-            <div className="p-4 border-b border-white/10 font-bold">لیست مشتری‌ها</div>
-            <div className="divide-y divide-white/10">
-              {filtered.map((c) => (
-                <button key={c.id} onClick={()=>setSelected(c)} className="w-full text-right p-4 hover:bg-white/10 transition flex justify-between gap-4">
-                  <div>
-                    <div className="font-bold">{c.full_name || 'بدون نام'}</div>
-                    <div className="text-sm text-slate-400">{c.phone || 'بدون شماره'} · {c.role || 'customer'}</div>
-                  </div>
-                  <span className="text-xs rounded-full bg-amber-500/10 text-amber-300 px-3 py-1 h-fit">مشاهده</span>
-                </button>
-              ))}
-              {!filtered.length && <div className="p-6 text-slate-400">مشتری پیدا نشد.</div>}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 space-y-4">
-            <h2 className="font-black text-xl">جزئیات مشتری</h2>
-            {!selected ? <p className="text-slate-400">یک مشتری را انتخاب کن.</p> : <>
-              <div className="rounded-2xl bg-slate-900 border border-white/10 p-4">
-                <div className="font-bold">{selected.full_name || 'بدون نام'}</div>
-                <div className="text-sm text-slate-400 mt-1">{selected.phone || 'بدون شماره'}</div>
-                <div className="text-xs text-slate-500 mt-2">شناسه: {selected.id}</div>
-              </div>
-              <div>
-                <div className="font-bold mb-2">یادداشت داخلی</div>
-                <textarea value={note} onChange={(e)=>setNote(e.target.value)} className="w-full min-h-24 rounded-2xl bg-slate-900 border border-white/10 p-3 outline-none focus:border-amber-400" placeholder="مثلاً مشتری فقط روغن برند خاص می‌خواهد..." />
-                <button onClick={submitNote} className="mt-2 w-full rounded-2xl bg-amber-500 text-slate-950 px-4 py-3 font-bold">ثبت یادداشت</button>
-              </div>
-              <div className="space-y-2">
-                {notes.map((n) => <div key={n.id} className="rounded-2xl bg-slate-900 border border-white/10 p-3 text-sm">{n.note}<div className="text-xs text-slate-500 mt-2">{n.created_at ? new Date(n.created_at).toLocaleString('fa-IR') : ''}</div></div>)}
-              </div>
-            </>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+type Tab='overview'|'orders'|'vehicles'|'services'|'notes'|'tasks'|'interactions';
+export default function CustomersCRM(){
+ const [customers,setCustomers]=useState<CrmCustomer[]>([]),[tags,setTags]=useState<CustomerTag[]>([]),[selected,setSelected]=useState<CrmCustomer|null>(null),[detail,setDetail]=useState<any>(null);
+ const [q,setQ]=useState(''),[segment,setSegment]=useState<'all'|CustomerSegment>('all'),[sort,setSort]=useState('value'),[loading,setLoading]=useState(true),[tab,setTab]=useState<Tab>('overview');
+ const [note,setNote]=useState(''),[task,setTask]=useState(''),[taskDue,setTaskDue]=useState(''),[interaction,setInteraction]=useState(''),[newTag,setNewTag]=useState('');
+ const load=async()=>{setLoading(true);const [c,t]=await Promise.all([getCrmCustomers(),getCustomerTags()]);setCustomers(c);setTags(t);setLoading(false);};
+ useEffect(()=>{load();},[]);
+ useEffect(()=>{if(selected)getCustomer360(selected.id,selected.phone).then(setDetail);else setDetail(null);},[selected?.id]);
+ const filtered=useMemo(()=>{let rows=customers.filter(c=>{const term=q.trim().toLowerCase();const hit=!term||`${c.full_name} ${c.phone} ${c.tags.map(t=>t.title).join(' ')}`.toLowerCase().includes(term);return hit&&(segment==='all'||c.segments.includes(segment));});return rows.sort((a,b)=>sort==='recent'?String(b.last_order_at||'').localeCompare(String(a.last_order_at||'')):sort==='orders'?b.orders_count-a.orders_count:b.total_spent-a.total_spent);},[customers,q,segment,sort]);
+ const stats=useMemo(()=>({total:customers.length,vip:customers.filter(c=>c.segments.includes('vip')).length,inactive:customers.filter(c=>c.segments.includes('inactive')).length,due:customers.filter(c=>c.service_due).length,revenue:customers.reduce((s,c)=>s+c.total_spent,0)}),[customers]);
+ async function refreshDetail(){if(selected)setDetail(await getCustomer360(selected.id,selected.phone));}
+ return <div className="min-h-screen bg-slate-950 p-4 text-white md:p-6" dir="rtl"><div className="mx-auto max-w-[1600px] space-y-5">
+  <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-gradient-to-l from-slate-900 to-slate-900/60 p-6 lg:flex-row lg:items-center lg:justify-between"><div><h1 className="text-2xl font-black md:text-3xl">CRM جامع مشتریان Carrtell</h1><p className="mt-2 text-sm text-slate-400">دید ۳۶۰ درجه مشتری، سگمنت‌بندی، ارزش طول عمر، خودرو، سرویس، پیگیری و تعاملات</p></div><div className="flex flex-wrap gap-2"><button onClick={load} className="flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3"><RefreshCw size={17}/> بروزرسانی</button><button onClick={()=>exportCustomersCsv(filtered)} className="flex items-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 font-black text-slate-950"><Download size={17}/> خروجی CRM</button></div></header>
+  <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[[Users,'کل مشتریان',stats.total,'text-cyan-300'],[Crown,'مشتریان VIP',stats.vip,'text-amber-300'],[UserX,'غیرفعال‌ها',stats.inactive,'text-rose-300'],[Wrench,'موعد سرویس',stats.due,'text-orange-300'],[ShoppingCart,'ارزش کل مشتریان',money(stats.revenue),'text-emerald-300']].map(([Icon,title,value,cls]:any)=><div key={title} className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"><Icon className={cls}/><p className="mt-4 text-xs text-slate-400">{title}</p><b className="mt-1 block text-2xl">{value}</b></div>)}</section>
+  <section className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-4 lg:grid-cols-[1fr_190px_190px]"><label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950 px-4"><Search size={18} className="text-slate-500"/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="جستجوی نام، موبایل یا برچسب..." className="w-full bg-transparent py-3 outline-none"/></label><select value={segment} onChange={e=>setSegment(e.target.value as any)} className="rounded-2xl border border-white/10 bg-slate-950 px-4"><option value="all">همه سگمنت‌ها</option>{Object.entries(segmentMeta).map(([k,v])=><option value={k} key={k}>{v.label}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)} className="rounded-2xl border border-white/10 bg-slate-950 px-4"><option value="value">بیشترین ارزش</option><option value="recent">آخرین خرید</option><option value="orders">بیشترین سفارش</option></select></section>
+  <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_480px]"><div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]"><div className="border-b border-white/10 p-4 text-sm text-slate-400">{loading?'در حال بارگذاری...':`${filtered.length} مشتری`}</div><div className="overflow-x-auto"><table className="w-full min-w-[980px] text-right text-sm"><thead className="bg-slate-900/80 text-slate-400"><tr><th className="p-4">مشتری</th><th>سگمنت</th><th>ارزش مشتری</th><th>سفارش</th><th>آخرین خرید</th><th>خودرو/سرویس</th><th>وضعیت پیگیری</th></tr></thead><tbody className="divide-y divide-white/10">{filtered.map(c=><tr key={c.id} onClick={()=>{setSelected(c);setTab('overview')}} className={`cursor-pointer transition hover:bg-white/[0.06] ${selected?.id===c.id?'bg-amber-500/[0.07]':''}`}><td className="p-4"><b>{c.full_name}</b><div className="mt-1 text-xs text-slate-400">{c.phone||'بدون موبایل'}</div>{c.tags.length>0&&<div className="mt-2 flex flex-wrap gap-1">{c.tags.map(t=><span key={t.id} className="rounded-full px-2 py-0.5 text-[10px]" style={{background:`${t.color}25`,color:t.color}}>{t.title}</span>)}</div>}</td><td><div className="flex max-w-44 flex-wrap gap-1">{c.segments.map(s=><span key={s} className={`rounded-full px-2 py-1 text-[10px] ${segmentMeta[s].cls}`}>{segmentMeta[s].label}</span>)}</div></td><td><b className="text-emerald-300">{money(c.total_spent)}</b><div className="text-xs text-slate-500">میانگین {money(c.average_order_value)}</div></td><td>{c.orders_count}<div className="text-xs text-slate-500">{c.paid_orders_count} پرداخت‌شده</div></td><td>{date(c.last_order_at)}<div className="text-xs text-slate-500">{c.days_since_last_order==null?'بدون خرید':`${c.days_since_last_order} روز پیش`}</div></td><td>{c.vehicles_count} خودرو · {c.service_count} سرویس</td><td>{c.service_due?<span className="text-orange-300">نیازمند سرویس</span>:c.segments.includes('inactive')?<span className="text-rose-300">نیازمند بازگشت</span>:<span className="text-emerald-300">عادی</span>}</td></tr>)}</tbody></table></div></div>
+  <aside className="rounded-3xl border border-white/10 bg-slate-900/90 xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:overflow-y-auto">{!selected?<div className="grid min-h-96 place-items-center p-8 text-center text-slate-500"><div><Users className="mx-auto mb-3" size={42}/><p>برای مشاهده پرونده ۳۶۰ درجه، یک مشتری را انتخاب کن.</p></div></div>:<><div className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/95 p-5 backdrop-blur"><div className="flex items-start justify-between"><div><h2 className="text-xl font-black">{selected.full_name}</h2><a href={`tel:${selected.phone}`} className="mt-1 flex items-center gap-1 text-sm text-cyan-300"><Phone size={14}/>{selected.phone||'بدون شماره'}</a></div><button onClick={()=>setSelected(null)}><X/></button></div><div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-xl bg-white/5 p-2"><b className="block text-base">{selected.orders_count}</b>سفارش</div><div className="rounded-xl bg-white/5 p-2"><b className="block text-base">{selected.vehicles_count}</b>خودرو</div><div className="rounded-xl bg-white/5 p-2"><b className="block text-base">{selected.loyalty_points}</b>امتیاز</div></div></div>
+   <div className="flex gap-1 overflow-x-auto border-b border-white/10 p-2 text-xs">{(['overview','orders','vehicles','services','notes','tasks','interactions'] as Tab[]).map(t=><button key={t} onClick={()=>setTab(t)} className={`whitespace-nowrap rounded-xl px-3 py-2 ${tab===t?'bg-amber-500 font-bold text-slate-950':'text-slate-400'}`}>{({overview:'خلاصه',orders:'سفارش‌ها',vehicles:'خودروها',services:'سرویس‌ها',notes:'یادداشت',tasks:'پیگیری',interactions:'تعاملات'} as any)[t]}</button>)}</div>
+   <div className="space-y-4 p-5">{tab==='overview'&&<><div className="grid grid-cols-2 gap-3"><Mini icon={<ShoppingCart/>} title="ارزش طول عمر" value={money(selected.total_spent)}/><Mini icon={<Wallet/>} title="کیف پول" value={money(selected.wallet_balance)}/><Mini icon={<Car/>} title="کیلومتر فعلی" value={selected.current_km?.toLocaleString('fa-IR')||'—'}/><Mini icon={<CalendarClock/>} title="سرویس بعدی" value={selected.next_service_km?.toLocaleString('fa-IR')||'—'}/></div><div><p className="mb-2 text-sm font-bold">برچسب‌ها</p><div className="flex flex-wrap gap-2">{tags.map(t=>{const has=selected.tags.some(x=>x.id===t.id);return <button key={t.id} onClick={async()=>{has?await removeCustomerTag(selected.id,t.id):await assignCustomerTag(selected.id,t.id);await load();setSelected({...selected,tags:has?selected.tags.filter(x=>x.id!==t.id):[...selected.tags,t]});}} className={`rounded-full border px-3 py-1 text-xs ${has?'border-transparent':'border-white/10 opacity-50'}`} style={has?{background:`${t.color}25`,color:t.color}:{}}>{t.title}</button>})}</div><div className="mt-2 flex gap-2"><input value={newTag} onChange={e=>setNewTag(e.target.value)} placeholder="برچسب جدید" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2"/><button onClick={async()=>{if(!newTag.trim())return;await createCustomerTag(newTag.trim());setNewTag('');setTags(await getCustomerTags());}} className="rounded-xl bg-white/10 px-3"><Plus size={16}/></button></div></div></>}
+   {tab==='orders'&&<Rows rows={detail?.orders} empty="سفارشی ثبت نشده" render={(o:any)=><><b>سفارش {o.order_number||String(o.id).slice(0,8)}</b><span>{money(Number(o.total_amount||o.total||o.amount||0))} · {date(o.created_at)}</span></>}/>} 
+   {tab==='vehicles'&&<Rows rows={detail?.vehicles} empty="خودرویی ثبت نشده" render={(v:any)=><><b>{v.manufacturer||v.brand||''} {v.model||v.car_model||'خودرو'}</b><span>{v.year||''} · کیلومتر {Number(v.current_km||v.kilometers||0).toLocaleString('fa-IR')}</span></>}/>} 
+   {tab==='services'&&<Rows rows={detail?.services} empty="سابقه سرویسی نیست" render={(s:any)=><><b>{s.service_title||s.service_type||'سرویس خودرو'}</b><span>{date(s.completed_at||s.created_at)} · {s.status||'—'}</span></>}/>} 
+   {tab==='notes'&&<><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="یادداشت داخلی درباره مشتری..." className="min-h-24 w-full rounded-2xl border border-white/10 bg-slate-950 p-3"/><button onClick={async()=>{if(!note.trim())return;await addCustomerNote(selected.id,note.trim());setNote('');await refreshDetail();}} className="w-full rounded-2xl bg-amber-500 p-3 font-bold text-slate-950">ثبت یادداشت</button><Rows rows={detail?.notes} empty="یادداشتی نیست" render={(n:any)=><><b>{n.note}</b><span>{date(n.created_at)}</span></>}/></>}
+   {tab==='tasks'&&<><input value={task} onChange={e=>setTask(e.target.value)} placeholder="مثلاً تماس برای یادآوری سرویس" className="w-full rounded-xl border border-white/10 bg-slate-950 p-3"/><input type="datetime-local" value={taskDue} onChange={e=>setTaskDue(e.target.value)} className="w-full rounded-xl border border-white/10 bg-slate-950 p-3"/><button onClick={async()=>{if(!task.trim())return;await createCustomerTask(selected.id,task.trim(),taskDue);setTask('');setTaskDue('');await refreshDetail();}} className="w-full rounded-2xl bg-cyan-500 p-3 font-bold text-slate-950">ساخت پیگیری</button><Rows rows={detail?.tasks} empty="پیگیری بازی نیست" render={(t:any)=><div className="flex w-full items-center justify-between"><div><b className={t.status==='done'?'line-through opacity-50':''}>{t.title}</b><span>{date(t.due_at)}</span></div>{t.status==='open'&&<button onClick={async()=>{await setCustomerTaskStatus(t.id,'done');await refreshDetail();}} className="text-emerald-300"><CheckCircle2/></button>}</div>}/></>}
+   {tab==='interactions'&&<><textarea value={interaction} onChange={e=>setInteraction(e.target.value)} placeholder="خلاصه تماس یا پیام با مشتری..." className="min-h-24 w-full rounded-2xl border border-white/10 bg-slate-950 p-3"/><button onClick={async()=>{if(!interaction.trim())return;await addCustomerInteraction(selected.id,'phone','پیگیری CRM',interaction.trim());setInteraction('');await refreshDetail();}} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 p-3 font-bold"><MessageSquare size={17}/> ثبت تعامل</button><Rows rows={detail?.interactions} empty="تعاملی ثبت نشده" render={(i:any)=><><b>{i.subject||i.channel}</b><span>{i.body} · {date(i.created_at)}</span></>}/></>}
+   </div></>}</aside></section>
+ </div></div>;
 }
+function Mini({icon,title,value}:{icon:React.ReactNode,title:string,value:string}){return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><div className="text-amber-300 [&>svg]:h-4 [&>svg]:w-4">{icon}</div><p className="mt-2 text-[11px] text-slate-500">{title}</p><b className="mt-1 block text-sm">{value}</b></div>}
+function Rows({rows,empty,render}:{rows:any[]|undefined,empty:string,render:(r:any)=>React.ReactNode}){return <div className="space-y-2">{(rows||[]).map((r:any)=><div key={r.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-sm [&_span]:mt-1 [&_span]:block [&_span]:text-xs [&_span]:text-slate-500">{render(r)}</div>)}{!rows?.length&&<p className="py-8 text-center text-sm text-slate-500">{empty}</p>}</div>}

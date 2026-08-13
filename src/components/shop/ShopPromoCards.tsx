@@ -11,10 +11,10 @@ export function ShopPromoCards({ categories }: ShopPromoCardsProps) {
   const antifreezeCategory = categories.find((item) => /ضد.?یخ|antifreeze/i.test(`${item.title} ${item.slug}`))?.slug || 'antifreeze';
 
   return (
-    <section className="mb-4 grid gap-3 md:grid-cols-3" aria-label="پیشنهادهای ویژه Carrtell">
+    <section className="ct-shop-promo-cards mb-4 flex gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-3" aria-label="پیشنهادهای ویژه Carrtell">
       <Link
-        to={`/?category=${encodeURIComponent(tireCategory)}#main-store`}
-        className="group relative min-h-[138px] overflow-hidden rounded-[22px] border border-rose-200 bg-gradient-to-l from-rose-600 via-red-500 to-orange-400 p-5 text-white shadow-[0_10px_24px_rgba(225,29,72,0.18)] transition hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(225,29,72,0.25)]"
+        to={`/shop?category=${encodeURIComponent(tireCategory)}`}
+        className="ct-shop-promo-card group relative min-h-[138px] overflow-hidden rounded-[22px] border border-rose-200 bg-gradient-to-l from-rose-600 via-red-500 to-orange-400 p-5 text-white shadow-[0_10px_24px_rgba(225,29,72,0.18)] transition hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(225,29,72,0.25)]"
       >
         <div className="absolute -left-8 -top-8 h-28 w-28 rounded-full bg-white/15 transition group-hover:scale-110" />
         <div className="relative flex h-full items-center justify-between gap-3">
@@ -30,8 +30,8 @@ export function ShopPromoCards({ categories }: ShopPromoCardsProps) {
       </Link>
 
       <Link
-        to={`/?category=${encodeURIComponent(antifreezeCategory)}#main-store`}
-        className="group relative min-h-[138px] overflow-hidden rounded-[22px] border border-sky-200 bg-gradient-to-l from-sky-600 via-cyan-500 to-teal-400 p-5 text-white shadow-[0_10px_24px_rgba(8,145,178,0.18)] transition hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(8,145,178,0.25)]"
+        to={`/shop?category=${encodeURIComponent(antifreezeCategory)}`}
+        className="ct-shop-promo-card group relative min-h-[138px] overflow-hidden rounded-[22px] border border-sky-200 bg-gradient-to-l from-sky-600 via-cyan-500 to-teal-400 p-5 text-white shadow-[0_10px_24px_rgba(8,145,178,0.18)] transition hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(8,145,178,0.25)]"
       >
         <div className="absolute -left-8 -bottom-8 h-28 w-28 rounded-full bg-white/15 transition group-hover:scale-110" />
         <div className="relative flex h-full items-center justify-between gap-3">
@@ -48,7 +48,7 @@ export function ShopPromoCards({ categories }: ShopPromoCardsProps) {
 
       <Link
         to="/shop/packages"
-        className="group relative min-h-[138px] overflow-hidden rounded-[22px] border border-amber-200 bg-gradient-to-l from-amber-500 via-yellow-400 to-lime-400 p-5 text-slate-950 shadow-[0_10px_24px_rgba(245,158,11,0.18)] transition hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(245,158,11,0.25)]"
+        className="ct-shop-promo-card group relative min-h-[138px] overflow-hidden rounded-[22px] border border-amber-200 bg-gradient-to-l from-amber-500 via-yellow-400 to-lime-400 p-5 text-slate-950 shadow-[0_10px_24px_rgba(245,158,11,0.18)] transition hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(245,158,11,0.25)]"
       >
         <div className="absolute -left-8 -top-8 h-28 w-28 rounded-full bg-white/25 transition group-hover:scale-110" />
         <div className="relative flex h-full items-center justify-between gap-3">

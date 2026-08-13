@@ -466,7 +466,7 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="mb-1 text-sm font-bold text-[var(--primary,#f5c518)]">پنل کاربری Carrtell</p>
-              <h1 className="text-2xl font-black">سلام {form.fullName || 'مشتری عزیز'} 👋</h1>
+              <h1 className="text-2xl font-black">{form.fullName?.trim() ? `سلام، ${form.fullName.trim()}` : 'سلام، خوش آمدید'} 👋</h1>
               <p className="mt-1 text-sm text-slate-500">همه اطلاعات سفارش، خودرو و سرویس‌هایت یکجا در دسترس است.</p>
             </div>
             <div className="flex flex-wrap gap-2">

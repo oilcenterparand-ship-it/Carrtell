@@ -116,6 +116,29 @@ export async function getLatestPaymentByOrder(orderId: string) {
   return payments[0] || null;
 }
 
+async function markPaymentPending(orderId: string, provider: PaymentProvider, authority?: string | null) {
+  const { data, error } = await supabase.rpc('carrtell_mark_payment_pending', {
+    p_order_id: orderId,
+    p_provider: provider,
+    p_authority: authority || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function finalizePayment(orderId: string, provider: PaymentProvider, referenceId: string, authority?: string | null) {
+  const { data, error } = await supabase.rpc('carrtell_finalize_order_payment', {
+    p_order_id: orderId,
+    p_provider: provider,
+    p_reference_id: referenceId,
+    p_authority: authority || null,
+  });
+  if (error) throw error;
+  const result = data as { order?: Order | null; payment?: Payment | null } | null;
+  if (!result?.order) throw new Error('تأیید نهایی سفارش از سرور دریافت نشد.');
+  return { order: result.order, payment: result.payment || null };
+}
+
 export async function createTestPayment(orderId: string) {
   if (!orderId) throw new Error('شناسه سفارش معتبر نیست.');
 
@@ -127,39 +150,30 @@ export async function createTestPayment(orderId: string) {
   }
 
   const referenceId = makeTestReference(orderId);
-  const now = new Date().toISOString();
 
-  const { data: payment, error: paymentError } = await supabase
-    .from('payments')
-    .insert({
-      order_id: orderId,
-      amount: Number(order.total_amount || 0),
-      status: 'paid',
-      provider: 'test',
-      reference_id: referenceId,
-      paid_at: now,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc(
+    'carrtell_complete_test_payment',
+    {
+      p_order_id: orderId,
+      p_reference_id: referenceId,
+    },
+  );
 
-  if (paymentError) throw paymentError;
+  if (error) throw error;
 
-  const { data: updatedOrder, error: orderError } = await supabase
-    .from('orders')
-    .update({
-      status: 'paid',
-      payment_status: 'paid',
-      payment_provider: 'test',
-      payment_reference: referenceId,
-      paid_at: now,
-    })
-    .eq('id', orderId)
-    .select()
-    .single();
+  const result = data as {
+    order?: Order | null;
+    payment?: Payment | null;
+  } | null;
 
-  if (orderError) throw orderError;
+  if (!result?.order) {
+    throw new Error('اطلاعات سفارش پرداخت‌شده از سرور دریافت نشد.');
+  }
 
-  return { order: updatedOrder as Order, payment: payment as Payment };
+  return {
+    order: result.order,
+    payment: result.payment || null,
+  };
 }
 
 export async function createPendingZarinpalPayment(order: Order, authority?: string | null) {
@@ -196,10 +210,7 @@ export async function startZarinpalPayment(orderId: string) {
 
   if (!settings.zarinpalEdgeRequestUrl) {
     const payment = await createPendingZarinpalPayment(order);
-    await supabase
-      .from('orders')
-      .update({ status: 'pending_payment', payment_status: 'unpaid', payment_provider: 'zarinpal' })
-      .eq('id', orderId);
+    await markPaymentPending(orderId, 'zarinpal');
 
     return {
       order,
@@ -234,15 +245,7 @@ export async function startZarinpalPayment(orderId: string) {
   const redirectUrl = result.redirectUrl || result.paymentUrl || result.url || '';
   const payment = await createPendingZarinpalPayment(order, authority);
 
-  await supabase
-    .from('orders')
-    .update({
-      status: 'pending_payment',
-      payment_status: 'unpaid',
-      payment_provider: 'zarinpal',
-      payment_authority: authority,
-    })
-    .eq('id', orderId);
+  await markPaymentPending(orderId, 'zarinpal', authority);
 
   return { order, payment, redirectUrl, setupRequired: false };
 }
@@ -284,39 +287,8 @@ export async function verifyZarinpalPayment(orderId: string, authority: string, 
   }
 
   const referenceId = String(result.referenceId || result.refId || result.RefID || '');
-  const now = new Date().toISOString();
-
-  const { data: payment, error: paymentError } = await supabase
-    .from('payments')
-    .update({
-      status: 'paid',
-      reference_id: referenceId,
-      paid_at: now,
-      error_message: null,
-    })
-    .eq('order_id', orderId)
-    .eq('authority', authority)
-    .select()
-    .maybeSingle();
-
-  if (paymentError) throw paymentError;
-
-  const { data: updatedOrder, error: orderError } = await supabase
-    .from('orders')
-    .update({
-      status: 'paid',
-      payment_status: 'paid',
-      payment_provider: 'zarinpal',
-      payment_reference: referenceId,
-      payment_authority: authority,
-      paid_at: now,
-    })
-    .eq('id', orderId)
-    .select()
-    .single();
-
-  if (orderError) throw orderError;
-  return { order: updatedOrder as Order, payment: payment as Payment | null };
+  if (!referenceId) throw new Error('شماره پیگیری معتبر از درگاه دریافت نشد.');
+  return finalizePayment(orderId, 'zarinpal', referenceId, authority);
 }
 
 export function getPaymentStatusLabel(status?: string | null) {

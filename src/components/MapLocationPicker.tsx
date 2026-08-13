@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Crosshair, Loader2, MapPin, Search } from 'lucide-react';
+import { Check, Crosshair, Info, Loader2, MapPin, Search } from 'lucide-react';
 
 declare global {
   interface Window { L?: any; }
@@ -149,7 +149,7 @@ export default function MapLocationPicker({ initialLatitude, initialLongitude, o
   const runSearch = async () => {
     if (!query.trim()) return;
     if (!NESHAN_SERVICE_KEY) {
-      setMapError('برای جست‌وجوی آدرس، کلید سرویس نشان در تنظیمات پروژه وارد نشده است.');
+      setMapError('جست‌وجوی متنی آدرس بعد از اتصال سرویس نشان فعال می‌شود. فعلاً نقطه را روی نقشه انتخاب کن یا آدرس را دستی بنویس.');
       return;
     }
     setSearching(true);
@@ -166,6 +166,13 @@ export default function MapLocationPicker({ initialLatitude, initialLongitude, o
 
   return (
     <section className="mt-4 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm" dir="rtl">
+      {!NESHAN_SERVICE_KEY && (
+        <div className="m-4 mb-0 flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-800">
+          <Info size={19} className="mt-0.5 shrink-0" />
+          <div><b className="block">حالت موقت بدون سرویس نشان</b>نقشه رایگان نمایش داده می‌شود و انتخاب نقطه یا موقعیت فعلی کار می‌کند؛ جست‌وجوی نام خیابان و تبدیل خودکار نقطه به آدرس فعلاً غیرفعال است. نوشتن آدرس دستی کافی است.</div>
+        </div>
+      )}
+
       <div className="border-b border-slate-100 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -184,9 +191,9 @@ export default function MapLocationPicker({ initialLatitude, initialLongitude, o
         <div className="mt-4 flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void runSearch())} placeholder="جست‌وجوی محله، خیابان یا مکان..." className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-4 pr-11 text-sm text-slate-900 outline-none focus:border-amber-400 focus:bg-white" />
+            <input disabled={!NESHAN_SERVICE_KEY} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void runSearch())} placeholder={NESHAN_SERVICE_KEY ? 'جست‌وجوی محله، خیابان یا مکان...' : 'پس از اتصال نشان فعال می‌شود'} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-4 pr-11 text-sm text-slate-900 outline-none focus:border-amber-400 focus:bg-white" />
           </div>
-          <button type="button" onClick={runSearch} disabled={searching} className="rounded-2xl bg-slate-900 px-5 text-sm font-black text-white disabled:opacity-60">
+          <button type="button" onClick={runSearch} disabled={searching || !NESHAN_SERVICE_KEY} className="rounded-2xl bg-slate-900 px-5 text-sm font-black text-white disabled:opacity-60">
             {searching ? <Loader2 size={18} className="animate-spin" /> : 'جست‌وجو'}
           </button>
         </div>

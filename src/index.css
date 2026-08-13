@@ -1380,3 +1380,1360 @@
 .cart-page-theme textarea::placeholder { color: #94a3b8 !important; }
 .cart-page-theme aside > div,
 .cart-page-theme section > div { box-shadow: 0 12px 35px rgba(15, 23, 42, .08) !important; }
+
+/* Shop header stack v6: remove every category rail and attach the vehicle banner directly below the header */
+.ct-shop-page > .container-custom {
+  padding-top: 0 !important;
+}
+
+.ct-shop-page .container-custom > .ct-shop-car-banner {
+  margin-top: 0 !important;
+  margin-bottom: 16px !important;
+  border-top: 0 !important;
+  border-radius: 0 0 18px 18px !important;
+  border-color: #d99600 !important;
+  background:
+    radial-gradient(circle at 22% 50%, rgb(255 255 255 / .28), transparent 22%),
+    linear-gradient(90deg, #f7a800 0%, #ffc928 35%, #ffd54a 50%, #ffc323 68%, #f3a000 100%) !important;
+  box-shadow: 0 10px 26px rgb(202 138 4 / .25), inset 0 1px 0 rgb(255 255 255 / .55) !important;
+}
+.ct-shop-car-banner::before,
+.ct-shop-car-banner::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  width: 150px;
+  z-index: 1;
+  opacity: .96;
+  background: #111827;
+}
+.ct-shop-car-banner::before {
+  left: 0;
+  clip-path: polygon(0 0, 76% 0, 100% 50%, 76% 100%, 0 100%);
+}
+.ct-shop-car-banner::after {
+  right: 0;
+  clip-path: polygon(24% 0, 100% 0, 100% 100%, 24% 100%, 0 50%);
+}
+.ct-shop-car-banner-inner {
+  min-height: 76px !important;
+  padding-block: 7px !important;
+}
+.ct-shop-car-banner h3,
+.ct-shop-page .container-custom > .ct-shop-car-banner h3 {
+  color: #111827 !important;
+  font-size: 1.25rem !important;
+  line-height: 1.4 !important;
+}
+.ct-shop-car-banner p { color: rgb(15 23 42 / .78) !important; }
+.ct-shop-car-banner button {
+  position: relative;
+  z-index: 4;
+  border: 1px solid rgb(255 255 255 / .12);
+  background: linear-gradient(180deg,#171c25 0%,#07090d 100%) !important;
+  box-shadow: 0 8px 18px rgb(15 23 42 / .28), inset 0 1px 0 rgb(255 255 255 / .1) !important;
+}
+.ct-shop-car-banner .text-4xl {
+  position: relative;
+  z-index: 3;
+  color: #fbbf24 !important;
+  text-shadow: 0 2px 8px rgb(0 0 0 / .28);
+}
+
+@media (max-width: 767px) {
+  .ct-shop-car-banner::before,
+  .ct-shop-car-banner::after { width: 52px; }
+  .ct-shop-car-banner-inner { min-height: 68px !important; }
+  .ct-shop-car-banner h3,
+  .ct-shop-page .container-custom > .ct-shop-car-banner h3 { font-size: .95rem !important; }
+}
+
+/* Shop vehicle banner v7 — flush under fixed header, premium motorsport treatment */
+.ct-site-content > main.ct-shop-page {
+  padding-top: 0 !important;
+}
+.ct-shop-page > .container-custom {
+  padding-top: 0 !important;
+}
+.ct-shop-page .container-custom > .ct-shop-car-banner {
+  position: relative;
+  isolation: isolate;
+  min-height: 92px;
+  margin: 0 0 14px !important;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 0 22px 22px !important;
+  background:
+    radial-gradient(circle at 52% -30%, rgba(255,255,255,.72), transparent 36%),
+    linear-gradient(105deg, #070a10 0 15%, #f5a900 15.2%, #ffd643 47%, #ffbf16 76%, #0b0f17 76.2% 100%) !important;
+  box-shadow:
+    0 14px 34px rgba(15,23,42,.20),
+    inset 0 -1px 0 rgba(255,255,255,.34),
+    inset 0 1px 0 rgba(255,255,255,.28) !important;
+}
+.ct-shop-car-banner::before,
+.ct-shop-car-banner::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset-block: 0;
+  width: 21%;
+  opacity: 1;
+  background: linear-gradient(135deg, #111827 0%, #06080d 100%);
+}
+.ct-shop-car-banner::before {
+  inset-inline-start: 0;
+  clip-path: polygon(0 0, 73% 0, 100% 50%, 73% 100%, 0 100%);
+}
+.ct-shop-car-banner::after {
+  inset-inline-end: 0;
+  clip-path: polygon(27% 0, 100% 0, 100% 100%, 27% 100%, 0 50%);
+}
+.ct-shop-car-banner-grid {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  opacity: .18;
+  background-image:
+    linear-gradient(rgba(15,23,42,.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15,23,42,.25) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent);
+}
+.ct-shop-car-banner-road {
+  position: absolute;
+  z-index: 1;
+  inset-inline: 15%;
+  bottom: 0;
+  height: 8px;
+  overflow: hidden;
+  background: rgba(15,23,42,.9);
+  transform: perspective(80px) rotateX(38deg);
+  transform-origin: bottom;
+}
+.ct-shop-car-banner-road span {
+  display: block;
+  width: 200%;
+  height: 2px;
+  margin-top: 3px;
+  background: repeating-linear-gradient(90deg, transparent 0 18px, #f8fafc 18px 42px);
+  animation: ctShopRoad 2.2s linear infinite;
+}
+@keyframes ctShopRoad { to { transform: translateX(-60px); } }
+.ct-shop-car-banner-inner {
+  position: relative;
+  z-index: 4;
+  min-height: 92px !important;
+  display: grid !important;
+  grid-template-columns: minmax(230px, .85fr) minmax(320px, 1.4fr) minmax(150px, .65fr);
+  align-items: center;
+  gap: clamp(12px, 2vw, 30px);
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 10px clamp(18px, 3vw, 46px) 13px !important;
+}
+.ct-shop-car-banner-action {
+  position: relative;
+  z-index: 6;
+  min-width: 0;
+  height: 58px;
+  display: grid !important;
+  grid-template-columns: 42px minmax(0,1fr) 24px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  border-radius: 17px !important;
+  background: linear-gradient(160deg, #1b2230 0%, #06080d 72%) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.13) !important;
+  text-align: right;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.ct-shop-car-banner-action:hover {
+  transform: translateY(-2px) scale(1.01);
+  border-color: rgba(255,214,67,.72) !important;
+  box-shadow: 0 15px 30px rgba(0,0,0,.34), 0 0 0 3px rgba(255,198,24,.14) !important;
+}
+.ct-shop-car-banner-action-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #ffe27a, #f5a900);
+  color: #101520;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 5px 12px rgba(245,169,0,.28);
+}
+.ct-shop-car-banner-action-icon svg { width: 25px; height: 25px; }
+.ct-shop-car-banner-action-copy { min-width: 0; display: grid; line-height: 1.2; }
+.ct-shop-car-banner-action-copy small { color: #fbbf24; font-size: 9px; font-weight: 900; letter-spacing: .02em; }
+.ct-shop-car-banner-action-copy b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 13px; font-weight: 950; }
+.ct-shop-car-banner-action-arrow { width: 18px; height: 18px; color: #fbbf24; transition: transform .2s ease; }
+.ct-shop-car-banner-action:hover .ct-shop-car-banner-action-arrow { transform: translateX(-3px); }
+.ct-shop-car-banner-copy { min-width: 0; text-align: center; color: #101520; }
+.ct-shop-car-banner-kicker {
+  display: inline-flex;
+  margin-bottom: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15,23,42,.10);
+  color: rgba(15,23,42,.78);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: .16em;
+}
+.ct-shop-car-banner h3,
+.ct-shop-page .container-custom > .ct-shop-car-banner h3 {
+  margin: 0 !important;
+  color: #0b1220 !important;
+  font-size: clamp(17px, 1.7vw, 25px) !important;
+  line-height: 1.25 !important;
+  font-weight: 950 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.46);
+}
+.ct-shop-car-banner-copy p {
+  margin-top: 3px;
+  color: rgba(15,23,42,.78) !important;
+  font-size: 10px;
+  font-weight: 850;
+}
+.ct-shop-car-banner-active {
+  display: inline-flex;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #111827;
+  color: #fcd34d;
+  font-size: 9px;
+  font-weight: 900;
+}
+.ct-shop-car-banner-visual {
+  position: relative;
+  height: 70px;
+  display: grid;
+  place-items: center;
+}
+.ct-shop-car-banner-halo {
+  position: absolute;
+  width: 92px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,214,67,.62), rgba(255,214,67,.13) 55%, transparent 72%);
+  filter: blur(2px);
+  animation: ctShopHalo 2.4s ease-in-out infinite;
+}
+@keyframes ctShopHalo { 50% { transform: scale(1.16); opacity: .74; } }
+.ct-shop-car-banner-car {
+  position: relative;
+  z-index: 2;
+  width: 76px;
+  height: 76px;
+  color: #0b1220;
+  filter: drop-shadow(0 9px 10px rgba(0,0,0,.24));
+  transform: perspective(100px) rotateY(-7deg);
+}
+.ct-shop-car-banner-scan {
+  position: absolute;
+  z-index: 3;
+  width: 105px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #fff, transparent);
+  box-shadow: 0 0 12px #fff;
+  animation: ctShopScan 2.1s ease-in-out infinite;
+}
+@keyframes ctShopScan { 0%,100% { transform: translateY(-24px); opacity: .1; } 50% { transform: translateY(26px); opacity: .9; } }
+.ct-shop-car-banner-speed {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  display: flex;
+  gap: 6px;
+  transform: translateY(-50%);
+  opacity: .9;
+}
+.ct-shop-car-banner-speed-left { left: 26px; }
+.ct-shop-car-banner-speed-right { right: 26px; transform: translateY(-50%) scaleX(-1); }
+.ct-shop-car-banner-speed i {
+  width: 18px;
+  height: 34px;
+  display: block;
+  border-top: 5px solid #fbbf24;
+  border-right: 5px solid #fbbf24;
+  transform: rotate(45deg);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.25));
+}
+.ct-shop-car-banner-speed i:nth-child(2) { opacity: .62; }
+.ct-shop-car-banner-speed i:nth-child(3) { opacity: .3; }
+
+@media (max-width: 900px) {
+  .ct-shop-page .container-custom > .ct-shop-car-banner { min-height: 82px; }
+  .ct-shop-car-banner-inner {
+    min-height: 82px !important;
+    grid-template-columns: minmax(180px,.9fr) minmax(260px,1.4fr);
+    padding-inline: 16px !important;
+  }
+  .ct-shop-car-banner-visual { display: none; }
+  .ct-shop-car-banner::before,
+  .ct-shop-car-banner::after { width: 15%; }
+  .ct-shop-car-banner-speed { display: none; }
+}
+@media (max-width: 640px) {
+  .ct-shop-page .container-custom > .ct-shop-car-banner {
+    min-height: 106px;
+    border-radius: 0 0 16px 16px !important;
+  }
+  .ct-shop-car-banner-inner {
+    min-height: 106px !important;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 9px 12px 12px !important;
+  }
+  .ct-shop-car-banner-copy { order: 1; }
+  .ct-shop-car-banner-action { order: 2; width: min(100%, 330px); height: 48px; margin-inline: auto; grid-template-columns: 34px minmax(0,1fr) 20px; border-radius: 14px !important; }
+  .ct-shop-car-banner-action-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .ct-shop-car-banner-action-icon svg { width: 21px; height: 21px; }
+  .ct-shop-car-banner-kicker { display: none; }
+  .ct-shop-car-banner h3,
+  .ct-shop-page .container-custom > .ct-shop-car-banner h3 { font-size: 15px !important; }
+  .ct-shop-car-banner-copy p { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ct-shop-car-banner::before,
+  .ct-shop-car-banner::after { width: 34px; opacity: .88; }
+  .ct-shop-car-banner-road { inset-inline: 9%; }
+}
+
+/* Shop vehicle banner v8 — slimmer black/gold premium strip */
+.ct-shop-page .container-custom > .ct-shop-car-banner {
+  min-height: 68px !important;
+  margin-bottom: 12px !important;
+  border-radius: 0 0 18px 18px !important;
+  border: 1px solid rgba(245, 181, 35, .52) !important;
+  border-top: 0 !important;
+  background:
+    radial-gradient(circle at 18% 50%, rgba(245,181,35,.18), transparent 23%),
+    radial-gradient(circle at 78% 10%, rgba(255,255,255,.07), transparent 30%),
+    linear-gradient(105deg, #05070b 0%, #121720 38%, #0a0d13 72%, #030508 100%) !important;
+  box-shadow:
+    0 8px 22px rgba(15,23,42,.18),
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 0 rgba(245,181,35,.22) !important;
+}
+.ct-shop-car-banner::before,
+.ct-shop-car-banner::after {
+  width: 17% !important;
+  opacity: .96 !important;
+  background:
+    linear-gradient(135deg, rgba(245,181,35,.12), transparent 46%),
+    #070a10 !important;
+}
+.ct-shop-car-banner::before {
+  clip-path: polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%) !important;
+  border-inline-end: 1px solid rgba(245,181,35,.42);
+}
+.ct-shop-car-banner::after {
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 30% 100%, 0 50%) !important;
+  border-inline-start: 1px solid rgba(245,181,35,.42);
+}
+.ct-shop-car-banner-grid {
+  opacity: .08 !important;
+  background-size: 20px 20px !important;
+}
+.ct-shop-car-banner-road {
+  inset-inline: 12% !important;
+  height: 5px !important;
+  background: rgba(245,181,35,.16) !important;
+}
+.ct-shop-car-banner-road span {
+  height: 1px !important;
+  margin-top: 2px !important;
+  background: repeating-linear-gradient(90deg, transparent 0 22px, rgba(245,181,35,.9) 22px 44px) !important;
+}
+.ct-shop-car-banner-inner {
+  min-height: 68px !important;
+  grid-template-columns: minmax(210px,.9fr) minmax(320px,1.5fr) minmax(120px,.55fr) !important;
+  gap: clamp(10px,1.7vw,24px) !important;
+  padding: 6px clamp(18px,3vw,42px) 8px !important;
+}
+.ct-shop-car-banner-action {
+  height: 48px !important;
+  grid-template-columns: 36px minmax(0,1fr) 20px !important;
+  gap: 8px !important;
+  padding: 5px 10px !important;
+  border-radius: 14px !important;
+  border-color: rgba(245,181,35,.46) !important;
+  background: linear-gradient(150deg, rgba(33,39,50,.98), rgba(4,6,10,.98)) !important;
+  box-shadow: 0 7px 18px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.09) !important;
+}
+.ct-shop-car-banner-action:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.38), 0 0 0 2px rgba(245,181,35,.14) !important;
+}
+.ct-shop-car-banner-action-icon {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 11px !important;
+  background: linear-gradient(145deg,#ffe083,#e9a400) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.72), 0 4px 10px rgba(233,164,0,.24) !important;
+}
+.ct-shop-car-banner-action-icon svg { width: 21px !important; height: 21px !important; }
+.ct-shop-car-banner-action-copy small { font-size: 8px !important; letter-spacing: .04em !important; }
+.ct-shop-car-banner-action-copy b { font-size: 12px !important; }
+.ct-shop-car-banner-action-arrow { width: 16px !important; height: 16px !important; }
+.ct-shop-car-banner-copy {
+  color: #fff !important;
+  text-shadow: none !important;
+}
+.ct-shop-car-banner-kicker {
+  margin-bottom: 1px !important;
+  padding: 1px 8px !important;
+  background: rgba(245,181,35,.12) !important;
+  border: 1px solid rgba(245,181,35,.22);
+  color: #f7c64c !important;
+  font-size: 7px !important;
+  letter-spacing: .17em !important;
+}
+.ct-shop-car-banner h3,
+.ct-shop-page .container-custom > .ct-shop-car-banner h3 {
+  color: #f8fafc !important;
+  font-size: clamp(15px,1.45vw,21px) !important;
+  line-height: 1.15 !important;
+  text-shadow: 0 1px 10px rgba(0,0,0,.24) !important;
+}
+.ct-shop-car-banner h3::first-line { color: #f8fafc; }
+.ct-shop-car-banner-copy p {
+  margin-top: 2px !important;
+  color: rgba(226,232,240,.78) !important;
+  font-size: 9px !important;
+  line-height: 1.35 !important;
+}
+.ct-shop-car-banner-active {
+  margin-top: 2px !important;
+  padding: 1px 7px !important;
+  background: rgba(245,181,35,.15) !important;
+  color: #fcd34d !important;
+  border: 1px solid rgba(245,181,35,.22);
+  font-size: 8px !important;
+}
+.ct-shop-car-banner-visual {
+  height: 54px !important;
+}
+.ct-shop-car-banner-visual::before,
+.ct-shop-car-banner-visual::after {
+  content: '';
+  position: absolute;
+  width: 72px;
+  height: 46px;
+  border: 1px solid rgba(245,181,35,.48);
+  clip-path: polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);
+}
+.ct-shop-car-banner-visual::after {
+  width: 88px;
+  height: 56px;
+  opacity: .3;
+}
+.ct-shop-car-banner-halo {
+  width: 76px !important;
+  height: 46px !important;
+  background: radial-gradient(circle, rgba(245,181,35,.48), rgba(245,181,35,.08) 58%, transparent 74%) !important;
+}
+.ct-shop-car-banner-car {
+  width: 54px !important;
+  height: 54px !important;
+  color: #f8c442 !important;
+  filter: drop-shadow(0 0 8px rgba(245,181,35,.40)) !important;
+}
+.ct-shop-car-banner-scan {
+  width: 82px !important;
+  background: linear-gradient(90deg,transparent,#fcd34d,transparent) !important;
+  box-shadow: 0 0 9px rgba(252,211,77,.9) !important;
+}
+.ct-shop-car-banner-speed { gap: 4px !important; opacity: .65 !important; }
+.ct-shop-car-banner-speed-left { left: 20px !important; }
+.ct-shop-car-banner-speed-right { right: 20px !important; }
+.ct-shop-car-banner-speed i {
+  width: 14px !important;
+  height: 25px !important;
+  border-top-width: 4px !important;
+  border-right-width: 4px !important;
+  border-color: #f6bd2c !important;
+}
+@media (max-width: 900px) {
+  .ct-shop-page .container-custom > .ct-shop-car-banner { min-height: 64px !important; }
+  .ct-shop-car-banner-inner {
+    min-height: 64px !important;
+    grid-template-columns: minmax(170px,.9fr) minmax(250px,1.4fr) !important;
+    padding-block: 5px 7px !important;
+  }
+}
+@media (max-width: 640px) {
+  .ct-shop-page .container-custom > .ct-shop-car-banner {
+    min-height: 88px !important;
+    border-radius: 0 0 14px 14px !important;
+  }
+  .ct-shop-car-banner-inner {
+    min-height: 88px !important;
+    gap: 4px !important;
+    padding: 6px 10px 8px !important;
+  }
+  .ct-shop-car-banner-action {
+    width: min(100%,300px) !important;
+    height: 42px !important;
+    grid-template-columns: 30px minmax(0,1fr) 18px !important;
+    border-radius: 12px !important;
+  }
+  .ct-shop-car-banner-action-icon { width: 30px !important; height: 30px !important; border-radius: 9px !important; }
+  .ct-shop-car-banner-action-icon svg { width: 18px !important; height: 18px !important; }
+  .ct-shop-car-banner h3,
+  .ct-shop-page .container-custom > .ct-shop-car-banner h3 { font-size: 14px !important; }
+  .ct-shop-car-banner-copy p { font-size: 8px !important; }
+}
+
+/* Carrtell Smart Match v9 — final compact black/gold banner */
+.ct-site-content > main.ct-shop-page { padding-top: 0 !important; }
+.ct-shop-page > .container-custom { max-width: none !important; padding: 0 20px !important; }
+.ct-shop-page .container-custom > .ct-shop-car-banner {
+  min-height: 78px !important;
+  margin: 0 !important;
+  border: 1px solid rgba(245, 183, 0, .42) !important;
+  border-radius: 0 0 18px 18px !important;
+  background:
+    radial-gradient(circle at 18% 50%, rgba(245,183,0,.16), transparent 18%),
+    radial-gradient(circle at 82% 50%, rgba(245,183,0,.10), transparent 22%),
+    linear-gradient(110deg, #080a0e 0%, #111318 48%, #07090d 100%) !important;
+  box-shadow: 0 10px 24px rgba(15,23,42,.16), inset 0 -1px 0 rgba(245,183,0,.18) !important;
+}
+.ct-shop-car-banner::before,
+.ct-shop-car-banner::after { display: none !important; }
+.ct-shop-car-banner-grid {
+  opacity: .13 !important;
+  background-size: 18px 18px !important;
+  mask-image: linear-gradient(90deg, #000, transparent 30%, transparent 70%, #000) !important;
+}
+.ct-shop-car-banner-road { display: none !important; }
+.ct-shop-car-banner-inner {
+  min-height: 78px !important;
+  grid-template-columns: minmax(250px,.9fr) minmax(360px,1.45fr) minmax(150px,.55fr) !important;
+  gap: clamp(10px,1.8vw,28px) !important;
+  padding: 7px clamp(18px,3vw,42px) !important;
+}
+.ct-shop-car-banner-copy { color: #fff !important; }
+.ct-shop-car-banner-kicker {
+  margin-bottom: 1px !important;
+  padding: 2px 10px !important;
+  border: 1px solid rgba(245,183,0,.52) !important;
+  background: rgba(245,183,0,.08) !important;
+  color: #f8c83e !important;
+  font-size: 7px !important;
+}
+.ct-shop-car-banner h3,
+.ct-shop-page .container-custom > .ct-shop-car-banner h3 {
+  color: #fff !important;
+  font-size: clamp(16px,1.45vw,22px) !important;
+  line-height: 1.15 !important;
+  text-shadow: none !important;
+}
+.ct-shop-car-banner h3::first-letter { color: #f8c83e; }
+.ct-shop-car-banner-copy p {
+  margin-top: 2px !important;
+  color: rgba(255,255,255,.72) !important;
+  font-size: 9px !important;
+}
+.ct-shop-car-banner-visual { height: 62px !important; }
+.ct-shop-car-banner-halo {
+  width: 82px !important; height: 52px !important;
+  background: radial-gradient(circle, rgba(245,183,0,.38), rgba(245,183,0,.08) 58%, transparent 74%) !important;
+}
+.ct-shop-car-banner-car {
+  width: 58px !important; height: 58px !important; color: #f8c83e !important;
+  filter: drop-shadow(0 0 8px rgba(245,183,0,.55)) !important;
+}
+.ct-shop-car-banner-scan { display:none !important; }
+.ct-shop-car-banner-speed-left { left: 24px !important; }
+.ct-shop-car-banner-speed-right { display:none !important; }
+.ct-shop-car-banner-speed i {
+  width: 14px !important; height: 26px !important;
+  border-width: 4px !important; border-color: #d49a00 !important;
+}
+.ct-shop-car-banner-action {
+  height: 52px !important;
+  grid-template-columns: 48px minmax(0,1fr) 36px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden;
+  border: 1px solid #f4b900 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(100deg,#ffd758 0%,#f4b900 68%,#ffe47c 100%) !important;
+  color: #111827 !important;
+  box-shadow: 0 8px 20px rgba(245,183,0,.28), inset 0 1px 0 rgba(255,255,255,.72) !important;
+}
+.ct-shop-car-banner-action:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 25px rgba(245,183,0,.40), 0 0 0 3px rgba(245,183,0,.12) !important;
+}
+.ct-shop-car-banner-action-icon {
+  width: 48px !important; height: 52px !important; border-radius: 0 !important;
+  background: rgba(255,255,255,.18) !important; color: #101318 !important; box-shadow:none !important;
+}
+.ct-shop-car-banner-action-copy { padding: 0 12px; }
+.ct-shop-car-banner-action-copy small { color: rgba(17,24,39,.68) !important; font-size: 8px !important; }
+.ct-shop-car-banner-action-copy b { color:#101318 !important; font-size: 14px !important; }
+.ct-shop-car-banner-action-arrow {
+  width: 36px !important; height: 52px !important; padding: 11px !important;
+  color:#fff !important; background:#090c12; box-sizing:border-box;
+}
+.ct-shop-car-banner-active { display:none !important; }
+
+.ct-shop-compact-categories {
+  display:flex; align-items:center; gap:10px;
+  min-height:56px; margin:0 0 12px; padding:7px 0;
+  border-bottom:1px solid #eef1f5; background:#fff;
+}
+.ct-shop-compact-category-scroll { display:flex; flex:1; gap:8px; overflow-x:auto; scrollbar-width:none; }
+.ct-shop-compact-category-scroll::-webkit-scrollbar { display:none; }
+.ct-shop-compact-category-scroll button,
+.ct-shop-compact-service {
+  flex:0 0 auto; min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:0 17px; border:1px solid #e5e7eb; border-radius:14px; background:#fff;
+  color:#172033; font-size:12px; font-weight:850; box-shadow:0 3px 10px rgba(15,23,42,.035);
+  transition:.2s ease;
+}
+.ct-shop-compact-category-scroll button:hover,
+.ct-shop-compact-category-scroll button.is-active { border-color:#f4b900; background:#fff9e8; color:#9a6900; }
+.ct-shop-compact-service { color:#172033; white-space:nowrap; }
+.ct-shop-compact-service:hover { border-color:#dc2626; color:#dc2626; }
+
+@media (max-width: 900px) {
+  .ct-shop-page > .container-custom { padding:0 10px !important; }
+  .ct-shop-car-banner-inner { grid-template-columns:minmax(190px,1fr) minmax(250px,1.3fr) 80px !important; }
+  .ct-shop-car-banner-copy p { display:none; }
+}
+@media (max-width: 640px) {
+  .ct-shop-page .container-custom > .ct-shop-car-banner { min-height:66px !important; border-radius:0 0 14px 14px !important; }
+  .ct-shop-car-banner-inner { min-height:66px !important; grid-template-columns:170px 1fr !important; padding:6px 9px !important; }
+  .ct-shop-car-banner-visual,.ct-shop-car-banner-speed { display:none !important; }
+  .ct-shop-car-banner-action { height:46px !important; grid-template-columns:42px 1fr 30px !important; }
+  .ct-shop-car-banner-action-icon { width:42px !important; height:46px !important; }
+  .ct-shop-car-banner-action-arrow { width:30px !important; height:46px !important; padding:8px !important; }
+  .ct-shop-car-banner-action-copy b { font-size:12px !important; }
+  .ct-shop-car-banner h3,.ct-shop-page .container-custom > .ct-shop-car-banner h3 { font-size:13px !important; }
+  .ct-shop-car-banner-kicker { display:none !important; }
+  .ct-shop-compact-categories { min-height:50px; margin-bottom:8px; }
+  .ct-shop-compact-category-scroll button,.ct-shop-compact-service { min-height:36px; padding:0 13px; font-size:11px; border-radius:12px; }
+}
+
+
+/* Shop dynamic category icon cards */
+.ct-shop-compact-categories { gap: 10px !important; padding-block: 8px !important; }
+.ct-shop-compact-category-scroll { gap: 10px !important; align-items: stretch !important; }
+.ct-shop-compact-category-scroll > button, .ct-shop-compact-service {
+  min-width: 126px !important; min-height: 72px !important; padding: 8px 14px !important;
+  display: inline-flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 6px !important;
+  border-radius: 16px !important; border: 1px solid rgba(148,163,184,.24) !important; background: rgba(255,255,255,.94) !important;
+  box-shadow: 0 6px 16px rgba(15,23,42,.05) !important; color: #111827 !important; font-size: 12px !important; font-weight: 900 !important; white-space: nowrap !important;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease !important;
+}
+.ct-shop-compact-category-scroll > button:hover, .ct-shop-compact-service:hover { transform: translateY(-2px); border-color: rgba(245,181,35,.65) !important; box-shadow: 0 10px 24px rgba(245,181,35,.13) !important; }
+.ct-shop-compact-category-scroll > button.is-active { border-color: #f59e0b !important; background: linear-gradient(180deg,#fffdf5 0%,#fff7df 100%) !important; color: #9a5b00 !important; }
+.ct-shop-category-icon-shell { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 11px; background: linear-gradient(145deg,#fff7df,#ffffff); border: 1px solid rgba(245,181,35,.28); color: #d97706; overflow: hidden; }
+.ct-shop-category-icon-shell > svg { width: 19px; height: 19px; }
+.ct-shop-category-dynamic-image { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.ct-shop-category-dynamic-emoji { font-size: 20px; line-height: 1; }
+.ct-shop-category-dynamic-fallback { width: 19px; height: 19px; }
+.ct-shop-compact-category-scroll > button.is-active .ct-shop-category-icon-shell { background: linear-gradient(145deg,#fbbf24,#f59e0b); color: #111827; border-color: transparent; }
+@media (max-width: 640px) {
+  .ct-shop-compact-category-scroll > button, .ct-shop-compact-service { min-width: 102px !important; min-height: 62px !important; padding: 6px 10px !important; font-size: 11px !important; }
+  .ct-shop-category-icon-shell { width: 30px; height: 30px; border-radius: 9px; }
+}
+
+
+/* Shop v11 — remove the reserved header gap only on the shop route */
+html.ct-shop-route .ct-site-content {
+  padding-top: 92px !important;
+}
+html.ct-shop-route .ct-site-content > main.ct-shop-page {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+html.ct-shop-route .ct-shop-page > .container-custom {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+html.ct-shop-route .ct-shop-page .container-custom > .ct-shop-car-banner {
+  margin-top: 0 !important;
+  border-radius: 0 0 18px 18px !important;
+}
+html.ct-shop-route .ct-shop-compact-categories {
+  margin-top: 0 !important;
+}
+@media (max-width: 767px) {
+  html.ct-shop-route .ct-site-content { padding-top: 86px !important; }
+}
+
+/* Carrtell shop final compact header + Smart Match alignment (v12) */
+html.ct-shop-route .ct-new-site-header {
+  --ct-header-height: 88px;
+}
+html.ct-shop-route .ct-new-promo-row {
+  height: 28px !important;
+}
+html.ct-shop-route .ct-new-promo-link {
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+html.ct-shop-route .ct-new-main-inner {
+  height: 60px !important;
+  padding-inline: 18px !important;
+  gap: 10px !important;
+}
+html.ct-shop-route .ct-new-header-logo {
+  min-width: 86px !important;
+}
+html.ct-shop-route .ct-new-header-logo img {
+  max-height: 48px !important;
+  width: auto !important;
+}
+html.ct-shop-route .ct-new-search-form {
+  height: 40px !important;
+  border-radius: 14px !important;
+}
+html.ct-shop-route .ct-new-action-button,
+html.ct-shop-route .ct-new-icon-button {
+  height: 40px !important;
+}
+html.ct-shop-route .ct-new-access-row,
+html.ct-shop-route .ct-new-tool-row {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+}
+html.ct-shop-route .ct-site-content {
+  padding-top: 88px !important;
+}
+html.ct-shop-route .ct-site-content > main.ct-shop-page,
+html.ct-shop-route .ct-shop-page > .container-custom {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+html.ct-shop-route .ct-shop-page > .container-custom {
+  padding-inline: 20px !important;
+}
+
+/* Slim black Smart Match banner, fully visible below the fixed header */
+html.ct-shop-route .ct-shop-page .container-custom > .ct-shop-car-banner {
+  min-height: 74px !important;
+  height: 74px !important;
+  margin: 0 !important;
+  border-radius: 0 0 16px 16px !important;
+  overflow: hidden !important;
+  isolation: isolate;
+}
+html.ct-shop-route .ct-shop-car-banner-inner {
+  min-height: 74px !important;
+  height: 74px !important;
+  grid-template-columns: minmax(260px,.92fr) minmax(360px,1.5fr) minmax(120px,.5fr) !important;
+  gap: clamp(10px,1.6vw,24px) !important;
+  padding: 6px clamp(16px,2.8vw,38px) !important;
+}
+html.ct-shop-route .ct-shop-car-banner-copy {
+  position: relative;
+  z-index: 3;
+}
+html.ct-shop-route .ct-shop-car-banner-kicker {
+  padding: 2px 11px !important;
+  font-size: 7px !important;
+  letter-spacing: .15em !important;
+}
+html.ct-shop-route .ct-shop-car-banner h3,
+html.ct-shop-route .ct-shop-page .container-custom > .ct-shop-car-banner h3 {
+  font-size: clamp(16px,1.42vw,21px) !important;
+  line-height: 1.1 !important;
+  margin: 1px 0 0 !important;
+}
+html.ct-shop-route .ct-shop-car-banner-copy p {
+  margin-top: 2px !important;
+  font-size: 8.5px !important;
+  line-height: 1.35 !important;
+}
+html.ct-shop-route .ct-shop-car-banner-visual {
+  height: 58px !important;
+}
+html.ct-shop-route .ct-shop-car-banner-car {
+  width: 52px !important;
+  height: 52px !important;
+}
+html.ct-shop-route .ct-shop-car-banner-halo {
+  width: 76px !important;
+  height: 48px !important;
+}
+
+/* High-contrast vehicle button */
+html.ct-shop-route .ct-shop-car-banner-action {
+  height: 48px !important;
+  min-width: 270px !important;
+  grid-template-columns: 50px minmax(145px,1fr) 38px !important;
+  border: 1px solid #f5b700 !important;
+  border-radius: 15px !important;
+  background: linear-gradient(102deg,#ffe173 0%,#ffc928 42%,#f4aa00 100%) !important;
+  color: #090c12 !important;
+  box-shadow: 0 7px 18px rgba(245,183,0,.34), inset 0 1px 0 rgba(255,255,255,.82) !important;
+  opacity: 1 !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-icon {
+  width: 50px !important;
+  height: 48px !important;
+  background: rgba(255,255,255,.24) !important;
+  color: #090c12 !important;
+  border-inline-start: 1px solid rgba(17,24,39,.22) !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-icon svg {
+  width: 23px !important;
+  height: 23px !important;
+  stroke-width: 2.5 !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-copy {
+  opacity: 1 !important;
+  color: #090c12 !important;
+  padding-inline: 13px !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-copy small {
+  display: none !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-copy b {
+  color: #090c12 !important;
+  opacity: 1 !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+  text-shadow: none !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-arrow {
+  width: 38px !important;
+  height: 48px !important;
+  padding: 10px !important;
+  background: #080b11 !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action:hover {
+  transform: translateY(-1px) scale(1.01) !important;
+  filter: saturate(1.08) !important;
+  box-shadow: 0 10px 24px rgba(245,183,0,.46), 0 0 0 3px rgba(245,183,0,.12) !important;
+}
+
+/* Compact dynamic category cards */
+html.ct-shop-route .ct-shop-compact-categories {
+  min-height: 68px !important;
+  margin: 0 0 8px !important;
+  padding: 6px 0 !important;
+  gap: 8px !important;
+  background: #fff !important;
+}
+html.ct-shop-route .ct-shop-compact-category-scroll {
+  gap: 8px !important;
+}
+html.ct-shop-route .ct-shop-compact-category-scroll > button,
+html.ct-shop-route .ct-shop-compact-service {
+  min-width: 118px !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  padding: 5px 11px !important;
+  gap: 4px !important;
+  border-radius: 13px !important;
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+  box-shadow: 0 3px 10px rgba(15,23,42,.04) !important;
+}
+html.ct-shop-route .ct-shop-category-icon-shell {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9px !important;
+}
+html.ct-shop-route .ct-shop-category-icon-shell > svg,
+html.ct-shop-route .ct-shop-category-dynamic-fallback {
+  width: 17px !important;
+  height: 17px !important;
+}
+html.ct-shop-route .ct-shop-category-dynamic-emoji {
+  font-size: 17px !important;
+}
+html.ct-shop-route .ct-shop-category-dynamic-image {
+  padding: 3px !important;
+}
+
+@media (max-width: 767px) {
+  html.ct-shop-route .ct-new-promo-row { height: 25px !important; }
+  html.ct-shop-route .ct-new-main-inner { height: 55px !important; padding-inline: 9px !important; }
+  html.ct-shop-route .ct-new-header-logo { min-width: 62px !important; }
+  html.ct-shop-route .ct-new-header-logo img { max-height: 37px !important; }
+  html.ct-shop-route .ct-site-content { padding-top: 80px !important; }
+  html.ct-shop-route .ct-shop-page > .container-custom { padding-inline: 8px !important; }
+  html.ct-shop-route .ct-shop-page .container-custom > .ct-shop-car-banner,
+  html.ct-shop-route .ct-shop-car-banner-inner { min-height: 64px !important; height: 64px !important; }
+  html.ct-shop-route .ct-shop-car-banner-inner { grid-template-columns: minmax(150px,1fr) minmax(155px,.9fr) !important; padding: 5px 8px !important; gap: 7px !important; }
+  html.ct-shop-route .ct-shop-car-banner-action { min-width: 0 !important; width: 100% !important; height: 44px !important; grid-template-columns: 42px 1fr 30px !important; }
+  html.ct-shop-route .ct-shop-car-banner-action-icon { width: 42px !important; height: 44px !important; }
+  html.ct-shop-route .ct-shop-car-banner-action-arrow { width: 30px !important; height: 44px !important; padding: 8px !important; }
+  html.ct-shop-route .ct-shop-car-banner-action-copy b { font-size: 12px !important; }
+  html.ct-shop-route .ct-shop-car-banner h3,
+  html.ct-shop-route .ct-shop-page .container-custom > .ct-shop-car-banner h3 { font-size: 12.5px !important; }
+  html.ct-shop-route .ct-shop-car-banner-copy p,
+  html.ct-shop-route .ct-shop-car-banner-kicker { display: none !important; }
+  html.ct-shop-route .ct-shop-compact-categories { min-height: 60px !important; padding-block: 5px !important; }
+  html.ct-shop-route .ct-shop-compact-category-scroll > button,
+  html.ct-shop-route .ct-shop-compact-service { min-width: 94px !important; min-height: 50px !important; height: 50px !important; padding: 4px 8px !important; font-size: 10px !important; }
+  html.ct-shop-route .ct-shop-category-icon-shell { width: 25px !important; height: 25px !important; }
+}
+
+/* Carrtell premium CTA buttons — vehicle + on-site service (v13) */
+html.ct-shop-route .ct-shop-car-banner-action {
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+  border-color: #f7c832 !important;
+  background:
+    linear-gradient(108deg, #fff0a3 0%, #ffd85b 22%, #ffc52b 58%, #eda300 100%) !important;
+  box-shadow:
+    0 9px 22px rgba(236, 166, 0, .36),
+    0 0 0 1px rgba(255, 229, 124, .48) inset,
+    inset 0 1px 0 rgba(255,255,255,.92),
+    inset 0 -2px 0 rgba(169,104,0,.18) !important;
+  transition: transform .24s ease, box-shadow .24s ease, filter .24s ease !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 10%, rgba(255,255,255,.56) 36%, transparent 58%);
+  transform: translateX(-135%);
+  transition: transform .62s ease;
+  pointer-events: none;
+}
+html.ct-shop-route .ct-shop-car-banner-action::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.35);
+  pointer-events: none;
+}
+html.ct-shop-route .ct-shop-car-banner-action:hover::before {
+  transform: translateX(135%);
+}
+html.ct-shop-route .ct-shop-car-banner-action:hover {
+  transform: translateY(-2px) scale(1.012) !important;
+  filter: saturate(1.08) brightness(1.025) !important;
+  box-shadow:
+    0 14px 30px rgba(236,166,0,.48),
+    0 0 24px rgba(255,196,35,.34),
+    0 0 0 1px rgba(255,236,158,.65) inset,
+    inset 0 1px 0 rgba(255,255,255,.96) !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action:active {
+  transform: translateY(0) scale(.985) !important;
+  box-shadow:
+    0 5px 12px rgba(236,166,0,.34),
+    inset 0 2px 5px rgba(110,67,0,.16) !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-icon {
+  position: relative !important;
+  width: 44px !important;
+  height: 44px !important;
+  margin-inline: 3px !important;
+  align-self: center !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255,255,255,.78) !important;
+  background:
+    radial-gradient(circle at 35% 30%, #fff8d3 0%, #ffe47d 34%, #f5b600 100%) !important;
+  box-shadow:
+    0 5px 12px rgba(117,72,0,.22),
+    inset 0 1px 0 rgba(255,255,255,.95) !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-icon::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,218,68,.27), transparent 70%);
+  z-index: -1;
+}
+html.ct-shop-route .ct-shop-car-banner-action-copy {
+  border-inline-start: 1px solid rgba(111,70,0,.18) !important;
+  border-inline-end: 1px solid rgba(255,255,255,.42) !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-copy b {
+  letter-spacing: -.01em !important;
+}
+html.ct-shop-route .ct-shop-car-banner-action-arrow {
+  border-radius: 12px 0 0 12px !important;
+  background: linear-gradient(145deg,#151922,#05070a) !important;
+  box-shadow: inset -1px 0 0 rgba(255,255,255,.08) !important;
+}
+
+/* Premium on-site service card */
+html.ct-shop-route .ct-shop-compact-service {
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+  color: #101827 !important;
+  border: 1px solid rgba(236,166,0,.46) !important;
+  background:
+    linear-gradient(145deg, rgba(255,252,244,.98) 0%, #ffffff 54%, #fff8e7 100%) !important;
+  box-shadow:
+    0 5px 15px rgba(15,23,42,.07),
+    inset 0 1px 0 rgba(255,255,255,.95) !important;
+  transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease !important;
+}
+html.ct-shop-route .ct-shop-compact-service::before {
+  content: "";
+  position: absolute;
+  inset: auto -28% -72% -28%;
+  height: 110%;
+  z-index: -1;
+  background: radial-gradient(ellipse at center, rgba(245,183,0,.17), transparent 70%);
+  transition: transform .3s ease, opacity .3s ease;
+  opacity: .72;
+}
+html.ct-shop-route .ct-shop-compact-service:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(236,166,0,.84) !important;
+  box-shadow:
+    0 11px 24px rgba(15,23,42,.11),
+    0 0 20px rgba(245,183,0,.14),
+    inset 0 1px 0 rgba(255,255,255,.98) !important;
+}
+html.ct-shop-route .ct-shop-compact-service:hover::before {
+  transform: translateY(-10px) scale(1.08);
+  opacity: 1;
+}
+html.ct-shop-route .ct-shop-compact-service:active {
+  transform: translateY(-1px) scale(.98) !important;
+}
+html.ct-shop-route .ct-shop-compact-service .ct-shop-category-icon-shell {
+  position: relative !important;
+  border-color: rgba(245,183,0,.62) !important;
+  background:
+    linear-gradient(145deg,#fffdf7 0%,#fff2be 52%,#ffd45a 100%) !important;
+  color: #d28b00 !important;
+  box-shadow:
+    0 5px 12px rgba(229,154,0,.18),
+    0 0 0 3px rgba(245,183,0,.08),
+    inset 0 1px 0 rgba(255,255,255,.96) !important;
+  transition: transform .24s ease, box-shadow .24s ease !important;
+}
+html.ct-shop-route .ct-shop-compact-service:hover .ct-shop-category-icon-shell {
+  transform: translateY(-1px) rotate(-3deg) scale(1.06);
+  box-shadow:
+    0 7px 16px rgba(229,154,0,.27),
+    0 0 18px rgba(245,183,0,.26),
+    inset 0 1px 0 rgba(255,255,255,.98) !important;
+}
+html.ct-shop-route .ct-shop-compact-service > span:last-child {
+  font-weight: 950 !important;
+  letter-spacing: -.015em !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.ct-shop-route .ct-shop-car-banner-action,
+  html.ct-shop-route .ct-shop-car-banner-action::before,
+  html.ct-shop-route .ct-shop-compact-service,
+  html.ct-shop-route .ct-shop-compact-service::before,
+  html.ct-shop-route .ct-shop-compact-service .ct-shop-category-icon-shell {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  html.ct-shop-route .ct-shop-car-banner-action-icon {
+    width: 38px !important;
+    height: 38px !important;
+    margin-inline: 2px !important;
+  }
+  html.ct-shop-route .ct-shop-car-banner-action-copy {
+    padding-inline: 8px !important;
+  }
+  html.ct-shop-route .ct-shop-compact-service:hover {
+    transform: translateY(-1px) !important;
+  }
+}
+
+/* RC1-05A — mobile-first storefront + panels */
+.ct-mobile-bottom-nav { display: none; }
+
+@media (max-width: 767px) {
+  html, body, #root { width: 100%; max-width: 100%; overflow-x: hidden; }
+  body { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+
+  .ct-mobile-bottom-nav {
+    position: fixed;
+    z-index: 99990;
+    right: 8px;
+    left: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    height: 58px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    padding: 5px 6px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 19px;
+    background: rgba(7, 15, 29, .94);
+    box-shadow: 0 16px 45px rgba(2,6,23,.34), inset 0 1px 0 rgba(255,255,255,.08);
+    backdrop-filter: blur(18px) saturate(1.25);
+  }
+  .ct-mobile-bottom-nav a {
+    min-width: 0;
+    height: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 14px;
+    color: #b7c0cf;
+    font-size: 9.5px;
+    font-weight: 850;
+    transition: color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .ct-mobile-bottom-nav a svg { width: 19px; height: 19px; }
+  .ct-mobile-bottom-nav a.is-active {
+    color: #0b1220;
+    background: linear-gradient(145deg,#ffe681,#f5b700);
+    box-shadow: 0 6px 18px rgba(245,183,0,.28);
+  }
+  .ct-mobile-bottom-nav a:active { transform: scale(.94); }
+
+  /* Compact two-row header */
+  .ct-new-main-row { position: relative; }
+  .ct-new-main-inner {
+    min-height: 104px !important;
+    height: auto !important;
+    padding: 7px 9px 8px !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0,1fr) auto !important;
+    grid-template-areas: "logo spacer actions" "search search search" !important;
+    gap: 7px !important;
+  }
+  .ct-new-header-logo { grid-area: logo; min-width: 58px !important; justify-content: flex-start !important; }
+  .ct-new-header-logo img { width: auto !important; height: 38px !important; max-width: 86px !important; object-fit: contain !important; }
+  .ct-new-search-wrap { grid-area: search; width: 100%; min-width: 0; }
+  .ct-new-search-form { width: 100%; height: 39px !important; border-radius: 12px !important; }
+  .ct-new-actions { grid-area: actions; gap: 5px !important; justify-self: end; }
+  .ct-new-actions .ct-new-favorites-button { display: none !important; }
+  .ct-new-actions .ct-new-icon-button,
+  .ct-new-actions button,
+  .ct-new-actions a { min-width: 38px; min-height: 38px; }
+  .ct-new-actions .ct-new-action-button { display: none !important; }
+  .ct-new-promo-row { min-height: 25px !important; height: 25px !important; overflow: hidden; }
+  .ct-new-promo-row * { font-size: 10px !important; line-height: 25px !important; }
+
+  /* Mobile menu becomes a bottom sheet */
+  .ct-new-drawer-backdrop { display: flex; align-items: flex-end; }
+  .ct-new-drawer {
+    position: relative !important;
+    inset: auto 0 0 0 !important;
+    width: 100% !important;
+    height: min(82vh, 720px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom)) !important;
+    border-radius: 24px 24px 0 0 !important;
+    box-shadow: 0 -20px 60px rgba(2,6,23,.34) !important;
+    animation: ctMobileSheetIn .24s ease-out !important;
+  }
+  .ct-new-drawer::before {
+    content: "";
+    width: 42px;
+    height: 4px;
+    margin: -3px auto 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ct-muted) 45%, transparent);
+    flex: 0 0 auto;
+  }
+  .ct-new-drawer-mega { display: none !important; }
+  .ct-new-drawer-nav { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px !important; }
+  .ct-new-drawer-nav > a,
+  .ct-new-drawer-category-trigger { min-height: 50px !important; }
+  .ct-new-drawer-search { height: 44px !important; }
+  @keyframes ctMobileSheetIn { from { transform: translateY(100%); opacity: .7; } to { transform: translateY(0); opacity: 1; } }
+
+  /* Vehicle picker as full-width sheet */
+  .ct-new-vehicle-picker {
+    position: fixed !important;
+    z-index: 100005 !important;
+    right: 8px !important;
+    left: 8px !important;
+    top: auto !important;
+    bottom: calc(74px + env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    max-height: 68dvh !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+    box-shadow: 0 24px 70px rgba(2,6,23,.42) !important;
+  }
+
+  /* Product grids and cards */
+  .ct-shop-page [class*="grid-cols-3"],
+  .ct-shop-page [class*="grid-cols-4"],
+  .ct-shop-page [class*="grid-cols-5"],
+  .ct-shop-page [class*="grid-cols-6"] { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .ct-shop-page .container-custom,
+  .ct-site-content .container-custom { padding-inline: 8px !important; }
+  .ct-shop-page img { max-width: 100%; }
+
+  /* Forms and checkout */
+  .ct-site-content input,
+  .ct-site-content select,
+  .ct-site-content textarea { font-size: 16px; }
+  .ct-site-content form [class*="grid-cols-2"],
+  .ct-site-content form [class*="grid-cols-3"],
+  .ct-site-content form [class*="grid-cols-4"] { grid-template-columns: minmax(0,1fr) !important; }
+
+  /* Admin/driver mobile safety */
+  body:has(.ct-admin-shell), body:has([data-admin-layout]) { padding-bottom: 0; }
+  .admin-table-scroll, .ct-admin-table-wrap, main table { min-width: 720px; }
+  main:has(table) { overflow-x: auto; }
+}
+
+@media (min-width: 768px) {
+  .ct-mobile-bottom-nav { display: none !important; }
+}
+
+/* RC1-05B — mobile cleanup from real-device review */
+@media (max-width: 767px) {
+  .ct-site-header { position: relative !important; z-index: 200 !important; }
+  .ct-new-main-row, .ct-new-main-inner { overflow: visible !important; }
+  .ct-new-vehicle-strip, .ct-new-category-strip { position: relative !important; z-index: 10 !important; transform: none !important; }
+  .ct-shop-page { padding-bottom: 84px !important; }
+  .ct-shop-page section { scroll-margin-top: 120px; }
+
+  .ct-shop-promo-cards { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+  .ct-shop-promo-card {
+    min-width: 78vw !important;
+    max-width: 78vw !important;
+    min-height: 92px !important;
+    height: 92px !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    scroll-snap-align: start;
+  }
+  .ct-shop-promo-card h3 { font-size: 14px !important; line-height: 1.45 !important; }
+  .ct-shop-promo-card p { display: none !important; }
+  .ct-shop-promo-card > div:last-child > span:last-child { width: 42px !important; height: 42px !important; border-radius: 12px !important; }
+  .ct-shop-promo-card > div:last-child > span:last-child svg { width: 22px !important; height: 22px !important; }
+
+  .ct-collection-hero { padding: 12px !important; border-radius: 18px !important; }
+  .ct-collection-hero h1 { font-size: 18px !important; }
+  .ct-collection-hero p { display: none !important; }
+  .ct-collection-search { display: none !important; }
+
+  .ct-mobile-bottom-nav { z-index: 100000 !important; }
+  .ct-mobile-bottom-nav::before { display: none !important; }
+  body::after { display: none !important; }
+
+  .ct-shop-page [class*="h-[330px]"] { height: 286px !important; }
+  .ct-shop-page [class*="h-[154px]"] { height: 126px !important; }
+
+  /* Booking cards */
+  .ct-booking-slot, [data-booking-slot] {
+    min-height: 74px !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+  }
+  .ct-booking-slot:hover, [data-booking-slot]:hover { color: inherit !important; }
+  .ct-booking-slot.is-selected, [data-booking-slot][aria-pressed="true"] { color: #0f172a !important; }
+
+  /* prevent category/header bars from becoming floating overlays while scrolling */
+  .ct-category-bar, .ct-new-category-rail, .ct-new-smart-match { position: relative !important; top: auto !important; bottom: auto !important; }
+  .ct-site-content { overflow: clip; }
+}
+
+/* Admin contrast guard — prevents theme presets from washing dashboard text/cards */
+.ct-admin-dashboard,
+.ct-admin-dashboard * { color-scheme: dark; }
+.ct-admin-dashboard h1,
+.ct-admin-dashboard h2,
+.ct-admin-dashboard b { color: #f8fafc !important; }
+.ct-admin-dashboard .text-slate-400 { color: #cbd5e1 !important; }
+.ct-admin-dashboard .text-slate-500 { color: #94a3b8 !important; }
+.ct-admin-dashboard [class*="bg-slate-900"] { background-color: #0f172a !important; }
+.ct-admin-dashboard [class*="bg-slate-950"] { background-color: #020617 !important; }
+
+/* SPRINT-POLISH-01 — Carrtell floating mobile navigation */
+@media (max-width: 767px) {
+  body { padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important; }
+
+  .ct-mobile-bottom-nav {
+    right: 10px !important;
+    left: 10px !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    height: 64px !important;
+    overflow: visible !important;
+    padding: 5px 7px !important;
+    border-color: rgba(255,255,255,.13) !important;
+    border-radius: 22px !important;
+    background: linear-gradient(180deg, rgba(17,24,39,.92), rgba(2,6,23,.97)) !important;
+    box-shadow: 0 20px 55px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08) !important;
+    isolation: isolate;
+  }
+
+  .ct-mobile-bottom-nav a {
+    position: relative;
+    height: 54px !important;
+    gap: 3px !important;
+    overflow: visible;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #aab4c4 !important;
+    transform: translateZ(0);
+  }
+
+  .ct-mobile-nav-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), background .2s ease, color .2s ease, box-shadow .2s ease;
+  }
+
+  .ct-mobile-bottom-nav a svg { width: 20px !important; height: 20px !important; }
+  .ct-mobile-nav-label { font-size: 9px; line-height: 1; white-space: nowrap; transition: color .2s ease, transform .2s ease; }
+
+  .ct-mobile-bottom-nav a.is-active { color: #fff !important; }
+  .ct-mobile-bottom-nav a.is-active .ct-mobile-nav-icon {
+    transform: translateY(-14px) scale(1.12);
+    color: #fff;
+    background: linear-gradient(145deg, #ff4d5a, #d90429);
+    border: 4px solid #111827;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 8px 22px rgba(239,35,60,.58), 0 0 24px rgba(239,35,60,.34);
+  }
+  .ct-mobile-bottom-nav a.is-active .ct-mobile-nav-label { color: #fff; transform: translateY(-5px); }
+
+  .ct-mobile-bottom-nav a.is-featured .ct-mobile-nav-icon {
+    color: #fff;
+    background: rgba(239,35,60,.18);
+    box-shadow: inset 0 0 0 1px rgba(255,77,90,.34);
+  }
+  .ct-mobile-bottom-nav a.is-featured.is-active .ct-mobile-nav-icon {
+    background: linear-gradient(145deg, #ff5b68, #d90429);
+    animation: ctMobileNavPulse 2.2s ease-in-out infinite;
+  }
+
+  .ct-mobile-bottom-nav a:active .ct-mobile-nav-icon { transform: scale(.9); }
+  .ct-mobile-bottom-nav a.is-active:active .ct-mobile-nav-icon { transform: translateY(-12px) scale(1.02); }
+
+  .ct-book-actions { bottom: calc(78px + env(safe-area-inset-bottom)) !important; }
+
+  @keyframes ctMobileNavPulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 8px 22px rgba(239,35,60,.5), 0 0 18px rgba(239,35,60,.25); }
+    50% { box-shadow: 0 0 0 1px rgba(255,255,255,.16), 0 10px 28px rgba(239,35,60,.7), 0 0 30px rgba(239,35,60,.42); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-mobile-bottom-nav *,
+  .ct-mobile-bottom-nav a.is-featured.is-active .ct-mobile-nav-icon { animation: none !important; transition: none !important; }
+}

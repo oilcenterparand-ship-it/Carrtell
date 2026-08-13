@@ -6,6 +6,7 @@ type AuthContextValue = {
   user: CarrtellAuthUser | null;
   role: UserRole | null;
   loading: boolean;
+  initialized: boolean;
   isAuthenticated: boolean;
   refreshAuth: () => Promise<void>;
   refreshUserRole: () => Promise<void>;
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     role: user?.role || null,
     loading,
+    initialized: !loading,
     isAuthenticated: Boolean(user),
     refreshAuth,
     refreshUserRole: refreshAuth,

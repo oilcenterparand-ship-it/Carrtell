@@ -3,6 +3,8 @@ import { getProducts, createProduct, updateProduct, deleteProduct, Product } fro
 import { getCars, getCarTitle, type Car } from '../services/carsApi';
 import { PRODUCT_CATEGORIES, getCategoryLabel } from '../../config/productCategories';
 import { getOilSpecs, type OilSpec } from '../services/oilSpecsApi';
+import { getBrands, type Brand } from '../services/brandsApi';
+import { getWarehouses, type Warehouse } from '../services/warehousesApi';
 import ImageUploader from '../components/ImageUploader';
 
 
@@ -107,6 +109,8 @@ const emptyProduct: Product = {
   recommendation_reason: '',
   recommendation_priority: 0,
   related_product_ids: [],
+  warehouse_id: null,
+  oil_base: '',
   upsell_title: 'همراه این محصول پیشنهاد می‌کنیم',
 };
 
@@ -183,6 +187,8 @@ function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [oilSpecs, setOilSpecs] = useState<OilSpec[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [form, setForm] = useState<Product>(emptyProduct);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [carSearch, setCarSearch] = useState('');
@@ -207,10 +213,12 @@ function Products() {
   });
 
   async function loadData() {
-    const [productsData, carsData, oilSpecsData] = await Promise.all([getProducts(), getCars(), getOilSpecs()]);
+    const [productsData, carsData, oilSpecsData, brandsData, warehousesData] = await Promise.all([getProducts(), getCars(), getOilSpecs(), getBrands(), getWarehouses()]);
     setProducts(productsData);
     setCars(carsData.filter((car) => car.is_active !== false));
     setOilSpecs(oilSpecsData.filter((item) => item.is_active !== false));
+    setBrands(brandsData.filter((item) => item.is_active !== false));
+    setWarehouses(warehousesData.filter((item) => item.is_active !== false));
   }
 
   useEffect(() => {
@@ -219,6 +227,7 @@ function Products() {
 
   const oilGrades = useMemo(() => oilSpecs.filter((item) => item.type === 'grade'), [oilSpecs]);
   const qualityLevels = useMemo(() => oilSpecs.filter((item) => item.type === 'quality'), [oilSpecs]);
+  const oilBases = useMemo(() => oilSpecs.filter((item) => item.type === 'base'), [oilSpecs]);
   const amazingJalali = parseAmazingJalali(form.amazing_ends_at);
 
   const filteredProducts = useMemo(() => {
@@ -483,8 +492,12 @@ function Products() {
         <Field label="نام محصول" hint="مثال: ایرانول 16000 2050 یا فیلتر روغن پراید آرتین">
           <input placeholder="نام محصول" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded bg-slate-800 p-3 text-white" />
         </Field>
-        <Field label="برند محصول" hint="نام برند روی کارت محصول نمایش داده می‌شود؛ مثل بهران، ایرانول، سرکان.">
-          <input placeholder="برند" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className="w-full rounded bg-slate-800 p-3 text-white" />
+        <Field label="برند محصول" hint="برند را از فهرست برندهای ذخیره‌شده انتخاب کن. برای افزودن برند جدید از بخش مدیریت برندها استفاده کن.">
+          <select value={form.brand_id || ''} onChange={(e) => { const brand = brands.find((item) => item.id === e.target.value); setForm({ ...form, brand_id: e.target.value || null, brand: brand?.name || '' }); }} className="w-full rounded bg-slate-800 p-3 text-white">
+            <option value="">انتخاب برند</option>
+            {brands.map((brand) => <option key={brand.id || brand.name} value={brand.id}>{brand.name}</option>)}
+          </select>
+          <a href="/admin/brands" className="mt-2 inline-flex text-xs font-bold text-yellow-300">+ افزودن یا مدیریت برندها</a>
         </Field>
 
         <Field label="دسته‌بندی محصول" hint="محصول در همین دسته داخل فروشگاه و فیلترها نمایش داده می‌شود.">
@@ -529,6 +542,13 @@ function Products() {
             {qualityLevels.map((level) => (
               <option key={level.id || level.title} value={level.title}>{level.title}</option>
             ))}
+          </select>
+        </Field>
+
+        <Field label="نوع پایه روغن" hint="جایگزین فیلد API؛ گزینه‌ها از بخش گرید و مشخصات روغن قابل مدیریت هستند.">
+          <select value={form.oil_base || ''} onChange={(e) => setForm({ ...form, oil_base: e.target.value })} className="w-full rounded bg-slate-800 p-3 text-white">
+            <option value="">انتخاب نوع پایه روغن</option>
+            {oilBases.map((item) => <option key={item.id || item.title} value={item.title}>{item.title}</option>)}
           </select>
         </Field>
 
@@ -599,11 +619,11 @@ function Products() {
         </div>
 
 
-        <Field label="قیمت اصلی" hint="قیمت عادی محصول؛ بعد از پایان شگفت‌انگیز، فروشگاه دوباره همین قیمت را نشان می‌دهد.">
-          <input placeholder="مثلاً 1750000" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: +e.target.value })} className="w-full rounded bg-slate-800 p-3 text-white" />
+        <Field label="قیمت اصلی" hint="مبلغ به تومان ذخیره می‌شود.">
+          <div className="flex overflow-hidden rounded bg-slate-800"><input inputMode="numeric" placeholder="مثلاً 1,750,000" value={form.price ? Number(form.price).toLocaleString('en-US') : ''} onChange={(e) => setForm({ ...form, price: Number(e.target.value.replace(/\D/g, '')) || 0 })} className="min-w-0 flex-1 bg-transparent p-3 text-white outline-none" /><span className="grid place-items-center border-r border-slate-700 px-3 text-xs font-bold text-yellow-300">تومان</span></div>
         </Field>
-        <Field label="قیمت شگفت‌انگیز" hint="قیمت تخفیفی موقت. اگر خالی باشد، محصول شگفت‌انگیز حساب نمی‌شود.">
-          <input placeholder="مثلاً 1500000" type="number" value={form.amazing_price || ''} onChange={(e) => setForm({ ...form, amazing_price: e.target.value ? +e.target.value : null })} className="w-full rounded bg-slate-800 p-3 text-white" />
+        <Field label="قیمت شگفت‌انگیز" hint="قیمت تخفیفی موقت به تومان.">
+          <div className="flex overflow-hidden rounded bg-slate-800"><input inputMode="numeric" placeholder="مثلاً 1,500,000" value={form.amazing_price ? Number(form.amazing_price).toLocaleString('en-US') : ''} onChange={(e) => { const raw=e.target.value.replace(/\D/g, ''); setForm({ ...form, amazing_price: raw ? Number(raw) : null }); }} className="min-w-0 flex-1 bg-transparent p-3 text-white outline-none" /><span className="grid place-items-center border-r border-slate-700 px-3 text-xs font-bold text-yellow-300">تومان</span></div>
         </Field>
 
         <div className="rounded-xl bg-slate-950/30 p-3 md:col-span-2">
@@ -621,8 +641,14 @@ function Products() {
           <button type="button" onClick={() => setForm({ ...form, amazing_ends_at: null, amazing_price: null })} className="mt-3 rounded-lg bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700">پاک کردن تخفیف شگفت‌انگیز</button>
         </div>
 
-        <Field label="موجودی انبار" hint="تعداد قابل فروش. اگر ناموجود را فعال کنی موجودی صفر می‌شود.">
-          <input placeholder="مثلاً 8" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: +e.target.value })} className="w-full rounded bg-slate-800 p-3 text-white" />
+        <Field label="موجودی انبار" hint="تعداد قابل فروش در انبار انتخاب‌شده.">
+          <input placeholder="مثلاً 8" type="number" min={0} value={form.stock || ''} onChange={(e) => setForm({ ...form, stock: Number(e.target.value || 0) })} className="w-full rounded bg-slate-800 p-3 text-white" />
+        </Field>
+        <Field label="محل نگهداری موجودی" hint="انبار فروشگاه، انبار مرکزی پرند یا هر انبار دیگری که در پنل تعریف شده است.">
+          <select value={form.warehouse_id || ''} onChange={(e) => setForm({ ...form, warehouse_id: e.target.value || null })} className="w-full rounded bg-slate-800 p-3 text-white">
+            <option value="">انتخاب انبار</option>
+            {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
+          </select>
         </Field>
 
         <div className="flex flex-wrap gap-4 rounded bg-slate-800 p-3 text-white md:col-span-2">

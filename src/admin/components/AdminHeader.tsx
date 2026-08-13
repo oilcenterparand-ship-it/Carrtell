@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, CircleUserRound, ExternalLink, Menu, PackageCheck, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import { Bell, CircleUserRound, ExternalLink, LogOut, Menu, PackageCheck, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { adminNavigationItems } from '../navigation/adminNavigation';
+import { useAdminAuth } from '../auth/AdminAuthProvider';
 import { getAdminOrderSummaries, getPendingOnsiteRequests, subscribeToOrders, type AdminOrderSummary, type AdminOnsiteRequestSummary } from '../services/orderStatsApi';
 
 interface AdminHeaderProps {
@@ -14,6 +15,7 @@ function formatPrice(value: number) {
 
 function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const navigate = useNavigate();
+  const { admin, logout } = useAdminAuth();
   const [orders, setOrders] = useState<AdminOrderSummary[]>([]);
   const [onsiteRequests, setOnsiteRequests] = useState<AdminOnsiteRequestSummary[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -145,6 +147,19 @@ function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
             مشاهده سایت
             <ExternalLink className="h-4 w-4" />
           </Link>
+          <div className="hidden text-left sm:block">
+            <p className="text-xs font-black text-slate-800">{admin?.fullName}</p>
+            <p className="text-[10px] text-slate-500">{admin?.roleTitle || (admin?.isSuperAdmin ? 'Super Admin' : 'مدیر')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={async () => { await logout(); navigate('/admin/login', { replace: true }); }}
+            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+            title="خروج از پنل"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden md:inline">خروج</span>
+          </button>
 
           <div className="relative" ref={dropdownRef}>
             <button

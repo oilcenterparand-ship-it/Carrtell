@@ -3,6 +3,7 @@ import { ChevronDown, Copy, Download, ExternalLink, MessageSquare, PackageCheck,
 import { formatPrice } from '../services/ordersUtils';
 import { exportCustomerPhonesCsv, getOrderItems, getOrders, updateOrderStatus, type Order, type OrderItem, type OrderStatus } from '../services/ordersApi';
 import { makeReviewLink } from '../services/smsApi';
+import { getWarehouses, updateOrderWarehouse, type Warehouse } from '../services/warehousesApi';
 
 const statusLabels: Record<OrderStatus, string> = {
   pending_payment: 'در انتظار پرداخت',
@@ -35,6 +36,7 @@ export default function Orders() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | OrderStatus>('all');
   const [isLoading, setLoading] = useState(true);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   async function loadOrders() {
     try {
@@ -50,6 +52,7 @@ export default function Orders() {
 
   useEffect(() => {
     loadOrders();
+    getWarehouses().then((items) => setWarehouses(items.filter((item) => item.is_active !== false))).catch(console.error);
   }, []);
 
   const filteredOrders = useMemo(() => {
@@ -191,6 +194,12 @@ export default function Orders() {
                       <select value={order.status} onChange={(e) => changeStatus(order, e.target.value as OrderStatus)} className="w-full rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-white outline-none">
                         {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select>
+                      {(order.status === 'paid' || order.status === 'confirmed' || order.status === 'processing' || order.status === 'sent' || order.status === 'completed') && (
+                        <select value={order.fulfillment_warehouse_id || ''} onChange={async (e) => { const updated = await updateOrderWarehouse(order.id, e.target.value || null); setOrders((rows) => rows.map((row) => row.id === order.id ? { ...row, ...updated } : row)); }} className="w-full rounded-2xl border border-amber-400/30 bg-slate-800 px-3 py-2 text-xs text-white outline-none">
+                          <option value="">ارسال از کدام انبار؟</option>
+                          {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>ارسال از {warehouse.name}</option>)}
+                        </select>
+                      )}
                     </div>
                     <button onClick={() => toggleOrder(order.id)} className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-800 text-white"><ChevronDown className={`h-5 w-5 transition ${isOpen ? 'rotate-180' : ''}`} /></button>
                   </div>

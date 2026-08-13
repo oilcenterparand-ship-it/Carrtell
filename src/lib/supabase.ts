@@ -1,11 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-console.log('SUPABASE URL:', supabaseUrl);
-
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey
-);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+if (!supabaseUrl || !supabaseAnonKey) throw new Error('تنظیمات VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY کامل نیست.');
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'carrtell-auth' },
+});

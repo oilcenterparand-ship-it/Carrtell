@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const maxSales = useMemo(() => Math.max(...chart.map((x) => x.sales), 1), [chart]);
 
   return (
-    <div className="space-y-6 p-4 md:p-6 text-white" dir="rtl">
+    <div className="ct-admin-dashboard space-y-6 p-4 text-white md:p-6" dir="rtl">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black">داشبورد مدیریت Carrtell</h1>
@@ -47,7 +47,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+        <div className="xl:col-span-2 rounded-3xl border border-slate-700 bg-slate-900 p-5 text-white shadow-xl">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-xl font-black">نمودار فروش ۱۴ روز اخیر</h2>
             <span className="text-xs text-slate-400">براساس سفارش‌های پرداخت‌شده</span>
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-rose-900/50 bg-rose-950/30 p-5 shadow-xl">
+        <div className="rounded-3xl border border-rose-800 bg-rose-950/70 p-5 text-white shadow-xl">
           <h2 className="text-xl font-black flex items-center gap-2"><AlertTriangle className="text-rose-300" /> هشدارها</h2>
           <div className="mt-5 space-y-3">
             <AlertRow label="سفارش‌های معطل" value={summary?.pendingOrders ?? 0} />
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
 }
 
 function KpiCard({ icon, title, value }: any) {
-  return <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+  return <div className="rounded-3xl border border-slate-700 bg-slate-900 p-5 text-white shadow-xl">
     <div className="w-12 h-12 rounded-2xl bg-yellow-400/15 text-yellow-300 flex items-center justify-center mb-4">{icon}</div>
     <p className="text-slate-400 text-sm">{title}</p>
     <p className="text-2xl font-black mt-2">{value}</p>
@@ -96,7 +96,7 @@ function AlertRow({ label, value }: any) {
 }
 
 function AlertList({ title, icon, items, render }: any) {
-  return <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+  return <div className="rounded-3xl border border-slate-700 bg-slate-900 p-5 text-white shadow-xl">
     <h2 className="text-lg font-black flex items-center gap-2 text-white">{icon}{title}</h2>
     <div className="mt-4 space-y-2 max-h-72 overflow-auto">
       {items.length === 0 ? <p className="text-slate-500 text-sm">موردی برای نمایش وجود ندارد.</p> : items.slice(0, 8).map((item:any, i:number) => (

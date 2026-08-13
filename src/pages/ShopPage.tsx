@@ -16,6 +16,7 @@ import {
   Star,
   User,
   RotateCcw,
+  Wrench,
   X,
 } from 'lucide-react';
 import { getProducts, type Product } from '../admin/services/productsApi';
@@ -50,6 +51,19 @@ function readFavoriteProductIds(): string[] {
 function writeFavoriteProductIds(ids: string[]) {
   localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(Array.from(new Set(ids))));
   window.dispatchEvent(new CustomEvent(FAVORITES_CHANGED_EVENT));
+}
+
+
+function CategoryQuickIcon({ category }: { category: ProductCategory }) {
+  if (category.image_url) {
+    return <img src={category.image_url} alt="" className="ct-shop-category-dynamic-image" loading="lazy" />;
+  }
+
+  if (category.icon_emoji) {
+    return <span className="ct-shop-category-dynamic-emoji" aria-hidden="true">{category.icon_emoji}</span>;
+  }
+
+  return <Droplets className="ct-shop-category-dynamic-fallback" aria-hidden="true" />;
 }
 
 function formatPrice(price: number) {
@@ -127,6 +141,8 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
   const isAvailable = isProductAvailable(product, reservedQuantity);
   const amazingActive = isAmazingActive(product);
   const finalPrice = getProductFinalPrice(product);
+  const referencePrice = Number(product.original_price || product.price || 0);
+  const discountPercent = referencePrice > finalPrice ? Math.round(((referencePrice - finalPrice) / referencePrice) * 100) : 0;
   const itemCountdown = getCountdown(product.amazing_ends_at || undefined);
   const productId = String(product.id || '');
   const [isFavorite, setIsFavorite] = useState(() => productId ? readFavoriteProductIds().includes(productId) : false);
@@ -152,15 +168,16 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
   }
 
   const imageBg = theme.cardImageBackground || '#f8fafc';
-  const infoBg = theme.productInfoBackground || theme.cardBackground || '#0f172a';
+  const infoBg = theme.productInfoBackground || theme.cardBackground || '#ffffff';
   const productTextColor = getReadableTextColor(infoBg, theme.textColor);
   const productMutedColor = isDarkColor(infoBg) ? '#cbd5e1' : theme.mutedTextColor;
   const priceColor = theme.productPriceColor || productTextColor;
   const shortDescription = getProductShortDescription(product);
-  const cardFeatures = (product.card_features || '').trim() || [product.oil_grade, product.quality_level, product.transmission_type].filter(Boolean).join(' • ') || shortDescription;
+  const detailBadges = [product.oil_grade, product.quality_level, product.transmission_type].filter(Boolean).slice(0, 3) as string[];
+  const cardFeatures = (product.card_features || '').trim() || detailBadges.join(' • ') || shortDescription;
   const hoverDetails = [product.name, product.brand && `برند ${product.brand}`, cardFeatures, shortDescription].filter(Boolean).join(' | ');
-  const cardWidth = grid ? 'w-full min-w-0 max-w-none justify-self-stretch' : compact ? 'min-w-[138px] max-w-[138px] md:min-w-[148px] md:max-w-[148px]' : 'min-w-[148px] max-w-[148px] md:min-w-[160px] md:max-w-[160px]';
-  const cardBorderColor = theme.cardBorderColor;
+  const cardWidth = grid ? 'w-full min-w-0 max-w-none justify-self-stretch' : compact ? 'min-w-[148px] max-w-[148px] md:min-w-[158px] md:max-w-[158px]' : 'min-w-[156px] max-w-[156px] md:min-w-[168px] md:max-w-[168px]';
+  const cardBorderColor = theme.cardBorderColor || '#e5e7eb';
   const compatibilityStatus = !selectedCarId
     ? null
     : product.compatible_all_cars || (product.compatible_car_ids || []).includes(selectedCarId)
@@ -168,77 +185,98 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
       : (product.compatible_car_ids || []).length > 0
         ? 'incompatible'
         : 'unknown';
-  const recommendationReason = (product.recommendation_reason || '').trim() || (compatibilityStatus === 'compatible' ? 'پیشنهاد Carrtell برای خودروی انتخابی شما' : '');
 
   return (
     <article
       title={`${hoverDetails} | قیمت ${formatPrice(finalPrice)} تومان`}
       aria-label={`مشاهده اطلاعات ${product.name}`}
-      className={`group relative flex ${grid ? 'h-[266px]' : 'h-[248px]'} ${cardWidth} flex-col overflow-hidden border bg-white shadow-[0_3px_12px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.015] transition duration-300 hover:-translate-y-1 hover:border-red-300 hover:shadow-[0_14px_34px_rgba(15,23,42,0.14)]`}
-      style={{ background: theme.cardBackground, borderColor: cardBorderColor || '#e5e7eb', borderRadius: '16px', fontFamily: theme.productCardFontFamily || theme.fontFamily }}
+      className={`group relative flex ${grid ? 'h-[330px]' : 'h-[312px]'} ${cardWidth} flex-col overflow-hidden border bg-white shadow-[0_4px_16px_rgba(15,23,42,0.07)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_20px_45px_rgba(15,23,42,0.16)]`}
+      style={{ background: theme.cardBackground, borderColor: cardBorderColor, borderRadius: '20px', fontFamily: theme.productCardFontFamily || theme.fontFamily }}
     >
-      <Link to={`/shop/product/${product.id}`} className={`relative flex ${grid ? 'h-[124px]' : 'h-[108px]'} shrink-0 items-center justify-center overflow-hidden border-b`} style={{ background: imageBg, borderColor: cardBorderColor || '#eef2f7' }}>
+      <Link to={`/shop/product/${product.id}`} className={`relative flex ${grid ? 'h-[154px]' : 'h-[142px]'} shrink-0 items-center justify-center overflow-hidden border-b`} style={{ background: imageBg, borderColor: cardBorderColor }}>
+        <div className="absolute inset-x-0 top-0 z-[1] h-12 bg-gradient-to-b from-black/[0.04] to-transparent" />
         {product.image_url ? (
-          <img src={product.image_url} alt={`${product.name}${product.brand ? ` از برند ${product.brand}` : ''}؛ ${cardFeatures}`} loading="lazy" className="h-full w-full object-contain p-2.5 transition duration-300 group-hover:scale-[1.07]" />
+          <img src={product.image_url} alt={`${product.name}${product.brand ? ` از برند ${product.brand}` : ''}`} loading="lazy" className="h-full w-full object-contain p-3 transition-transform duration-500 group-hover:scale-[1.09]" />
         ) : (
-          <Droplets className="h-11 w-11 text-slate-300" />
+          <Droplets className="h-12 w-12 text-slate-300" />
         )}
-        {ratingSummary && ratingSummary.count > 0 && <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full border border-amber-200 bg-white/95 px-1.5 py-1 text-[10px] font-black text-amber-600 shadow-sm"><Star className="h-3 w-3 fill-current" />{ratingSummary.average.toFixed(1)}</span>}
-        {!isAvailable && <span className="absolute left-2 top-2 rounded-lg bg-slate-800 px-2 py-1 text-[10px] font-bold text-white">ناموجود</span>}
-        {isAvailable && amazingActive && <span className="absolute right-2 top-2 rounded-lg px-2 py-1 text-[10px] font-black" style={{ background: theme.amazingBadgeBackground, color: getReadableTextColor(theme.amazingBadgeBackground, '#ffffff') }}>شگفت‌انگیز</span>}
-        {isAvailable && !amazingActive && product.is_featured && <span className="absolute right-2 top-2 rounded-lg px-2 py-1 text-[10px] font-black" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>ویژه</span>}
-        <button
-          type="button"
-          onClick={toggleFavorite}
-          className={`absolute left-2 bottom-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm backdrop-blur transition hover:scale-105 active:scale-95 ${isFavorite ? 'border-rose-300 bg-rose-50 text-rose-500' : 'border-white/70 bg-white/85 text-slate-500 hover:text-rose-500'}`}
-          aria-label={isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
-          title={isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
-        >
-          <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
-        </button>
-        {compatibilityStatus === 'compatible' && <span className="absolute bottom-2 right-2 rounded-lg bg-emerald-500 px-2 py-1 text-[10px] font-black text-white shadow-lg">مناسب خودروی شما</span>}
+
+        <div className="absolute right-2 top-2 z-10 flex max-w-[72%] flex-wrap gap-1">
+          {!isAvailable && <span className="rounded-full bg-slate-900 px-2 py-1 text-[9px] font-black text-white shadow">ناموجود</span>}
+          {isAvailable && amazingActive && <span className="rounded-full bg-gradient-to-l from-rose-600 to-pink-500 px-2 py-1 text-[9px] font-black text-white shadow">شگفت‌انگیز</span>}
+          {isAvailable && !amazingActive && product.is_best_seller && <span className="rounded-full bg-gradient-to-l from-amber-500 to-yellow-300 px-2 py-1 text-[9px] font-black text-slate-950 shadow">پرفروش</span>}
+          {isAvailable && !amazingActive && !product.is_best_seller && product.is_featured && <span className="rounded-full px-2 py-1 text-[9px] font-black shadow" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>ویژه</span>}
+          {discountPercent > 0 && <span className="rounded-full bg-red-600 px-2 py-1 text-[9px] font-black text-white shadow">٪{new Intl.NumberFormat('fa-IR').format(discountPercent)}</span>}
+        </div>
+
+        <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={toggleFavorite}
+            className={`flex h-8 w-8 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition hover:scale-110 active:scale-95 ${isFavorite ? 'border-rose-300 bg-rose-50/95 text-rose-500' : 'border-white/80 bg-white/90 text-slate-500 hover:text-rose-500'}`}
+            aria-label={isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
+          >
+            <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+          {ratingSummary && ratingSummary.count > 0 && <span className="flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-full border border-amber-200 bg-white/95 px-1 text-[9px] font-black text-amber-600 shadow-sm"><Star className="h-3 w-3 fill-current" />{ratingSummary.average.toFixed(1)}</span>}
+        </div>
+
+        {compatibilityStatus === 'compatible' && (
+          <span className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-1 text-[9px] font-black text-white shadow-lg">
+            <PackageCheck className="h-3 w-3" /> مناسب خودروی شما
+          </span>
+        )}
       </Link>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2.5" style={{ background: infoBg, color: productTextColor }}>
-        <p className="mb-1 h-3.5 truncate text-[10px] font-bold" style={{ color: productMutedColor }}>{product.brand || 'Carrtell'}</p>
-        <Link to={`/shop/product/${product.id}`} className="block h-10 line-clamp-2 text-[12px] font-black leading-[1.2rem] tracking-[-0.01em] transition group-hover:text-red-600" style={{ color: productTextColor }}>
+      <div className="flex min-h-0 flex-1 flex-col p-3" style={{ background: infoBg, color: productTextColor }}>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <p className="truncate text-[10px] font-bold" style={{ color: productMutedColor }}>{product.brand || 'Carrtell'}</p>
+          <span className={`flex items-center gap-1 text-[9px] font-black ${isAvailable ? 'text-emerald-500' : 'text-slate-400'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${isAvailable ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            {isAvailable ? 'موجود' : 'ناموجود'}
+          </span>
+        </div>
+
+        <Link to={`/shop/product/${product.id}`} className="line-clamp-2 min-h-[42px] text-[12px] font-black leading-[1.3rem] transition-colors group-hover:text-red-600" style={{ color: productTextColor }}>
           {product.name}
         </Link>
-        <p
-          className="mt-0.5 h-5 overflow-hidden text-[9px] font-medium leading-5 line-clamp-1"
-          style={{ color: productMutedColor }}
-          title={hoverDetails}
-        >
-          {cardFeatures}
-        </p>
+
+        <div className="mt-1.5 flex min-h-[24px] flex-wrap content-start gap-1 overflow-hidden">
+          {detailBadges.length > 0 ? detailBadges.map((badge) => (
+            <span key={badge} className="rounded-md border px-1.5 py-0.5 text-[8px] font-bold" style={{ borderColor: cardBorderColor, color: productMutedColor, background: isDarkColor(infoBg) ? 'rgba(255,255,255,.05)' : '#f8fafc' }}>{badge}</span>
+          )) : <p className="line-clamp-1 text-[9px] leading-5" style={{ color: productMutedColor }}>{cardFeatures}</p>}
+        </div>
+
         {amazingActive ? (
-          <div className="mt-0.5 flex h-4 justify-start gap-1 text-[8px] font-black text-pink-600">
-            <span className="rounded bg-pink-50 px-1.5 leading-5">{itemCountdown.h}</span>
-            <span className="rounded bg-pink-50 px-1.5 leading-5">{itemCountdown.m}</span>
-            <span className="rounded bg-pink-50 px-1.5 leading-5">{itemCountdown.s}</span>
+          <div className="mt-1 flex h-5 items-center gap-1 text-[8px] font-black text-pink-600">
+            <span className="ml-1">تا پایان:</span>
+            <span className="rounded bg-pink-50 px-1.5 py-1">{itemCountdown.h}</span>
+            <span>:</span><span className="rounded bg-pink-50 px-1.5 py-1">{itemCountdown.m}</span>
+            <span>:</span><span className="rounded bg-pink-50 px-1.5 py-1">{itemCountdown.s}</span>
           </div>
-        ) : recommendationReason && compatibilityStatus === 'compatible' ? (
-          <p className="mt-0.5 h-4 truncate text-[8px] font-bold leading-4 text-emerald-500" title={recommendationReason}>✓ {recommendationReason}</p>
-        ) : (
-          <div className="mt-0.5 h-4" />
-        )}
-        <div className="mt-auto flex h-10 items-end justify-between gap-2 border-t pt-2" style={{ borderColor: cardBorderColor || '#eef2f7' }}>
-          <div className="min-w-0">
-            <p className="h-3 text-[10px] leading-3 text-slate-400 line-through">{amazingActive ? formatPrice(product.price) : ''}</p>
+        ) : <div className="mt-1 h-5" />}
+
+        <div className="mt-auto flex items-end justify-between gap-2 border-t pt-2.5" style={{ borderColor: cardBorderColor }}>
+          <div className="min-w-0 flex-1">
+            <div className="flex h-4 items-center gap-1.5">
+              {discountPercent > 0 && <span className="text-[9px] text-slate-400 line-through">{formatPrice(referencePrice)}</span>}
+            </div>
             <div className="flex items-baseline gap-1">
-              <b className="truncate text-[13px] font-black" style={{ color: priceColor }}>{formatPrice(finalPrice)}</b>
-              <span className="text-[10px]" style={{ color: productMutedColor }}>تومان</span>
+              <b className="truncate text-[14px] font-black" style={{ color: priceColor }}>{formatPrice(finalPrice)}</b>
+              <span className="text-[9px]" style={{ color: productMutedColor }}>تومان</span>
             </div>
           </div>
+
           <button
             type="button"
             disabled={!isAvailable}
             onClick={(event) => { event.preventDefault(); event.stopPropagation(); onAddToCart(product); }}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition hover:scale-105 active:scale-95 ${isAvailable ? 'border-red-200 bg-white text-red-600 hover:bg-red-50' : 'border-slate-200 bg-slate-100 text-slate-300'}`}
-            style={isAvailable ? { borderColor: theme.addButtonBackground || theme.primaryColor, color: theme.addButtonBackground || theme.primaryColor } : undefined}
+            className={`group/add flex h-9 shrink-0 items-center justify-center gap-1 overflow-hidden rounded-xl border px-2.5 text-[10px] font-black shadow-sm transition-all duration-300 active:scale-95 ${isAvailable ? 'hover:-translate-y-0.5 hover:shadow-lg' : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300'}`}
+            style={isAvailable ? { background: `linear-gradient(135deg, ${theme.addButtonBackground || theme.primaryColor}, #facc15)`, borderColor: theme.addButtonBackground || theme.primaryColor, color: '#171717' } : undefined}
             aria-label="افزودن به سبد خرید"
           >
-            <Plus className="h-5 w-5" />
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden xl:inline">افزودن</span>
           </button>
         </div>
       </div>
@@ -280,6 +318,10 @@ function ViewAllPackageCard({ theme = defaultThemeSettings }: { theme?: ThemeSet
 }
 
 export default function ShopPage() {
+  useEffect(() => {
+    document.documentElement.classList.add('ct-shop-route');
+    return () => document.documentElement.classList.remove('ct-shop-route');
+  }, []);
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
@@ -521,7 +563,7 @@ export default function ShopPage() {
   const sectionBorderColor = theme.sectionBorderColor;
 
   return (
-    <main className="ct-shop-page min-h-screen pb-20 pt-24 md:pb-0" style={{ background: theme.backgroundColor, color: theme.textColor, fontFamily: theme.fontFamily }}>
+    <main className="ct-shop-page min-h-screen pb-20 pt-0 md:pb-0" style={{ background: theme.backgroundColor, color: theme.textColor, fontFamily: theme.fontFamily }}>
       {showCategoryMenu && (
         <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setShowCategoryMenu(false)}>
           <div className="h-full w-[82%] max-w-sm overflow-y-auto p-5 shadow-2xl" style={{ background: theme.surfaceColor, color: categoryPanelTextColor }} onClick={(e) => e.stopPropagation()}>
@@ -563,6 +605,60 @@ export default function ShopPage() {
       )}
 
       <div className="container-custom">
+        <section className="ct-shop-car-banner" aria-label="فیلتر محصولات بر اساس خودرو">
+          <div className="ct-shop-car-banner-grid" aria-hidden="true" />
+          <div className="ct-shop-car-banner-speed ct-shop-car-banner-speed-left" aria-hidden="true"><i /><i /><i /></div>
+          <div className="ct-shop-car-banner-speed ct-shop-car-banner-speed-right" aria-hidden="true"><i /><i /><i /></div>
+          <div className="ct-shop-car-banner-road" aria-hidden="true"><span /></div>
+
+          <div className="ct-shop-car-banner-inner">
+            <button
+              type="button"
+              onClick={() => setShowCarFilter(true)}
+              className="ct-shop-car-banner-action"
+            >
+              <span className="ct-shop-car-banner-action-icon"><CarFront /></span>
+              <span className="ct-shop-car-banner-action-copy">
+                <small>{activeCar ? 'خودروی انتخاب‌شده' : 'فیلتر هوشمند خودرو'}</small>
+                <b>{activeCar ? getCarTitle(activeCar) : 'انتخاب خودرو'}</b>
+              </span>
+              <ArrowLeft className="ct-shop-car-banner-action-arrow" />
+            </button>
+
+            <div className="ct-shop-car-banner-copy">
+              <span className="ct-shop-car-banner-kicker">CARRTELL SMART MATCH</span>
+              <h3>محصول دقیق برای خودروی شما</h3>
+              <p>خودرو را انتخاب کنید تا فقط روغن، فیلتر و قطعات سازگار نمایش داده شوند.</p>
+              {activeCar && <span className="ct-shop-car-banner-active">فعال: {getCarTitle(activeCar)}</span>}
+            </div>
+
+            <div className="ct-shop-car-banner-visual" aria-hidden="true">
+              <span className="ct-shop-car-banner-halo" />
+              <CarFront className="ct-shop-car-banner-car" />
+              <span className="ct-shop-car-banner-scan" />
+            </div>
+          </div>
+        </section>
+
+        <nav className="ct-shop-compact-categories" aria-label="دسته‌بندی سریع محصولات">
+          <Link to="/book" className="ct-shop-compact-service">
+            <span className="ct-shop-category-icon-shell"><Wrench aria-hidden="true" /></span>
+            <span>سرویس در محل</span>
+          </Link>
+          <div className="ct-shop-compact-category-scroll">
+            <button type="button" onClick={() => setActiveCategory('all')} className={activeCategory === 'all' ? 'is-active' : ''}>
+              <span className="ct-shop-category-icon-shell"><Grid3X3 aria-hidden="true" /></span>
+              <span>همه دسته‌بندی‌ها</span>
+            </button>
+            {categoryOptions.slice(0, 9).map((category) => (
+              <button key={category.slug} type="button" onClick={() => setActiveCategory(category.slug)} className={activeCategory === category.slug ? 'is-active' : ''}>
+                <span className="ct-shop-category-icon-shell"><CategoryQuickIcon category={category} /></span>
+                <span>{category.title}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
         <section className="mb-4">
           <Link to={activeHero?.link_url || '/shop'} className="group relative min-h-[210px] overflow-hidden rounded-3xl border border-white/10 bg-navy-950 text-white shadow-xl md:min-h-[270px]">
             {activeHero?.image_url ? (
@@ -581,28 +677,7 @@ export default function ShopPage() {
           </Link>
         </section>
 
-        <section className="mb-4 rounded-3xl border p-4 shadow-sm" style={{ background: theme.categorySectionBackground, color: categorySectionTextColor, borderColor: sectionBorderColor, borderRadius: theme.borderRadius, fontFamily: theme.categoryFontFamily || theme.fontFamily }}>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-black" style={{ color: categorySectionTextColor }}>دسته‌بندی محصولات</h2>
-              <p className="mt-1 text-[11px] opacity-70" style={{ color: categorySectionTextColor }}>سریع‌تر به محصول موردنظرت برس</p>
-            </div>
-            {activeCategory !== 'all' && <button onClick={() => setActiveCategory('all')} className="rounded-xl border border-white/10 px-3 py-1.5 text-[11px] font-bold" style={{ color: categorySectionTextColor }}>نمایش همه</button>}
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {categoryOptions.map((category) => {
-              const isActive = activeCategory === category.slug;
-              return (
-                <button key={category.slug} onClick={() => setActiveCategory(category.slug)} className={`ct-category-card group flex min-w-[96px] flex-col items-center gap-2 rounded-2xl border px-3 py-3 text-center transition duration-300 ${isActive ? '-translate-y-0.5 shadow-md' : 'hover:-translate-y-0.5'}`} style={{ '--ct-category-card-bg': isActive ? theme.categoryCardActiveBackground : theme.categoryCardBackground, '--ct-category-card-hover': isActive ? theme.categoryCardActiveBackground : theme.categoryCardHoverBackground, background: isActive ? theme.categoryCardActiveBackground : theme.categoryCardBackground, borderColor: isActive ? theme.primaryColor : theme.cardBorderColor } as React.CSSProperties}>
-                  <div className={`flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl text-2xl shadow-sm transition duration-300 group-hover:scale-105 ${isActive ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''}`} style={{ background: theme.categoryIconBackground, ...(isActive ? { boxShadow: `0 0 0 2px ${theme.primaryColor}` } : {}) }}>
-                    {category.image_url ? <img src={category.image_url} alt={`دسته‌بندی ${category.title}`} className="h-full w-full object-cover" /> : category.icon_emoji || <Droplets className="h-7 w-7 text-pink-500" />}
-                  </div>
-                  <span className="line-clamp-2 min-h-[32px] text-xs font-black leading-4" style={{ color: isActive ? theme.categoryCardActiveTextColor : categorySectionTextColor }}>{category.title}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+
 
         {packageGroups.length > 0 && (
           <section className="mb-4 rounded-3xl border p-4 shadow-sm" style={{ background: theme.packageBackground, color: packageSectionTextColor, borderColor: sectionBorderColor, borderRadius: theme.borderRadius, fontFamily: theme.packageFontFamily || theme.fontFamily }}>
@@ -706,14 +781,59 @@ export default function ShopPage() {
               </div>
             </div>
 
-            {activeCar && (
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 rounded-xl border px-2.5 py-1.5" style={{ borderColor: `${theme.primaryColor}55`, background: `${theme.primaryColor}0d` }}>
-                <div className="flex items-center gap-2 text-xs font-bold"><CarFront className="h-4 w-4" style={{ color: theme.primaryColor }} /><span>خودروی فعال: <b>{getCarTitle(activeCar)}</b></span></div>
-                <button type="button" onClick={() => setShowCarFilter(true)} className="text-[11px] font-black" style={{ color: theme.primaryColor }}>تغییر خودرو</button>
+
+
+            <div
+              className="mt-3 hidden rounded-2xl border p-2.5 shadow-sm lg:block"
+              style={{ borderColor: theme.cardBorderColor, background: theme.productFilterBackground, color: theme.productFilterTextColor }}
+            >
+              <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4" style={{ color: theme.primaryColor }} />
+                  <b className="text-sm">فیلتر محصولات</b>
+                  {activeFilterCount > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-black" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>{activeFilterCount}</span>}
+                </div>
+                <button type="button" onClick={clearShopFilters} disabled={activeFilterCount === 0} className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-black disabled:opacity-40" style={{ borderColor: theme.cardBorderColor }}>
+                  <RotateCcw className="h-3.5 w-3.5" /> پاک کردن فیلترها
+                </button>
               </div>
-            )}
 
-
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1.35fr_auto]">
+                <label className="min-w-0">
+                  <span className="sr-only">دسته‌بندی</span>
+                  <select value={activeCategory} onChange={(event) => setActiveCategory(event.target.value)} className="h-10 w-full rounded-xl border px-3 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
+                    <option value="all">دسته‌بندی: همه دسته‌ها</option>
+                    {categoryOptions.map((category) => <option key={category.slug} value={category.slug}>{category.title}</option>)}
+                  </select>
+                </label>
+                <label className="min-w-0">
+                  <span className="sr-only">برند</span>
+                  <select value={activeBrand} onChange={(event) => setActiveBrand(event.target.value)} className="h-10 w-full rounded-xl border px-3 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
+                    <option value="all">برند: همه برندها</option>
+                    {brandOptions.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                  </select>
+                </label>
+                <label className="min-w-0">
+                  <span className="sr-only">وضعیت</span>
+                  <select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} className="h-10 w-full rounded-xl border px-3 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
+                    <option value="all">وضعیت: همه وضعیت‌ها</option>
+                    <option value="available">فقط موجود</option>
+                    <option value="low-stock">موجودی محدود</option>
+                    <option value="amazing">شگفت‌انگیز</option>
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" min={0} value={minPrice} onChange={(event) => setMinPrice(Math.max(0, Number(event.target.value) || 0))} placeholder="حداقل قیمت" className="h-10 min-w-0 rounded-xl border px-2 text-[11px] outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} />
+                  <input type="number" min={0} value={maxPrice ?? ''} onChange={(event) => setMaxPrice(event.target.value ? Math.max(0, Number(event.target.value)) : null)} placeholder={`حداکثر ${formatPrice(highestProductPrice)}`} className="h-10 min-w-0 rounded-xl border px-2 text-[11px] outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} />
+                </div>
+                <button type="button" onClick={() => setShowShopFilters(true)} className="flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-black lg:hidden" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}>
+                  فیلترهای بیشتر <ChevronDown className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => setShowCarFilter(true)} className="hidden h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-[11px] font-black text-amber-400 lg:flex">
+                  <CarFront className="h-4 w-4" /> {activeCar ? getCarTitle(activeCar) : 'انتخاب خودرو'}
+                </button>
+              </div>
+            </div>
 
             {activeFilterCount > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
@@ -726,19 +846,8 @@ export default function ShopPage() {
             )}
           </div>
 
-          <div className="flex flex-col gap-3 px-1.5 py-2 md:px-2 lg:flex-row-reverse lg:items-start">
-            <aside className="hidden w-[220px] shrink-0 rounded-2xl border p-3 lg:sticky lg:top-24 lg:block" style={{ borderColor: theme.cardBorderColor, background: theme.productFilterBackground, color: theme.productFilterTextColor }}>
-              <div className="mb-3 flex items-center justify-between"><b className="text-sm">فیلتر محصولات</b>{activeFilterCount > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-black" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}>{activeFilterCount}</span>}</div>
-              <div className="space-y-3">
-                <label className="block"><span className="mb-1 block text-[11px] font-black">دسته‌بندی</span><select value={activeCategory} onChange={(event) => setActiveCategory(event.target.value)} className="h-9 w-full rounded-lg border px-2 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه دسته‌ها</option>{categoryOptions.map((category) => <option key={category.slug} value={category.slug}>{category.title}</option>)}</select></label>
-                <label className="block"><span className="mb-1 block text-[11px] font-black">برند</span><select value={activeBrand} onChange={(event) => setActiveBrand(event.target.value)} className="h-9 w-full rounded-lg border px-2 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه برندها</option>{brandOptions.map((brand) => <option key={brand} value={brand}>{brand}</option>)}</select></label>
-                <label className="block"><span className="mb-1 block text-[11px] font-black">وضعیت</span><select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} className="h-9 w-full rounded-lg border px-2 text-[11px] font-bold outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }}><option value="all">همه وضعیت‌ها</option><option value="available">فقط موجود</option><option value="low-stock">موجودی محدود</option><option value="amazing">شگفت‌انگیز</option></select></label>
-                <div><span className="mb-1 block text-[11px] font-black">بازه قیمت</span><div className="space-y-1.5"><input type="number" min={0} value={minPrice} onChange={(event) => setMinPrice(Math.max(0, Number(event.target.value) || 0))} placeholder="حداقل قیمت" className="h-9 w-full rounded-lg border px-2 text-[11px] outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} /><input type="number" min={0} value={maxPrice ?? ''} onChange={(event) => setMaxPrice(event.target.value ? Math.max(0, Number(event.target.value)) : null)} placeholder={`حداکثر ${formatPrice(highestProductPrice)}`} className="h-9 w-full rounded-lg border px-2 text-[11px] outline-none" style={{ borderColor: theme.cardBorderColor, background: theme.searchBackground, color: searchTextColor }} /></div></div>
-                <button type="button" onClick={() => setShowCarFilter(true)} className="h-9 w-full rounded-lg border text-[11px] font-black" style={{ borderColor: theme.cardBorderColor }}>{activeCar ? getCarTitle(activeCar) : 'انتخاب خودرو'}</button>
-                <button type="button" onClick={clearShopFilters} disabled={activeFilterCount === 0} className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border text-[11px] font-black disabled:opacity-40" style={{ borderColor: theme.cardBorderColor }}><RotateCcw className="h-3.5 w-3.5" /> پاک کردن فیلترها</button>
-              </div>
-            </aside>
-            <div className="min-w-0 flex-1">
+          <div className="px-1.5 py-2 md:px-2">
+            <div className="min-w-0">
             <ShopProductGrid
               products={filtered}
               visibleCount={visibleProductCount}

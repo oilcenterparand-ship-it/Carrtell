@@ -29,10 +29,17 @@ import NotificationsAdminPage from './admin/pages/Notifications';
 import SupportPage from "./pages/SupportPage";
 import LoyaltyAdminPage from './admin/pages/Loyalty';
 import WalletPage from './pages/WalletPage';
-import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
+import GlobalRouteGuard from './auth/GlobalRouteGuard';
+import AdminRouteGuard from './admin/auth/AdminRouteGuard';
+import AdminLogin from './admin/pages/AdminLogin';
+import AdminSetup from './admin/pages/AdminSetup';
+import AdminAccounts from './admin/pages/AdminAccounts';
+import UnauthorizedPage from './pages/UnauthorizedPage';
 import Header from './components/Layout';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
+import MobileBottomNav from './components/MobileBottomNav';
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import StoreCollectionPage from './pages/StoreCollectionPage';
@@ -43,6 +50,7 @@ import InvestorPage from './pages/InvestorPage';
 import PackageListPage from './pages/PackageListPage';
 import CartPage from './pages/CartPage';
 import PaymentPage from './pages/PaymentPage';
+import ServicePaymentPage from './pages/ServicePaymentPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
 import InvoicePage from './pages/InvoicePage';
 import ReviewPage from './pages/ReviewPage';
@@ -82,7 +90,9 @@ import AdminDiscountsCampaignsPage from './pages/AdminDiscountsCampaignsPage';
 import PaymentSettings from './admin/pages/PaymentSettings';
 
 function SiteLayout() {
-  return <><SeoManager /><Header /><div className="ct-site-content"><Outlet /></div><Footer /><WhatsAppButton /></>;
+  const location = useLocation();
+  const isMobileStandalone = location.pathname === '/book' || location.pathname.startsWith('/service-payment/') || (location.pathname === '/dashboard' && location.hash.includes('orders'));
+  return <div className={isMobileStandalone ? 'ct-mobile-standalone-route' : ''}><SeoManager /><Header /><div className="ct-site-content"><Outlet /></div><Footer /><WhatsAppButton /><MobileBottomNav /></div>;
 }
 
 function App() {
@@ -90,8 +100,12 @@ function App() {
     <Router>
       <AdminHealthButton />
       <div className="ct-app-shell min-h-screen font-vazir">
+        <AdminRouteGuard>
+        <GlobalRouteGuard>
         <Routes>
         <Route path="/login-otp" element={<OtpLoginPage />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/setup" element={<AdminSetup />} />
         <Route path="/admin/sms-settings" element={<SmsSettings />} />
           <Route path="/admin/discounts" element={<AdminDiscountsCampaignsPage />} />
 
@@ -124,6 +138,7 @@ function App() {
             <Route path="/shop/packages/:carId" element={<PackageListPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/payment" element={<PaymentPage />} />
+            <Route path="/service-payment/:requestId" element={<ServicePaymentPage />} />
             <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
             <Route path="/invoice/:orderId" element={<InvoicePage />} />
             <Route path="/review/:orderId" element={<ReviewPage />} />
@@ -157,6 +172,8 @@ function App() {
             <Route path="packages" element={<AdminPackages />} />
             <Route path="cars" element={<AdminCars />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="admin-accounts" element={<AdminAccounts />} />
+            <Route path="roles" element={<Roles />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
                 <Route path="/driver/dashboard" element={<DriverDashboard />} />
@@ -167,13 +184,15 @@ function App() {
           <Route path="/admin/authenticity" element={<AdminAuthenticity />} />
   <Route path="/admin/customers-crm" element={<CustomersCRM />} />
           <Route path="/admin/staff" element={<Staff />} />
-          <Route path="/admin/roles" element={<Roles />} />
           <Route path="/admin/system-health" element={<SystemHealth />} />
   <Route path="/admin/bug-reports" element={<BugReports />} />
   <Route path="/report-bug" element={<ReportBugPage />} />
 
           <Route path="/admin/route-registry" element={<AdminRouteRegistry />} />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
         </Routes>
+        </GlobalRouteGuard>
+        </AdminRouteGuard>
       </div>
     </Router>
   );

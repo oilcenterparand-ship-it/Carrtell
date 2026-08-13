@@ -16,6 +16,7 @@ type ProfileRow = {
 const roleLabels: Record<UserRole, string> = {
   admin: 'مدیر',
   driver: 'سرویس‌کار',
+  technician: 'تکنسین',
   customer: 'مشتری',
 };
 

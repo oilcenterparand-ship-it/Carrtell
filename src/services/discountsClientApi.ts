@@ -17,46 +17,25 @@ export async function validateDiscountCode(params: {
   const code = params.code.trim().toUpperCase();
   if (!code) return { ok: false, amount: 0, message: "کد تخفیف وارد نشده است." };
 
-  const { data, error } = await supabase
-    .from("discounts")
-    .select("*")
-    .eq("code", code)
-    .eq("is_active", true)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("carrtell_validate_discount", {
+    p_code: code,
+    p_subtotal: Math.max(0, Number(params.total || 0)),
+    p_user_id: params.userId || null,
+  });
 
   if (error) throw error;
-  if (!data) return { ok: false, amount: 0, message: "کد تخفیف معتبر نیست." };
-
-  const now = new Date();
-  if (data.starts_at && new Date(data.starts_at) > now) return { ok: false, amount: 0, message: "این کد هنوز فعال نشده است." };
-  if (data.ends_at && new Date(data.ends_at) < now) return { ok: false, amount: 0, message: "مهلت استفاده از این کد تمام شده است." };
-  if (data.usage_limit && data.used_count >= data.usage_limit) return { ok: false, amount: 0, message: "ظرفیت استفاده از این کد تمام شده است." };
-  if (params.total < Number(data.min_order_amount ?? 0)) return { ok: false, amount: 0, message: `حداقل خرید برای این کد ${Number(data.min_order_amount).toLocaleString("fa-IR")} تومان است.` };
-  if (data.target_type === "vip" && !["gold","vip"].includes(String(params.userLevel ?? "").toLowerCase())) return { ok: false, amount: 0, message: "این کد مخصوص مشتریان ویژه است." };
-
-  let amount = data.discount_type === "percent"
-    ? Math.floor(params.total * Number(data.value) / 100)
-    : Number(data.value);
-
-  if (data.max_discount_amount) amount = Math.min(amount, Number(data.max_discount_amount));
-  amount = Math.max(0, Math.min(amount, params.total));
-
-  return { ok: true, code, discountId: data.id, amount, message: "کد تخفیف اعمال شد." };
+  const result = (data || {}) as Partial<DiscountCheckResult>;
+  return {
+    ok: Boolean(result.ok),
+    code: result.code,
+    discountId: result.discountId,
+    amount: Math.max(0, Number(result.amount || 0)),
+    message: String(result.message || (result.ok ? "کد تخفیف اعمال شد." : "کد تخفیف معتبر نیست.")),
+  };
 }
 
-export async function registerDiscountUsage(params: {
-  discountId: string;
-  orderId?: string | null;
-  userId?: string | null;
-  code: string;
-  amount: number;
-}) {
-  await supabase.from("discount_usages").insert({
-    discount_id: params.discountId,
-    order_id: params.orderId,
-    user_id: params.userId,
-    code: params.code,
-    discount_amount: params.amount,
-  });
-  await supabase.rpc("increment_discount_usage", { discount_uuid: params.discountId });
+// مصرف کد تخفیف فقط داخل RPC اتمیک ثبت سفارش ثبت می‌شود.
+// این تابع برای سازگاری با کدهای قدیمی نگه داشته شده و عمداً عملیات جداگانه انجام نمی‌دهد.
+export async function registerDiscountUsage() {
+  return true;
 }

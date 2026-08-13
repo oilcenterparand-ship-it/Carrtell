@@ -62,6 +62,10 @@ export type ServiceRequest = {
   arrived_at?: string | null;
   completed_at?: string | null;
   status: ServiceRequestStatus;
+  customer_user_id?: string | null;
+  payment_status?: 'pending' | 'paid' | 'failed';
+  payment_reference?: string | null;
+  paid_at?: string | null;
   created_at?: string;
 };
 
@@ -89,6 +93,7 @@ export type CreateServiceRequestInput = {
   estimated_total?: number;
   city?: string | null;
   note?: string | null;
+  customer_user_id?: string | null;
 };
 
 export type ServiceProgressInput = {
@@ -207,6 +212,10 @@ function normalizeRequest(row: Partial<ServiceRequest>): ServiceRequest {
     arrived_at: row.arrived_at || null,
     completed_at: row.completed_at || null,
     status: normalizeStatus(row.status),
+    customer_user_id: row.customer_user_id || null,
+    payment_status: row.payment_status === 'paid' || row.payment_status === 'failed' ? row.payment_status : 'pending',
+    payment_reference: row.payment_reference || null,
+    paid_at: row.paid_at || null,
     created_at: row.created_at || nowIso(),
   };
 }
@@ -268,7 +277,22 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
     .select('*')
     .single();
 
-  if (!error && data) return normalizeRequest(data as ServiceRequest);
+  if (!error && data) {
+    const created = normalizeRequest(data as ServiceRequest);
+    if (input.booking_slot_id) {
+      const { data: reservation, error: reservationError } = await supabase.rpc('reserve_booking_slot', {
+        p_slot_id: input.booking_slot_id,
+        p_booking_date: input.preferred_date,
+        p_service_request_id: created.id,
+      });
+      const result = Array.isArray(reservation) ? reservation[0] : reservation;
+      if (reservationError || !result?.success) {
+        await supabase.from('service_requests').delete().eq('id', created.id);
+        throw new Error(result?.message || 'ظرفیت این بازه زمانی تکمیل شده است؛ بازه دیگری را انتخاب کنید.');
+      }
+    }
+    return created;
+  }
 
   const localRequest = normalizeRequest(payload);
   writeLocal([localRequest, ...readLocal()]);
@@ -400,4 +424,21 @@ export async function updateServiceRequestProgress(id: string, input: ServicePro
 
   if (!error && data) return normalizeRequest(data as ServiceRequest);
   return updateLocalRequest(id, updatePayload);
+}
+
+
+export async function getServiceRequestById(id: string): Promise<ServiceRequest> {
+  const { data, error } = await supabase.from('service_requests').select('*').eq('id', id).maybeSingle();
+  if (!error && data) return normalizeRequest(data as ServiceRequest);
+  const local = readLocal().find((item) => item.id === id);
+  if (local) return normalizeRequest(local);
+  throw error || new Error('درخواست سرویس پیدا نشد.');
+}
+
+export async function payServiceRequestTest(id: string): Promise<ServiceRequest> {
+  const { data, error } = await supabase.rpc('pay_service_request_test', { p_request_id: id });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!error && row) return normalizeRequest(row as ServiceRequest);
+  const reference = `TEST-${Date.now()}`;
+  return updateLocalRequest(id, { payment_status: 'paid', payment_reference: reference, paid_at: nowIso() });
 }

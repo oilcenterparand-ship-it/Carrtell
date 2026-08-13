@@ -1,0 +1,3 @@
+import { Link } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
+export default function UnauthorizedPage() { return <main dir="rtl" className="grid min-h-screen place-items-center bg-slate-950 p-4 text-white"><section className="max-w-lg rounded-3xl border border-red-400/20 bg-red-500/10 p-8 text-center"><ShieldAlert className="mx-auto h-12 w-12 text-red-300"/><h1 className="mt-4 text-2xl font-black">دسترسی غیرمجاز</h1><p className="mt-3 text-slate-300">حساب شما مجوز مشاهده این بخش را ندارد.</p><Link className="mt-6 inline-block rounded-2xl bg-white px-5 py-3 font-bold text-slate-950" to="/">بازگشت به فروشگاه</Link></section></main>; }

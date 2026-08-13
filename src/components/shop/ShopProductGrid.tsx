@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import type { Product } from '../../admin/services/productsApi';
 
 interface ShopProductGridProps {
@@ -35,26 +35,37 @@ export function ShopProductGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 items-stretch gap-1.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      <div className="ct-shop-main-product-grid grid grid-cols-2 items-stretch gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8">
         {products.slice(0, visibleCount).map(renderProduct)}
       </div>
 
-      {visibleCount < products.length ? (
-        <div className="mt-5 flex flex-col items-center gap-2">
+      <div className="mt-6 flex flex-col items-center gap-3">
+        <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-slate-200/80">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${Math.min(100, (Math.min(visibleCount, products.length) / products.length) * 100)}%`,
+              background: primaryColor,
+            }}
+          />
+        </div>
+        <p className="text-[11px] font-bold" style={{ color: mutedTextColor }}>
+          نمایش {Math.min(visibleCount, products.length).toLocaleString('fa-IR')} از {products.length.toLocaleString('fa-IR')} محصول
+        </p>
+        {visibleCount < products.length ? (
           <button
             type="button"
             onClick={onLoadMore}
-            className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-red-500 bg-white text-red-600 shadow-sm transition hover:bg-red-50 active:scale-95"
-            aria-label="نمایش محصولات بیشتر"
-            title="نمایش ۱۲ محصول بیشتر"
+            className="flex min-w-[170px] items-center justify-center gap-2 rounded-xl border bg-white px-5 py-2.5 text-xs font-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+            style={{ borderColor: `${primaryColor}55`, color: primaryColor }}
           >
-            <Plus className="h-6 w-6" />
+            نمایش محصولات بیشتر
+            <ChevronDown className="h-4 w-4" />
           </button>
-          <span className="text-xs font-black text-red-600">مشاهده بیشتر</span>
-        </div>
-      ) : (
-        <p className="mt-4 text-center text-xs font-bold" style={{ color: mutedTextColor }}>همه محصولات نمایش داده شد.</p>
-      )}
+        ) : (
+          <p className="text-center text-xs font-black" style={{ color: mutedTextColor }}>همه محصولات نمایش داده شد.</p>
+        )}
+      </div>
     </>
   );
 }

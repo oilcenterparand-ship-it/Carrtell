@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, KeyRound, Loader2, Phone } from 'lucide-react';
 import { requestOtp, verifyOtp } from '../services/smsOtpApi';
-import { emitAuthChanged } from '../auth/authApi';
 
 export default function OtpLoginPage() {
   const navigate = useNavigate();
@@ -26,7 +25,7 @@ export default function OtpLoginPage() {
       const result = await requestOtp(safePhone);
       setSent(true);
       setPhone(result.phone || safePhone);
-      setMsg(result.dev_code ? `کد تست: ${result.dev_code}` : 'کد ورود ارسال شد.');
+      setMsg('کد ورود پیامک شد. کد تا ۲ دقیقه معتبر است.');
     } catch (error: any) {
       setMsg(error?.message || 'ارسال کد انجام نشد.');
     } finally {
@@ -48,29 +47,17 @@ export default function OtpLoginPage() {
         return;
       }
 
-      localStorage.setItem('carrtell_customer_profile', JSON.stringify({
-        id: result.id,
-        phone: result.phone || phone,
-        fullName: result.full_name || undefined,
-      }));
-      localStorage.setItem('carrtell_user_role', result.role || 'customer');
-      emitAuthChanged();
 
-      // ورود و ثبت‌نام عادی همیشه به صفحه اصلی فروشگاه برمی‌گردد.
-      // فقط وقتی کاربر واقعاً از مسیر سبد خرید آمده باشد، ادامه خرید فعال می‌شود.
-      const shouldResumeCheckout = requestedReturnTo.startsWith('/cart');
+      const safeReturnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//')
+        ? requestedReturnTo
+        : '/';
+      const shouldResumeCheckout = safeReturnTo.startsWith('/cart');
 
-      if (shouldResumeCheckout) {
-        sessionStorage.setItem('carrtell_checkout_resume', 'info');
-      } else {
-        sessionStorage.removeItem('carrtell_checkout_resume');
-      }
+      if (shouldResumeCheckout) sessionStorage.setItem('carrtell_checkout_resume', 'info');
+      else sessionStorage.removeItem('carrtell_checkout_resume');
 
       setMsg('ورود با موفقیت انجام شد.');
-      window.setTimeout(
-        () => navigate(shouldResumeCheckout ? '/cart' : '/', { replace: true }),
-        250,
-      );
+      window.setTimeout(() => navigate(safeReturnTo, { replace: true }), 250);
     } catch (error: any) {
       setMsg(error?.message || 'تایید کد انجام نشد.');
     } finally {
@@ -88,7 +75,7 @@ export default function OtpLoginPage() {
           {sent ? <KeyRound className="h-7 w-7" /> : <Phone className="h-7 w-7" />}
         </div>
         <h1 className="mt-4 text-center text-2xl font-black">{sent ? 'تایید کد ورود' : 'ورود با شماره موبایل'}</h1>
-        <p className="mt-2 text-center text-sm leading-7 text-slate-400">بعد از ورود، وارد صفحه اصلی فروشگاه می‌شوی.</p>
+        <p className="mt-2 text-center text-sm leading-7 text-slate-400">بعد از تأیید، به همان بخشی که از آن وارد شده‌ای برمی‌گردی.</p>
 
         <div className="mt-6 space-y-4">
           <input

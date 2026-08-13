@@ -2,9 +2,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { AuthProvider } from './auth/AuthProvider';
+import { AdminAuthProvider } from './admin/auth/AdminAuthProvider';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import './styles/advanced-theme-studio.css';
+import './styles/mobile-rc106a.css';
 import { initializeCarrtellAppearance } from './lib/appearanceThemes';
 
 initializeCarrtellAppearance();
@@ -22,7 +24,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary title="خطای اجرای Carrtell">
       <AuthProvider>
-        <App />
+        <AdminAuthProvider>
+          <App />
+        </AdminAuthProvider>
       </AuthProvider>
     </ErrorBoundary>
   </StrictMode>
