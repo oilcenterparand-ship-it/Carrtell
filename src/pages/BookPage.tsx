@@ -529,14 +529,16 @@ export default function BookPage() {
     if (step === 2 && !selectedCar) return setError('خودروی خود را انتخاب و تأیید کنید.');
     if (step === 4 && (!date || !selectedSlot)) return setError('روز و بازه زمانی دارای ظرفیت را انتخاب کنید.');
     if (step === 5 && !customerName.trim()) return setError('نام و نام خانوادگی را وارد کنید.');
-    if (step === 5 && !/^09\d{9}$/.test(customerPhone.trim())) return setError('شماره موبایل معتبر وارد کنید.');
     if (step === 5 && !(selectedAddress || manualAddress.trim() || pickedLocation)) return setError('آدرس را وارد کنید یا موقعیت دقیق را روی نقشه انتخاب کنید.');
     setStep((value) => Math.min(STEPS.length, value + 1));
   }
 
   async function submit() {
     if (!selectedCar || !selectedSlot || !selectedServices.length) return;
-    setSubmitting(true); setError('');
+    setError('');
+    if (!/^09\d{9}$/.test(customerPhone.trim())) return setError('شماره موبایل معتبر وارد کنید؛ مانند 09123456789.');
+    if (!phoneVerified) return setError('برای پرداخت، ابتدا شماره موبایل را تأیید کنید.');
+    setSubmitting(true);
     try {
       const addressText = selectedAddress ? formatCustomerAddress(selectedAddress) : (manualAddress.trim() || pickedLocation?.address || 'موقعیت انتخاب‌شده روی نقشه');
       const latitude = selectedAddress?.latitude ?? pickedLocation?.latitude ?? null;
@@ -567,7 +569,7 @@ export default function BookPage() {
         estimated_total: estimatedTotal,
         note: [
           note.trim(),
-          `وضعیت تأیید شماره: ${phoneVerified ? 'تأییدشده با OTP' : 'ادامه بدون OTP'}`,
+          'شماره موبایل پیش از پرداخت تأیید شده است.',
           selectedPackageIds.length ? `پکیج‌های انتخابی: ${recommendedPackages.filter((pkg) => pkg.id && selectedPackageIds.includes(pkg.id)).map((pkg) => pkg.title).join('، ')}` : '',
           selectedProducts.length ? `تعداد محصولات: ${selectedProducts.map((product) => `${product.name}: ${selectedProductQuantity(product.id)}`).join('، ')}` : '',
         ].filter(Boolean).join('\n') || null,
@@ -676,14 +678,10 @@ export default function BookPage() {
             )}
 
             {step === 5 && (
-              <div className="space-y-5" data-booking-step="address">
+              <div className="space-y-4" data-booking-step="address">
                 <div><p className="text-xs font-bold text-amber-600">مرحله ۵ از ۶</p><h2 className="mt-1 flex items-center gap-2 text-xl font-black"><MapPin className="h-5 w-5 text-amber-500" /> اطلاعات و محل سرویس</h2></div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="space-y-2"><span className="text-sm font-bold">نام و نام خانوادگی <em className="not-italic text-rose-500">*</em></span><div className="relative"><UserRound className="absolute right-4 top-4 h-4 w-4 text-slate-400" /><input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="نام و نام خانوادگی (اجباری)" className="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-4 pr-11 outline-none focus:border-amber-400" /></div></label>
-                  <div className="space-y-2"><span className="text-sm font-bold">شماره موبایل <em className="not-italic text-rose-500">*</em></span><div className="flex gap-2"><div className="relative min-w-0 flex-1"><Phone className="absolute right-4 top-4 h-4 w-4 text-slate-400" /><input inputMode="numeric" autoComplete="tel" maxLength={11} value={customerPhone} onChange={(event) => { const value = event.target.value.replace(/\D/g, '').slice(0, 11); setCustomerPhone(value); const sameAsAccount = Boolean(user?.phone && localIranPhone(user.phone) === localIranPhone(value)); setPhoneVerified(sameAsAccount); setOtpSent(false); setOtpSkipped(false); setOtpSkipAvailable(false); setOtpCode(''); setOtpResendIn(0); setOtpMessage(sameAsAccount ? 'شماره موبایل از حساب کاربری شما تأیید شده است.' : ''); }} placeholder="شماره موبایل (اجباری)" className="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-3 pr-11 text-left font-bold outline-none focus:border-amber-400" dir="ltr" /></div><button type="button" onClick={sendBookingOtp} disabled={otpBusy || phoneVerified || (otpSent && otpResendIn > 0)} className={`shrink-0 rounded-2xl px-3 text-xs font-black ${phoneVerified ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'} disabled:opacity-70`}>{phoneVerified ? 'تأیید شد' : otpBusy ? 'در حال ارسال...' : otpSent && otpResendIn > 0 ? `ارسال شد (${otpResendIn})` : otpSent ? 'ارسال مجدد' : 'تأیید شماره'}</button></div>{otpSent && !phoneVerified && <div className="mt-2 flex gap-2"><input inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ''))} placeholder="کد تأیید (اختیاری؛ اگر رسید)" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-center tracking-[.25em] outline-none focus:border-emerald-500" /><button type="button" onClick={verifyBookingOtp} disabled={otpBusy} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white disabled:opacity-60">ثبت کد</button></div>}{otpSent && !phoneVerified && <button type="button" onClick={sendBookingOtp} disabled={otpBusy || otpResendIn > 0} className="mt-2 text-xs font-black text-amber-600 underline underline-offset-4 disabled:opacity-50">{otpResendIn > 0 ? `ارسال مجدد کد (${otpResendIn} ثانیه)` : 'ارسال مجدد کد'}</button>}{!phoneVerified && otpSkipAvailable && !otpSkipped && <button type="button" onClick={() => { setOtpSkipped(true); setOtpMessage('رزرو بدون OTP ادامه پیدا می‌کند؛ شماره برای تماس سرویس‌کار ثبت می‌شود.'); setError(''); }} className="mt-2 mr-3 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700">ادامه بدون کد تأیید</button>}{otpSkipped && !phoneVerified && <p className="mt-2 rounded-xl border border-sky-200 bg-sky-50 p-2 text-xs font-bold text-sky-700">تأیید پیامکی رد شد؛ این موضوع مانع ثبت و پرداخت رزرو نیست.</p>}{otpMessage && <p className={`mt-2 text-xs font-bold ${phoneVerified ? 'text-emerald-600' : 'text-amber-600'}`}>{otpMessage}</p>}</div>
-                </div>
+                <label className="block space-y-2"><span className="text-sm font-bold">نام و نام خانوادگی <em className="not-italic text-rose-500">*</em></span><div className="relative"><UserRound className="absolute right-4 top-4 h-4 w-4 text-slate-400" /><input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="نام و نام خانوادگی" className="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-4 pr-11 outline-none focus:border-amber-400" /></div></label>
                 <MapLocationPicker initialLatitude={selectedAddress?.latitude || pickedLocation?.latitude} initialLongitude={selectedAddress?.longitude || pickedLocation?.longitude} onConfirm={(location) => { setAddressId(''); setPickedLocation(location); if (location.address) setManualAddress(location.address); }} />
-                {(manualAddress || pickedLocation?.address) && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3"><div className="flex items-start gap-2"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" /><div><b className="text-sm text-emerald-900">محل سرویس تأییدشده</b><p className="mt-1 text-sm leading-6 text-emerald-800">{manualAddress || pickedLocation?.address}</p></div></div></div>}
               </div>
             )}
 
@@ -694,18 +692,28 @@ export default function BookPage() {
                   <div className="grid gap-2.5 text-slate-600">
                     <p><span className="text-slate-500">خودرو:</span> <b className="text-slate-900">{selectedCar && getCarTitle(selectedCar)}</b></p>
                     <p><span className="text-slate-500">زمان:</span> <b className="text-slate-900">{dateOptions.find((item) => item.value === date)?.label}، {selectedSlot?.label}</b></p>
-                    <p><span className="text-slate-500">محل:</span> <b className="text-slate-900">{selectedAddress ? formatCustomerAddress(selectedAddress) : (manualAddress || pickedLocation?.address)}</b></p>
+                    <p><span className="text-slate-500">محل:</span> <b className="text-slate-900">{selectedAddress ? formatCustomerAddress(selectedAddress) : (manualAddress || pickedLocation?.address || 'موقعیت انتخاب‌شده روی نقشه')}</b></p>
                     <p><span className="text-slate-500">انتخاب‌ها:</span> <b className="text-slate-900">{selectedServices.length.toLocaleString('fa-IR')} خدمت{selectedProducts.length ? ` + ${selectedProducts.length.toLocaleString('fa-IR')} کالا` : ''}</b></p>
                   </div>
                 </div>
-                <label className="block space-y-2"><span className="text-sm font-bold">توضیحات برای سرویس‌کار <span className="font-normal text-slate-400">(اختیاری)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} placeholder="مثلاً پلاک، واحد یا نکته‌ای که سرویس‌کار بداند" className="w-full rounded-2xl border border-slate-300 bg-white p-4 outline-none focus:border-amber-400" /></label>
+                <label className="block space-y-2"><span className="text-sm font-bold">توضیحات برای سرویس‌کار <span className="font-normal text-slate-400">(اختیاری)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} placeholder="مثلاً پلاک، واحد یا نکته ضروری" className="w-full rounded-2xl border border-slate-300 bg-white p-4 outline-none focus:border-amber-400" /></label>
+                <section className="rounded-2xl border border-slate-200 bg-white p-4" aria-label="تأیید موبایل پیش از پرداخت">
+                  <div className="mb-3 flex items-center gap-2"><Phone className="h-5 w-5 text-amber-500" /><b>تأیید شماره برای پرداخت</b></div>
+                  <div className="flex gap-2">
+                    <div className="relative min-w-0 flex-1"><Phone className="absolute right-4 top-4 h-4 w-4 text-slate-400" /><input inputMode="numeric" autoComplete="tel" maxLength={11} value={customerPhone} onChange={(event) => { const value = event.target.value.replace(/\D/g, '').slice(0, 11); setCustomerPhone(value); const sameAsAccount = Boolean(user?.phone && localIranPhone(user.phone) === localIranPhone(value)); setPhoneVerified(sameAsAccount); setOtpSent(false); setOtpSkipped(false); setOtpSkipAvailable(false); setOtpCode(''); setOtpResendIn(0); setOtpMessage(sameAsAccount ? 'شماره حساب شما قبلاً تأیید شده است.' : ''); }} placeholder="09xxxxxxxxx" className="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-3 pr-11 text-left font-bold outline-none focus:border-amber-400" dir="ltr" /></div>
+                    <button type="button" onClick={sendBookingOtp} disabled={otpBusy || phoneVerified || (otpSent && otpResendIn > 0)} className={`shrink-0 rounded-2xl px-3 text-xs font-black ${phoneVerified ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'} disabled:opacity-70`}>{phoneVerified ? 'تأیید شد' : otpBusy ? 'در حال ارسال...' : otpSent && otpResendIn > 0 ? `ارسال شد (${otpResendIn})` : otpSent ? 'ارسال مجدد' : 'ارسال کد'}</button>
+                  </div>
+                  {otpSent && !phoneVerified && <div className="mt-3 flex gap-2"><input inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="کد تأیید" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-center tracking-[.25em] outline-none focus:border-emerald-500" /><button type="button" onClick={verifyBookingOtp} disabled={otpBusy} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white disabled:opacity-60">تأیید</button></div>}
+                  {otpSent && !phoneVerified && <button type="button" onClick={sendBookingOtp} disabled={otpBusy || otpResendIn > 0} className="mt-2 text-xs font-black text-amber-600 underline underline-offset-4 disabled:opacity-50">{otpResendIn > 0 ? `ارسال مجدد (${otpResendIn} ثانیه)` : 'ارسال مجدد کد'}</button>}
+                  {otpMessage && <p className={`mt-2 text-xs font-bold ${phoneVerified ? 'text-emerald-600' : 'text-amber-600'}`}>{otpMessage}</p>}
+                </section>
                 <div className="ct-book-review-total flex items-center justify-between rounded-2xl border border-amber-400/25 bg-slate-950 p-4 text-white"><span className="font-black">مبلغ قابل پرداخت</span><b className="text-lg text-amber-300">{money(estimatedTotal)}</b></div>
               </div>
             )}
 
             <div className="ct-book-actions mt-7 flex items-center justify-between gap-3">
               <button type="button" disabled={step === 1} onClick={() => { setError(''); setStep((value) => Math.max(1, value - 1)); }} className="ct-book-back min-h-12 rounded-xl px-5 py-3 font-bold disabled:opacity-40">مرحله قبل</button>
-              {step < STEPS.length ? <button type="button" onClick={next} className="ct-book-next flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 font-black text-white sm:flex-none sm:px-8">ادامه <ChevronLeft className="h-4 w-4" /></button> : <button type="button" onClick={submit} disabled={submitting} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-black text-slate-950 disabled:opacity-60 sm:flex-none sm:px-6">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} ثبت رزرو و رفتن به پرداخت</button>}
+              {step < STEPS.length ? <button type="button" onClick={next} className="ct-book-next flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 font-black text-white sm:flex-none sm:px-8">ادامه <ChevronLeft className="h-4 w-4" /></button> : <button type="button" onClick={submit} disabled={submitting || !phoneVerified} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-black text-slate-950 disabled:opacity-45 sm:flex-none sm:px-6">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {phoneVerified ? 'ثبت رزرو و پرداخت' : 'ابتدا شماره را تأیید کنید'}</button>}
             </div>
           </section>
 

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-21T16:09:52.385Z",
-  "startedAt": "2026-08-21T16:09:07.470Z",
+  "generatedAt": "2026-08-21T16:06:45.747Z",
+  "startedAt": "2026-08-21T16:06:01.433Z",
   "status": "passed",
   "counts": {
     "passed": 14,
@@ -16,97 +16,97 @@
     {
       "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
       "status": "passed",
-      "durationMs": 1893,
+      "durationMs": 2155,
       "project": ""
     },
     {
       "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
       "status": "passed",
-      "durationMs": 6789,
+      "durationMs": 6390,
       "project": ""
     },
     {
       "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
       "status": "passed",
-      "durationMs": 2661,
+      "durationMs": 2737,
       "project": ""
     },
     {
       "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
       "status": "passed",
-      "durationMs": 1918,
+      "durationMs": 1955,
       "project": ""
     },
     {
       "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
       "status": "skipped",
-      "durationMs": 405,
+      "durationMs": 385,
       "project": ""
     },
     {
       "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
       "status": "passed",
-      "durationMs": 1950,
+      "durationMs": 1616,
       "project": ""
     },
     {
       "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
       "status": "passed",
-      "durationMs": 1467,
+      "durationMs": 1621,
       "project": ""
     },
     {
       "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
       "status": "passed",
-      "durationMs": 4983,
+      "durationMs": 4536,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
       "status": "passed",
-      "durationMs": 1744,
+      "durationMs": 1913,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
       "status": "skipped",
-      "durationMs": 353,
+      "durationMs": 346,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
       "status": "passed",
-      "durationMs": 3472,
+      "durationMs": 3640,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
       "status": "passed",
-      "durationMs": 1594,
+      "durationMs": 2013,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
       "status": "passed",
-      "durationMs": 2356,
+      "durationMs": 2458,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
       "status": "passed",
-      "durationMs": 1809,
+      "durationMs": 2041,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
       "status": "passed",
-      "durationMs": 1783,
+      "durationMs": 1720,
       "project": ""
     },
     {
       "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
       "status": "passed",
-      "durationMs": 5490,
+      "durationMs": 4577,
       "project": ""
     }
   ],
@@ -118,9 +118,9 @@
       "message": "پنل 100٪ ارتفاع صفحه را گرفته؛ برای یک باکس جمع‌وجور بیش از حد بزرگ است.",
       "details": {
         "box": {
-          "x": -5.378075122833252,
+          "x": -3.7484166622161865,
           "y": 0,
-          "width": 389.9999928474426,
+          "width": 390.0000035762787,
           "height": 720
         },
         "viewport": {

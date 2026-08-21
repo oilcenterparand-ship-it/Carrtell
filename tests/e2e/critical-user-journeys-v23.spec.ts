@@ -59,6 +59,10 @@ async function mockBookingBackend(page: Page, options: { failOtpRequest?: boolea
     });
   });
 
+  await page.route('**/functions/v1/neshan-reverse-geocode**', async route => {
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, address: 'پرند، میدان استقلال، تست خودکار Carrtell' }) });
+  });
+
   await page.route('**/rest/v1/**', async route => {
     const url = new URL(route.request().url());
     const path = decodeURIComponent(url.pathname);
@@ -165,7 +169,9 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
   });
 
   test('service -> vehicle -> compatible product/package -> time -> address -> payment works', async ({ page }) => {
-    const backendTrace = await mockBookingBackend(page, { failOtpRequest: true });
+    const backendTrace = await mockBookingBackend(page);
+    await page.context().grantPermissions(['geolocation']);
+    await page.context().setGeolocation({ latitude: 35.4819, longitude: 51.0832 });
     await page.goto('/book');
 
     // 1) service first
@@ -249,36 +255,36 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     await page.getByRole('button', { name: /۹ تا ۱۱/ }).click();
     await page.getByRole('button', { name: /ادامه/ }).click();
 
-    // 5) contact + OTP + address
+    // 5) customer + location only; OTP must not clutter this step
     await expect(page.locator('[data-booking-step="address"]')).toBeVisible();
-    await page.getByPlaceholder(/نام.*اجباری/).fill('کاربر تست کارتل');
-    await page.getByPlaceholder(/موبایل.*اجباری/).fill('09121234567');
-    await page.getByRole('button', { name: 'تأیید شماره' }).click();
-    await expect.poll(() => backendTrace.otpRequests, {
-      message: 'Booking must attempt the real Supabase /auth/v1/otp path',
-      timeout: 3000,
-    }).toBeGreaterThan(0);
-    // SMS failure must never block checkout. The bypass should appear immediately
-    // when the provider/API request fails, without waiting for a 20s delivery timeout.
-    const continueWithoutOtp = page.getByRole('button', { name: 'ادامه بدون کد تأیید' });
-    await expect(continueWithoutOtp).toBeVisible({ timeout: 3000 });
-    await continueWithoutOtp.click();
-    await expect(page.getByText(/مانع ثبت و پرداخت رزرو نیست/)).toBeVisible();
-    expect(backendTrace.otpVerifications).toBe(0);
-    await page.getByPlaceholder(/آدرس کامل/).fill('پرند، میدان استقلال، تست خودکار Carrtell');
+    await page.getByPlaceholder(/نام و نام خانوادگی/).fill('کاربر تست کارتل');
+    await expect(page.locator('[data-booking-step="address"] input[autocomplete="tel"]')).toHaveCount(0);
+    await expect(page.locator('[data-booking-step="address"]').getByText('آدرس تشخیص داده‌شده')).toHaveCount(0);
+    await expect(page.locator('[data-booking-step="address"]').getByText('توضیحات برای سرویس‌کار')).toHaveCount(0);
+    await page.getByRole('button', { name: 'موقعیت فعلی من' }).click();
+    await expect(page.getByRole('button', { name: /تأیید این موقعیت|موقعیت ثبت شد/ })).toBeEnabled();
+    await page.getByRole('button', { name: /تأیید این موقعیت|موقعیت ثبت شد/ }).click();
     await page.getByRole('button', { name: /ادامه/ }).click();
 
     // 6) review and payment page
     const review = page.locator('[data-booking-step="review"]');
     await expect(review).toBeVisible();
-    await expect(review.getByText('فاکتور نهایی رزرو')).toBeVisible();
-    await expect(review.getByText(product.name, { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: /ثبت رزرو و رفتن به پرداخت/ }).click();
+    await expect(review.getByText('توضیحات برای سرویس‌کار')).toBeVisible();
+    await expect(review.getByText('تأیید شماره برای پرداخت')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ابتدا شماره را تأیید کنید' })).toBeDisabled();
+    await review.getByPlaceholder('09xxxxxxxxx').fill('09121234567');
+    await review.getByRole('button', { name: 'ارسال کد' }).click();
+    await expect.poll(() => backendTrace.otpRequests, { timeout: 3000 }).toBeGreaterThan(0);
+    await review.getByPlaceholder('کد تأیید').fill('123456');
+    await review.getByRole('button', { name: 'تأیید' }).click();
+    await expect.poll(() => backendTrace.otpVerifications, { timeout: 3000 }).toBeGreaterThan(0);
+    await expect(page.getByRole('button', { name: 'ثبت رزرو و پرداخت' })).toBeEnabled();
+    await page.getByRole('button', { name: 'ثبت رزرو و پرداخت' }).click();
     await expect(page).toHaveURL(/\/service-payment\//);
     await expect(page.getByRole('heading', { name: 'پرداخت رزرو سرویس' })).toBeVisible();
     await page.getByRole('button', { name: /پرداخت آزمایشی و ادامه/ }).click();
     await expect(page.getByRole('heading', { name: 'پرداخت سرویس با موفقیت ثبت شد' })).toBeVisible();
-    await expect(page.getByText('مایل هستید با همین شماره برایتان حساب کاربری ساخته شود؟')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'بله، حسابم را بساز' })).toBeVisible();
+    await expect(page.getByText('مایل هستید حساب کاربری شما فعال شود؟')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'بله، حسابم را فعال کن' })).toBeVisible();
   });
 });

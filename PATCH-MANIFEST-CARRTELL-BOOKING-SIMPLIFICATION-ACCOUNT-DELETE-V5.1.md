@@ -1,30 +1,37 @@
 # Patch Manifest — Carrtell V5.1
 
-Baseline: `project(20260821-141451).zip`
+Baseline GitHub commit: `6157a7b`
+Branch source: `sprint/guest-checkout-search-car-picker`
 
 ## Runtime files changed
 - `src/pages/BookPage.tsx`
+- `src/components/MapLocationPicker.tsx`
+
+## Existing account-delete runtime used
 - `src/pages/DashboardPage.tsx`
 - `src/auth/authApi.ts`
-
-## Server files added
 - `supabase/functions/customer-account-delete/index.ts`
 
-## QA files changed
-- `tests/e2e/persona-technician.spec.ts`
+## QA changed
+- `tests/e2e/critical-user-journeys-v23.spec.ts`
+- `agent.ps1`
+
+## Docs
+- `README-CARRTELL-BOOKING-SIMPLIFICATION-ACCOUNT-DELETE-V5.1-FA.md`
+- `PATCH-MANIFEST-CARRTELL-BOOKING-SIMPLIFICATION-ACCOUNT-DELETE-V5.1.md`
 
 ## SQL
 None.
 
 ## Server deploy required
-- `customer-account-delete`
+- `customer-account-delete` if not already deployed after V5.1 introduction.
 
 ## Security
-- Account deletion requires a valid authenticated session after OTP verification.
-- Admin/technician roles are blocked from customer self-delete endpoint.
-- Supabase Service Role remains server-side only.
-- Financial/order records are anonymized rather than blindly removed.
+- OTP verification remains through backend/Supabase auth.
+- Account deletion requires authenticated customer session.
+- Service Role stays only in Edge Function.
+- No Kavenegar, Supabase service role, payment or Neshan service secret is exposed in frontend.
 
-## Verification
-- `tsc --noEmit -p tsconfig.app.json`: PASS on merged V5.1 source.
-- Full Vite/Playwright release gate must run on user's Windows environment.
+## Verification in build environment
+- `npm run typecheck`: PASS.
+- Vite build could not run in Linux sandbox because uploaded Windows `node_modules/.bin/vite` is not executable; Windows build remains release gate.
