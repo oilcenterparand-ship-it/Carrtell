@@ -1,0 +1,185 @@
+{
+  "generatedAt": "2026-08-21T14:11:56.405Z",
+  "startedAt": "2026-08-21T14:10:44.428Z",
+  "status": "failed",
+  "counts": {
+    "passed": 12,
+    "failed": 4,
+    "skipped": 2
+  },
+  "feedbackCounts": {
+    "error": 4,
+    "warning": 1,
+    "info": 2
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2123,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "passed",
+      "durationMs": 6611,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2581,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 2037,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "skipped",
+      "durationMs": 262,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
+      "status": "passed",
+      "durationMs": 1697,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 1628,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 9245,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 9566,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 1952,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 305,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2854,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 1627,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 1894,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
+      "status": "passed",
+      "durationMs": 1762,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 1736,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 9318,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 9621,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "warning",
+      "area": "customer/hamburger",
+      "route": "/shop",
+      "message": "پنل 100٪ ارتفاع صفحه را گرفته؛ برای یک باکس جمع‌وجور بیش از حد بزرگ است.",
+      "details": {
+        "box": {
+          "x": -7.227291107177734,
+          "y": 0,
+          "width": 389.99999618530273,
+          "height": 720
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "hRatio": 1
+      },
+      "test": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Carrtell Driver', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Carrtell Driver', { exact: true })\u001b[22m\n",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Carrtell Driver', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Carrtell Driver', { exact: true })\u001b[22m\n",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Carrtell Driver', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Carrtell Driver', { exact: true })\u001b[22m\n",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Carrtell Driver', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Carrtell Driver', { exact: true })\u001b[22m\n",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    }
+  ]
+}

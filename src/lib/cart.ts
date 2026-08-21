@@ -10,7 +10,23 @@ export function readCart(): CartMap {
   if (typeof window === 'undefined') return {};
   try {
     const raw = window.sessionStorage.getItem(CART_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    const source = Array.isArray(parsed)
+      ? Object.fromEntries(parsed.map((entry: any, index: number) => [String(entry?.product?.id || entry?.id || index), entry]))
+      : parsed;
+    if (!source || typeof source !== 'object') return {};
+
+    const normalized: CartMap = {};
+    Object.entries(source as Record<string, any>).forEach(([key, entry]) => {
+      const product = entry?.product || entry;
+      const id = String(product?.id || entry?.product_id || key || '').trim();
+      if (!id || !product || typeof product !== 'object') return;
+      const rawQuantity = Number(entry?.quantity ?? entry?.qty ?? 1);
+      const quantity = Number.isFinite(rawQuantity) && rawQuantity > 0 ? Math.floor(rawQuantity) : 1;
+      normalized[id] = { product: { ...product, id }, quantity };
+    });
+    return normalized;
   } catch {
     return {};
   }
@@ -23,7 +39,7 @@ export function writeCart(cart: CartMap) {
 }
 
 export function getCartCount(cart: CartMap = readCart()) {
-  return Object.values(cart).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  return Object.values(cart).reduce((sum, item) => { const q = Number(item?.quantity); return sum + (Number.isFinite(q) && q > 0 ? q : 0); }, 0);
 }
 
 export function getCartTotal(cart: CartMap = readCart(), getPrice?: (product: Product) => number) {
@@ -42,7 +58,8 @@ export function isProductAvailableForCart(product: Product, currentQuantity = 0)
 export function addProductToCart(product: Product, quantity = 1) {
   if (!product?.id) return { ok: false, message: 'شناسه محصول معتبر نیست.' };
   const cart = readCart();
-  const current = cart[product.id]?.quantity || 0;
+  const currentRaw = Number(cart[product.id]?.quantity);
+  const current = Number.isFinite(currentRaw) && currentRaw > 0 ? currentRaw : 0;
   const stock = Number(product.stock || 0);
 
   if (product.is_active === false || product.is_out_of_stock === true || stock <= 0) {
@@ -67,7 +84,9 @@ export function changeCartQuantity(product: Product, delta: number) {
   const current = cart[product.id];
   if (!current) return cart;
 
-  const nextQuantity = Number(current.quantity || 0) + delta;
+  const currentQuantity = Number(current.quantity);
+  const safeCurrentQuantity = Number.isFinite(currentQuantity) && currentQuantity > 0 ? currentQuantity : 1;
+  const nextQuantity = safeCurrentQuantity + delta;
   if (nextQuantity <= 0) {
     delete cart[product.id];
   } else {

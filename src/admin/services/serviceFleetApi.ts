@@ -78,7 +78,7 @@ export async function getFleetOperationalDashboard(): Promise<{ rows: FleetOpera
   if (error) throw error;
 
   const missionRows = (missions ?? []) as Array<Record<string, any>>;
-  const activeStatuses = new Set(["assigned", "en_route", "dispatched", "on_way", "arrived", "in_progress", "in_service", "working"]);
+  const activeStatuses = new Set(["assigned", "accepted", "en_route", "dispatched", "on_way", "arrived", "in_progress", "in_service", "working"]);
 
   const rows = fleet.map((item) => {
     const related = missionRows.filter((mission) => (mission.assigned_driver_id || mission.driver_id) === item.driver_id);

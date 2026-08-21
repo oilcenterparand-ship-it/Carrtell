@@ -1,51 +1,48 @@
-# پچ Carrtell — Sprint Polish 01
+# Carrtell Staff Auth Session Fix V4.6
 
 ## هدف
-رفع باگ‌های قطعی منوی پایین موبایل و پولیش مسیر رزرو سرویس روی آخرین ZIP کامل پروژه.
+این Hotfix مشکل باقی‌مانده‌ی ورود پنل مدیریت را اصلاح می‌کند؛ حالتی که `staff-password-login` نام کاربری/رمز را قبول می‌کرد اما مرورگر پس از ورود دوباره به `/admin/login` برمی‌گشت.
 
-## تغییرات
-- فعال‌شدن صحیح تب «فروشگاه» در تمام مسیرهای `/shop`، صفحه محصول و کالکشن‌ها.
-- تبدیل تب فعال منوی پایین به دایره برجسته با Glow قرمز Carrtell و حرکت نرم.
-- برجسته‌سازی تب «رزرو سرویس» در موبایل.
-- پشتیبانی بهتر از Safe Area آیفون.
-- مخفی‌شدن منوی پایین هنگام بازشدن مودال انتخاب خودرو.
-- مخفی‌شدن منوی پایین هنگام بازشدن کیبورد موبایل با پشتیبانی از `visualViewport`.
-- اصلاح فاصله نوار دکمه‌های رزرو از منوی پایین تا روی هم قرار نگیرند.
-- رعایت تنظیم Reduced Motion سیستم‌عامل.
+## علت
+نسخه قبلی بعد از اعتبارسنجی `admin/admin` یک Magic Link `token_hash` می‌ساخت و Frontend آن را به Session تبدیل می‌کرد. این مسیر برای نشست مدیریت قابل اتکا نبود و Agent نشان داد RBAC مدیریت پس از ورود در مرورگر پایدار نمی‌ماند.
+
+## اصلاح
+1. Edge Function بعد از اعتبارسنجی Carrtell، کاربر Supabase Auth متناظر را ایجاد/بازیابی و Password همان کاربر را Sync می‌کند.
+2. Frontend سپس از `supabase.auth.signInWithPassword` استفاده می‌کند تا یک Session استاندارد و قابل Refresh ساخته شود.
+3. برای نقش `admin` بلافاصله `get_my_admin_access()` بررسی می‌شود. اگر RBAC واقعاً فعال نباشد Login موفق اعلام نمی‌شود.
+4. تست Admin دیگر `/admin/login` را به اشتباه به عنوان URL موفق قبول نمی‌کند؛ باید واقعاً وارد `/admin/dashboard` شود.
 
 ## فایل‌های تغییرکرده
-1. `src/components/MobileBottomNav.tsx`
-2. `src/pages/BookPage.tsx`
-3. `src/index.css`
+- `src/auth/staffPasswordAuth.ts`
+- `supabase/functions/staff-password-login/index.ts`
+- `tests/e2e/persona-admin.spec.ts`
 
 ## SQL
-این Sprint هیچ SQL ندارد.
+SQL جدید لازم نیست.
 
-## نصب پچ
-محتویات ZIP را مستقیم داخل پوشه اصلی پروژه زیر استخراج کن و اجازه جایگزینی سه فایل بالا را بده:
+## نصب
+ZIP را در ریشه پروژه Carrtell Extract و Replace کنید.
 
-`D:\carrtell\Carrtell-v0.2-current\project`
+سپس فقط Edge Function تغییرکرده را Deploy کنید:
 
-## ساخت dist در PowerShell
 ```powershell
-cd "D:\carrtell\Carrtell-v0.2-current\project"
-Remove-Item -Recurse -Force .\dist -ErrorAction SilentlyContinue
-npm install
-npm run typecheck
-npm run build
+npx supabase functions deploy staff-password-login --no-verify-jwt
 ```
 
-بعد از پایان، پوشه جدید `dist` ساخته می‌شود. محتویات داخل `dist` را در `public_html` هاست جایگزین کن؛ خود پوشه `dist` را داخل `public_html` نگذار.
+بعد تست:
 
-## تست موبایل
-- صفحه خانه: تب خانه باید برجسته باشد.
-- `/shop`: تب فروشگاه باید برجسته باشد.
-- صفحه جزئیات محصول: تب فروشگاه باید همچنان برجسته بماند.
-- `/book`: تب رزرو سرویس باید برجسته و قرمز باشد.
-- در رزرو، انتخاب خودرو را باز کن: منوی پایین باید پنهان شود.
-- روی فیلد جستجوی خودرو بزن: هنگام بازشدن کیبورد، منوی پایین نباید روی صفحه بیفتد.
-- دکمه‌های «مرحله قبل/ادامه» نباید زیر منوی پایین قرار بگیرند.
+```powershell
+npm run typecheck
+npm run build
+.\agent.ps1 PERSONAS
+```
 
-## نتیجه بررسی فنی
-`npm run typecheck` روی سورس اصلاح‌شده بدون خطا اجرا شد.
-Build در محیط تحویل به‌دلیل در دسترس نبودن یک پکیج اختیاری Rollup در رجیستری داخلی اجرا نشد؛ این خطا مربوط به سورس نیست. دستور Build بالا روی ویندوز پروژه اجرا شود.
+## نتیجه مورد انتظار
+- Production Browser Gate: PASS
+- Admin login gate: PASS
+- Authenticated Admin: PASS
+- Customer: PASS
+- Technician: PASS
+
+## امنیت
+هیچ Supabase Service Role Key، کلید Kavenegar، کلید Neshan یا Secret دیگری وارد Frontend نشده است. Password فقط هنگام Login از طریق HTTPS به Edge Function و سپس Supabase Auth منتقل می‌شود.

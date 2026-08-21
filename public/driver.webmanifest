@@ -1,0 +1,33 @@
+{
+  "id": "/driver/",
+  "name": "Carrtell Driver",
+  "short_name": "Carrtell Driver",
+  "description": "اپ اختصاصی ماموریت‌های سرویس‌کار Carrtell",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/driver/login?source=driver-pwa",
+  "scope": "/driver/",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "icons": [
+    {
+      "src": "/brand/driver-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/driver-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "ماموریت‌های من",
+      "url": "/driver/dashboard"
+    }
+  ]
+}

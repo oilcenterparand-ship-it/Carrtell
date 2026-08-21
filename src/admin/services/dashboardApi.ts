@@ -52,7 +52,7 @@ export async function getAdminKpiSummary(): Promise<AdminKpiSummary> {
     supabase.from('profiles').select('id,created_at').gte('created_at', month),
     supabase.from('products').select('id,stock,min_stock,is_active').lte('stock', 5),
     supabase.from('customer_reviews').select('id,is_approved').eq('is_approved', false),
-    supabase.from('service_requests').select('id,status').in('status', ['pending', 'confirmed', 'assigned', 'en_route', 'in_progress']),
+    supabase.from('service_requests').select('id,status').in('status', ['pending', 'confirmed', 'assigned', 'accepted', 'en_route', 'in_progress']),
   ]);
 
   const successfulToday = (todayOrders.data ?? []).filter((o: any) => ['paid', 'processing', 'completed', 'delivered', 'confirmed', 'sent'].includes(o.status));
@@ -122,7 +122,7 @@ export async function getActiveServices(limit = 5): Promise<ActiveServiceItem[]>
   const { data, error } = await supabase
     .from('service_requests')
     .select('*')
-    .in('status', ['pending', 'confirmed', 'assigned', 'en_route', 'in_progress'])
+    .in('status', ['pending', 'confirmed', 'assigned', 'accepted', 'en_route', 'in_progress'])
     .order('created_at', { ascending: false })
     .limit(limit);
 

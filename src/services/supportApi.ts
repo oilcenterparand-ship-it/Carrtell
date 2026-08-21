@@ -25,8 +25,9 @@ export type SupportMessage = {
 };
 
 export async function getMySupportTickets(userId?: string | null) {
+  if (!userId) return [] as SupportTicket[];
   let q = supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
-  if (userId) q = q.eq('user_id', userId);
+  q = q.eq('user_id', userId);
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as SupportTicket[];

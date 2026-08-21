@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-08-19T12:50:32.732Z",
+  "startedAt": "2026-08-19T12:50:25.255Z",
+  "status": "passed",
+  "counts": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 2
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 1972,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 281,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2198,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 300,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "info",
+      "area": "admin/auth",
+      "route": "/admin/login",
+      "message": "برای تست کامل مدیریت، CARRTELL_ADMIN_USERNAME و CARRTELL_ADMIN_PASSWORD را تنظیم کن.",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy"
+    },
+    {
+      "severity": "info",
+      "area": "admin/auth",
+      "route": "/admin/login",
+      "message": "برای تست کامل مدیریت، CARRTELL_ADMIN_USERNAME و CARRTELL_ADMIN_PASSWORD را تنظیم کن.",
+      "test": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy"
+    }
+  ]
+}

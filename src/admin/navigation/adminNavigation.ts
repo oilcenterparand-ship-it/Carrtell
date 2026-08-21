@@ -49,6 +49,7 @@ export const adminNavigationItems: AdminNavItem[] = [
   { title: 'مرکز اعزام', path: '/admin/dispatch', group: 'operations', description: 'اختصاص سرویس‌کار، وضعیت مأموریت و عملیات سرویس در محل' },
   { title: 'درخواست‌های سرویس', path: '/admin/service-requests', group: 'operations', description: 'درخواست‌های رزرو سرویس در محل' },
   { title: 'تنظیمات رزرو هوشمند', path: '/admin/service-booking-settings', group: 'operations', description: 'خدمات، ظرفیت بازه‌ها و قیمت‌گذاری داینامیک' },
+  { title: 'سرویس‌کارها', path: '/admin/technicians', group: 'operations', description: 'تعریف سرویس‌کار، نام کاربری، رمز و وضعیت فعالیت' },
   { title: 'خودروهای سرویس', path: '/admin/service-fleet', group: 'operations', description: 'ناوگان سرویس، پلاک، راننده، وضعیت و موجودی خودرو' },
   { title: 'شعب', path: '/admin/branches', group: 'operations', description: 'مدیریت شعب، شهر، محدوده فعالیت و مدیر شعبه' },
 

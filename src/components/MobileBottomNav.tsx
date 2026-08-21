@@ -21,38 +21,15 @@ export default function MobileBottomNav() {
   const location = useLocation();
   const { user } = useAuth();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(() => document.body.classList.contains('ct-modal-open'));
 
   useEffect(() => {
-    const updateKeyboardState = () => {
-      const viewport = window.visualViewport;
-      if (!viewport) return;
-      setKeyboardOpen(window.innerHeight - viewport.height > 140);
-    };
-
-    const onFocusIn = (event: FocusEvent) => {
-      const element = event.target as HTMLElement | null;
-      if (element?.matches('input, textarea, select, [contenteditable="true"]')) setKeyboardOpen(true);
-    };
-    const onFocusOut = () => window.setTimeout(() => {
-      const active = document.activeElement as HTMLElement | null;
-      if (!active?.matches('input, textarea, select, [contenteditable="true"]')) setKeyboardOpen(false);
-    }, 120);
-
-    document.addEventListener('focusin', onFocusIn);
-    document.addEventListener('focusout', onFocusOut);
-    window.visualViewport?.addEventListener('resize', updateKeyboardState);
-    return () => {
-      document.removeEventListener('focusin', onFocusIn);
-      document.removeEventListener('focusout', onFocusOut);
-      window.visualViewport?.removeEventListener('resize', updateKeyboardState);
-    };
-  }, []);
-
-  useEffect(() => {
-    const observer = new MutationObserver(() => setModalOpen(document.body.classList.contains('ct-modal-open')));
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKeyboardOpen(window.innerHeight - vv.height > 140);
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); };
   }, []);
 
   const accountTo = useMemo(
@@ -60,36 +37,26 @@ export default function MobileBottomNav() {
     [location.hash, location.pathname, location.search, user],
   );
 
-  const hidden = keyboardOpen || modalOpen
-    || location.pathname.startsWith('/admin')
+  const hidden = location.pathname.startsWith('/admin')
     || location.pathname.startsWith('/driver')
     || location.pathname === '/login-otp'
     || location.pathname.startsWith('/payment')
     || location.pathname.startsWith('/service-payment');
 
-  if (hidden) return null;
+  if (hidden || keyboardOpen) return null;
 
   return (
     <nav className="ct-mobile-bottom-nav" aria-label="ناوبری اصلی موبایل">
       {items.map(({ to, label, Icon, matches, featured }) => {
         const active = matches(location.pathname);
         return (
-          <NavLink
-            key={label}
-            to={to}
-            className={`${active ? 'is-active' : ''}${featured ? ' is-featured' : ''}`}
-            aria-current={active ? 'page' : undefined}
-          >
+          <NavLink key={label} to={to} className={`${active ? 'is-active' : ''}${featured ? ' is-featured' : ''}`} aria-current={active ? 'page' : undefined}>
             <span className="ct-mobile-nav-icon"><Icon aria-hidden="true" /></span>
             <span className="ct-mobile-nav-label">{label}</span>
           </NavLink>
         );
       })}
-      <NavLink
-        to={accountTo}
-        className={location.pathname === '/dashboard' && location.hash !== '#orders' ? 'is-active' : ''}
-        aria-current={location.pathname === '/dashboard' && location.hash !== '#orders' ? 'page' : undefined}
-      >
+      <NavLink to={accountTo} className={location.pathname === '/dashboard' && location.hash !== '#orders' ? 'is-active' : ''} aria-current={location.pathname === '/dashboard' && location.hash !== '#orders' ? 'page' : undefined}>
         <span className="ct-mobile-nav-icon"><UserRound aria-hidden="true" /></span>
         <span className="ct-mobile-nav-label">حساب</span>
       </NavLink>

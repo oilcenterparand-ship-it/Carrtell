@@ -1,0 +1,171 @@
+﻿import { supabase } from '../../lib/supabase';
+
+export type BookingService = {
+  id: string;
+  title: string;
+  description?: string | null;
+  icon?: string | null;
+  base_labor_fee: number;
+  estimated_minutes: number;
+  is_active: boolean;
+  sort_order: number;
+  recommended_categories?: string[];
+};
+
+export type BookingSlot = {
+  id: string;
+  label: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  remaining: number;
+  is_active: boolean;
+};
+
+export type ServicePricingSettings = {
+  travel_fee: number;
+  night_fee: number;
+  holiday_fee: number;
+  out_of_area_fee: number;
+  night_start_hour: number;
+  club_discount_percent: number;
+  service_area_cities: string[];
+};
+
+const DEFAULT_SERVICES: BookingService[] = [
+  { id: 'oil-change', title: 'ØªØ¹ÙˆÛŒØ¶ Ø±ÙˆØºÙ† Ù…ÙˆØªÙˆØ±', description: 'ØªØ¹ÙˆÛŒØ¶ Ø±ÙˆØºÙ† Ùˆ Ú©Ù†ØªØ±Ù„ Ø³Ø·Ø­ Ù…Ø§ÛŒØ¹Ø§Øª', icon: 'ðŸ›¢ï¸', base_labor_fee: 180000, estimated_minutes: 35, is_active: true, sort_order: 1, recommended_categories: ['Ø±ÙˆØºÙ† Ù…ÙˆØªÙˆØ±', 'ÙÛŒÙ„ØªØ± Ø±ÙˆØºÙ†'] },
+  { id: 'periodic', title: 'Ø³Ø±ÙˆÛŒØ³ Ø¯ÙˆØ±Ù‡â€ŒØ§ÛŒ', description: 'Ø¨Ø§Ø²Ø¯ÛŒØ¯ Ú©Ø§Ù…Ù„ Ø§Ù‚Ù„Ø§Ù… Ù…ØµØ±ÙÛŒ Ø®ÙˆØ¯Ø±Ùˆ', icon: 'ðŸ”§', base_labor_fee: 320000, estimated_minutes: 60, is_active: true, sort_order: 2, recommended_categories: ['Ø±ÙˆØºÙ† Ù…ÙˆØªÙˆØ±', 'ÙÛŒÙ„ØªØ± Ø±ÙˆØºÙ†', 'ÙÛŒÙ„ØªØ± Ù‡ÙˆØ§', 'ÙÛŒÙ„ØªØ± Ú©Ø§Ø¨ÛŒÙ†'] },
+  { id: 'gearbox', title: 'ØªØ¹ÙˆÛŒØ¶ Ø±ÙˆØºÙ† Ú¯ÛŒØ±Ø¨Ú©Ø³', description: 'ØªØ¹ÙˆÛŒØ¶ Ø±ÙˆØºÙ† Ú¯ÛŒØ±Ø¨Ú©Ø³ Ø¯Ø³ØªÛŒ ÛŒØ§ Ø§ØªÙˆÙ…Ø§ØªÛŒÚ©', icon: 'âš™ï¸', base_labor_fee: 450000, estimated_minutes: 75, is_active: true, sort_order: 3, recommended_categories: ['Ø±ÙˆØºÙ† Ú¯ÛŒØ±Ø¨Ú©Ø³'] },
+  { id: 'coolant', title: 'ØªØ¹ÙˆÛŒØ¶ Ø¶Ø¯ÛŒØ® Ùˆ Ø¶Ø¯Ø¬ÙˆØ´', description: 'ØªØ®Ù„ÛŒÙ‡ØŒ Ø´Ø³Øªâ€ŒÙˆØ´Ùˆ Ùˆ Ø¬Ø§ÛŒÚ¯Ø²ÛŒÙ†ÛŒ Ù…Ø§ÛŒØ¹ Ø®Ù†Ú©â€ŒÚ©Ù†Ù†Ø¯Ù‡', icon: 'â„ï¸', base_labor_fee: 260000, estimated_minutes: 50, is_active: true, sort_order: 4, recommended_categories: ['Ø¶Ø¯ÛŒØ®', 'Ø¶Ø¯Ø¬ÙˆØ´'] },
+  { id: 'brake', title: 'Ø¨Ø§Ø²Ø¯ÛŒØ¯ Ùˆ ØªØ¹ÙˆÛŒØ¶ Ù„Ù†Øª', description: 'Ø¨Ø§Ø²Ø¯ÛŒØ¯ Ù„Ù†Øª Ùˆ ØªØ¹ÙˆÛŒØ¶ Ø¯Ø± ØµÙˆØ±Øª Ù†ÛŒØ§Ø²', icon: 'ðŸ›ž', base_labor_fee: 380000, estimated_minutes: 60, is_active: true, sort_order: 5, recommended_categories: ['Ù„Ù†Øª'] },
+];
+
+const DEFAULT_SLOTS: BookingSlot[] = [
+  { id: 'slot-9-11', label: 'Û¹ ØªØ§ Û±Û±', start_time: '09:00', end_time: '11:00', capacity: 3, remaining: 3, is_active: true },
+  { id: 'slot-11-13', label: 'Û±Û± ØªØ§ Û±Û³', start_time: '11:00', end_time: '13:00', capacity: 3, remaining: 2, is_active: true },
+  { id: 'slot-14-16', label: 'Û±Û´ ØªØ§ Û±Û¶', start_time: '14:00', end_time: '16:00', capacity: 2, remaining: 2, is_active: true },
+  { id: 'slot-16-18', label: 'Û±Û¶ ØªØ§ Û±Û¸', start_time: '16:00', end_time: '18:00', capacity: 2, remaining: 1, is_active: true },
+  { id: 'slot-18-20', label: 'Û±Û¸ ØªØ§ Û²Û°', start_time: '18:00', end_time: '20:00', capacity: 2, remaining: 2, is_active: true },
+];
+
+const DEFAULT_PRICING: ServicePricingSettings = {
+  travel_fee: 150000,
+  night_fee: 120000,
+  holiday_fee: 100000,
+  out_of_area_fee: 250000,
+  night_start_hour: 18,
+  club_discount_percent: 5,
+  service_area_cities: ['Ù¾Ø±Ù†Ø¯', 'ØªÙ‡Ø±Ø§Ù†', 'Ø§Ø³Ù„Ø§Ù…Ø´Ù‡Ø±', 'Ú†Ù‡Ø§Ø±Ø¯Ø§Ù†Ú¯Ù‡'],
+};
+
+const LOCAL_SERVICES_KEY = 'carrtell:booking-services';
+const LOCAL_SLOTS_KEY = 'carrtell:booking-slots';
+const LOCAL_PRICING_KEY = 'carrtell:booking-pricing';
+
+function readLocal<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLocal<T>(key: string, value: T) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+export async function getBookingServices(): Promise<BookingService[]> {
+  const { data, error } = await supabase.from('booking_services').select('*').order('sort_order', { ascending: true });
+  if (!error && Array.isArray(data) && data.length) return data as BookingService[];
+  return readLocal(LOCAL_SERVICES_KEY, DEFAULT_SERVICES).filter((item) => item.is_active !== false);
+}
+
+export async function saveBookingService(service: BookingService): Promise<BookingService> {
+  const payload = { ...service, base_labor_fee: Number(service.base_labor_fee || 0), estimated_minutes: Number(service.estimated_minutes || 30), sort_order: Number(service.sort_order || 0) };
+  const { data, error } = await supabase.from('booking_services').upsert(payload).select('*').single();
+  if (!error && data) return data as BookingService;
+  const current = readLocal(LOCAL_SERVICES_KEY, DEFAULT_SERVICES);
+  const next = current.some((item) => item.id === payload.id) ? current.map((item) => item.id === payload.id ? payload : item) : [...current, payload];
+  writeLocal(LOCAL_SERVICES_KEY, next);
+  return payload;
+}
+
+export async function deleteBookingService(id: string) {
+  await supabase.from('booking_services').delete().eq('id', id);
+  writeLocal(LOCAL_SERVICES_KEY, readLocal(LOCAL_SERVICES_KEY, DEFAULT_SERVICES).filter((item) => item.id !== id));
+}
+
+export async function getBookingSlots(date: string): Promise<BookingSlot[]> {
+  const { data, error } = await supabase.rpc('get_booking_slots_for_date', { p_date: date });
+  if (!error && Array.isArray(data) && data.length) return data as BookingSlot[];
+
+  const { data: slots, error: slotsError } = await supabase.from('booking_time_slots').select('*').eq('is_active', true).order('start_time');
+  const base = !slotsError && Array.isArray(slots) && slots.length ? slots as BookingSlot[] : readLocal(LOCAL_SLOTS_KEY, DEFAULT_SLOTS);
+  return base.map((slot) => ({ ...slot, remaining: Number(slot.remaining ?? slot.capacity) }));
+}
+
+export async function getAllBookingSlots(): Promise<BookingSlot[]> {
+  const { data, error } = await supabase.from('booking_time_slots').select('*').order('start_time');
+  if (!error && Array.isArray(data) && data.length) return data as BookingSlot[];
+  return readLocal(LOCAL_SLOTS_KEY, DEFAULT_SLOTS);
+}
+
+export async function saveBookingSlot(slot: BookingSlot): Promise<BookingSlot> {
+  const payload = { ...slot, capacity: Number(slot.capacity || 1), remaining: Number(slot.remaining ?? slot.capacity ?? 1) };
+  const { data, error } = await supabase.from('booking_time_slots').upsert(payload).select('*').single();
+  if (!error && data) return data as BookingSlot;
+  const current = readLocal(LOCAL_SLOTS_KEY, DEFAULT_SLOTS);
+  const next = current.some((item) => item.id === payload.id) ? current.map((item) => item.id === payload.id ? payload : item) : [...current, payload];
+  writeLocal(LOCAL_SLOTS_KEY, next);
+  return payload;
+}
+
+export async function deleteBookingSlot(id: string) {
+  await supabase.from('booking_time_slots').delete().eq('id', id);
+  writeLocal(LOCAL_SLOTS_KEY, readLocal(LOCAL_SLOTS_KEY, DEFAULT_SLOTS).filter((item) => item.id !== id));
+}
+
+export async function getServicePricingSettings(): Promise<ServicePricingSettings> {
+  const { data, error } = await supabase.from('service_pricing_settings').select('*').eq('id', 'default').maybeSingle();
+  if (!error && data) return {
+    travel_fee: Number(data.travel_fee || 0),
+    night_fee: Number(data.night_fee || 0),
+    holiday_fee: Number(data.holiday_fee || 0),
+    out_of_area_fee: Number(data.out_of_area_fee || 0),
+    night_start_hour: Number(data.night_start_hour || 18),
+    club_discount_percent: Number(data.club_discount_percent || 0),
+    service_area_cities: Array.isArray(data.service_area_cities) ? data.service_area_cities : [],
+  };
+  return readLocal(LOCAL_PRICING_KEY, DEFAULT_PRICING);
+}
+
+export async function saveServicePricingSettings(settings: ServicePricingSettings) {
+  const payload = { id: 'default', ...settings };
+  const { data, error } = await supabase.from('service_pricing_settings').upsert(payload).select('*').single();
+  if (!error && data) return data;
+  writeLocal(LOCAL_PRICING_KEY, settings);
+  return settings;
+}
+
+export function calculateServicePricing(args: {
+  services: BookingService[];
+  pricing: ServicePricingSettings;
+  date: string;
+  slot?: BookingSlot | null;
+  city?: string | null;
+  isClubMember?: boolean;
+}) {
+  const labor = args.services.reduce((sum, item) => sum + Number(item.base_labor_fee || 0), 0);
+  const travel = args.pricing.travel_fee;
+  const slotHour = Number((args.slot?.start_time || '00:00').split(':')[0]);
+  const night = slotHour >= args.pricing.night_start_hour ? args.pricing.night_fee : 0;
+  const day = args.date ? new Date(`${args.date}T12:00:00`).getDay() : -1;
+  const holiday = day === 5 ? args.pricing.holiday_fee : 0;
+  const cleanCity = String(args.city || '').trim();
+  const outOfArea = cleanCity && !args.pricing.service_area_cities.some((item) => cleanCity.includes(item) || item.includes(cleanCity)) ? args.pricing.out_of_area_fee : 0;
+  const subtotal = labor + travel + night + holiday + outOfArea;
+  const discount = args.isClubMember ? Math.round(subtotal * args.pricing.club_discount_percent / 100) : 0;
+  return { labor, travel, night, holiday, outOfArea, discount, total: Math.max(0, subtotal - discount) };
+}
+

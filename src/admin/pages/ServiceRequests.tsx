@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Car, Loader2, MapPin, PhoneCall, RefreshCw, Search, UserRound, Wrench } from 'lucide-react';
+import { assignServiceRequest, getFleetVehicles } from '../services/dispatchApi';
 import {
-  assignServiceRequestDriver,
   getDriverUsers,
   getServiceRequests,
   getServiceRequestStatusLabel,
@@ -11,8 +11,8 @@ import {
   type ServiceRequestStatus,
 } from '../services/serviceRequestsApi';
 
-const statuses: ServiceRequestStatus[] = ['pending_review', 'confirmed', 'assigned', 'dispatching', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled'];
-const operationStatuses: ServiceRequestStatus[] = ['pending_review', 'confirmed', 'assigned', 'dispatching', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled'];
+const statuses: ServiceRequestStatus[] = ['pending_review', 'confirmed', 'assigned', 'accepted', 'dispatching', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled'];
+const operationStatuses: ServiceRequestStatus[] = ['pending_review', 'confirmed', 'assigned', 'accepted', 'dispatching', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled'];
 
 function statusClass(status: ServiceRequestStatus) {
   switch (status) {
@@ -40,6 +40,9 @@ function buildMapLink(request: ServiceRequest) {
 export default function ServiceRequests() {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [drivers, setDrivers] = useState<DriverUser[]>([]);
+  const [fleet, setFleet] = useState<Record<string, any>[]>([]);
+  const [selectedDriver, setSelectedDriver] = useState<Record<string, string>>({});
+  const [selectedFleet, setSelectedFleet] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState('');
   const [query, setQuery] = useState('');
@@ -50,9 +53,10 @@ export default function ServiceRequests() {
   async function loadRequests() {
     setLoading(true);
     try {
-      const [serviceItems, driverItems] = await Promise.all([getServiceRequests(), getDriverUsers()]);
+      const [serviceItems, driverItems, fleetItems] = await Promise.all([getServiceRequests(), getDriverUsers(), getFleetVehicles()]);
       setRequests(serviceItems);
       setDrivers(driverItems);
+      setFleet(fleetItems);
     } finally {
       setLoading(false);
     }
@@ -98,21 +102,25 @@ export default function ServiceRequests() {
     }
   }
 
-  async function assignDriver(request: ServiceRequest, driverId: string) {
-    if (!driverId) return;
+  async function assignDriver(request: ServiceRequest) {
+    const driverId = selectedDriver[request.id] || request.assigned_driver_id || '';
+    if (!driverId) return setMessage('ابتدا سرویس‌کار را انتخاب کن.');
     const driver = drivers.find((item) => item.id === driverId);
-    if (!driver) return;
+    if (!driver) return setMessage('سرویس‌کار انتخاب‌شده پیدا نشد.');
 
     setSavingId(request.id);
     setMessage('');
     try {
-      const updated = await assignServiceRequestDriver(request.id, {
-        driver_id: driver.id,
-        driver_name: driver.full_name,
-        driver_phone: driver.phone || null,
-      });
-      setRequests((items) => items.map((item) => (item.id === request.id ? updated : item)));
-      setMessage(`درخواست به ${driver.full_name} تخصیص داده شد.`);
+      const updated = await assignServiceRequest(
+        request.id,
+        driver.id,
+        selectedFleet[request.id] || undefined,
+        request.preferred_date && request.preferred_time ? `${request.preferred_date}T${request.preferred_time}` : undefined,
+      );
+      setRequests((items) => items.map((item) => (item.id === request.id ? { ...item, ...updated } as ServiceRequest : item)));
+      setMessage(`مأموریت به ${driver.full_name} تخصیص داده شد و در پنل سرویس‌کار نمایش داده می‌شود.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'تخصیص سرویس‌کار انجام نشد.');
     } finally {
       setSavingId('');
     }
@@ -157,7 +165,7 @@ export default function ServiceRequests() {
 
       {drivers.length === 0 && (
         <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-          هنوز کاربری با نقش <b>driver</b> پیدا نشد. در جدول profiles/user_profiles/users برای سرویس‌کار role را برابر driver قرار بده.
+          هنوز سرویس‌کاری تعریف نشده است. <a className="font-black underline" href="/admin/technicians">تعریف سرویس‌کار</a>
         </div>
       )}
 
@@ -201,16 +209,31 @@ export default function ServiceRequests() {
                 </div>
 
                 <div className="w-full space-y-3 xl:w-80">
-                  <label className="block text-xs font-bold text-slate-400">انتخاب سرویس‌کار</label>
-                  <select
-                    value={request.assigned_driver_id || ''}
-                    onChange={(event) => void assignDriver(request, event.target.value)}
-                    disabled={savingId === request.id || drivers.length === 0}
-                    className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-amber-400 disabled:opacity-60"
-                  >
-                    <option value="">انتخاب سرویس‌کار</option>
-                    {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.full_name}{driver.phone ? ` - ${driver.phone}` : ''}</option>)}
-                  </select>
+                  <div className="rounded-2xl border-2 border-amber-400/30 bg-amber-500/5 p-3">
+                    <div className="mb-3 font-black text-amber-200">تخصیص سریع مأموریت</div>
+                    <label className="mb-1 block text-xs font-bold text-slate-400">سرویس‌کار</label>
+                    <select
+                      value={selectedDriver[request.id] ?? request.assigned_driver_id ?? ''}
+                      onChange={(event) => setSelectedDriver((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                      disabled={savingId === request.id || drivers.length === 0}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-white outline-none focus:border-amber-400 disabled:opacity-60"
+                    >
+                      <option value="">انتخاب سرویس‌کار</option>
+                      {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.full_name}{driver.phone ? ` - ${driver.phone}` : ''}</option>)}
+                    </select>
+                    <label className="mb-1 mt-3 block text-xs font-bold text-slate-400">خودروی سرویس (اختیاری)</label>
+                    <select
+                      value={selectedFleet[request.id] ?? ''}
+                      onChange={(event) => setSelectedFleet((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                      disabled={savingId === request.id}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-white outline-none focus:border-amber-400 disabled:opacity-60"
+                    >
+                      <option value="">بدون خودرو / انتخاب بعداً</option>
+                      {fleet.map((item) => <option key={item.id} value={item.id}>{item.title || item.plate_number || item.id}</option>)}
+                    </select>
+                    <button type="button" onClick={() => void assignDriver(request)} disabled={savingId === request.id || drivers.length === 0 || !(selectedDriver[request.id] || request.assigned_driver_id)} className="mt-3 w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950 disabled:opacity-40">{request.assigned_driver_id ? 'بروزرسانی تخصیص' : 'تخصیص و ارسال به سرویس‌کار'}</button>
+                    <div className="mt-2 flex gap-2 text-xs"><a href="/admin/technicians" className="text-amber-200 underline">مدیریت سرویس‌کارها</a><span className="text-slate-600">•</span><a href="/admin/service-fleet" className="text-cyan-200 underline">مدیریت خودروها</a></div>
+                  </div>
 
                   <label className="block text-xs font-bold text-slate-400">وضعیت عملیات</label>
                   <select

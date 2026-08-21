@@ -1,0 +1,759 @@
+﻿import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Car,
+  ChevronDown,
+  Heart,
+  LogOut,
+  MapPin,
+  Menu,
+  CircleUserRound,
+  MessageCircle,
+  Package,
+  Search,
+  Settings,
+  ShieldCheck,
+  Ticket,
+  User,
+  Wrench,
+  X,
+} from 'lucide-react';
+import { brandConfig } from '../config/brand';
+import { getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
+import { getProducts, getStorefrontSearchProducts, type Product } from '../admin/services/productsApi';
+import { getActiveCarsForCustomer, getCarTitle, type Car as AdminCar } from '../admin/services/carsApi';
+import {
+  onSelectedCustomerCarChange,
+  readSelectedCustomerCar,
+  saveSelectedCustomerCar,
+} from '../customer/services/selectedCar';
+import { useAuth } from '../auth/AuthProvider';
+import MiniCart from './MiniCart';
+
+
+function normalizeLiveSearch(value: unknown) {
+  return String(value || '')
+    .toLocaleLowerCase('fa')
+    .replace(/[ÙŠÙ‰]/g, 'ÛŒ')
+    .replace(/Ùƒ/g, 'Ú©')
+    .replace(/[Û€Ø©]/g, 'Ù‡')
+    .replace(/â€Œ/g, ' ')
+    .replace(/[^0-9a-zØ¢-ÛŒ]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const fallbackAccessLinks = [
+  { label: 'Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ø´Ú¯ÙØªâ€ŒØ§Ù†Ú¯ÛŒØ²', to: '/#amazing-offers', emoji: 'âš¡' },
+  { label: 'Ù¾Ø±ÙØ±ÙˆØ´â€ŒÙ‡Ø§', to: '/?sort=best-seller', emoji: 'ðŸ”¥' },
+  { label: 'Ù¾Ú©ÛŒØ¬â€ŒÙ‡Ø§ÛŒ Ø®ÙˆØ¯Ø±ÙˆÛŒÛŒ', to: '/#packages', emoji: 'ðŸ“¦' },
+  { label: 'Ù…Ú©Ù…Ù„â€ŒÙ‡Ø§ÛŒ Ø®ÙˆØ¯Ø±Ùˆ', to: '/?category=additive', emoji: 'ðŸ§ª' },
+  { label: 'Ø±ÙˆØºÙ† Ú¯ÛŒØ±Ø¨Ú©Ø³ Ø§ØªÙˆÙ…Ø§Øª', to: '/?category=automatic-transmission-oil', emoji: 'âš™ï¸' },
+  { label: 'Ø¶Ø¯ÛŒØ® / Ø¶Ø¯Ø¬ÙˆØ´', to: '/?category=antifreeze', emoji: 'â„ï¸' },
+];
+
+function CarrtellLogo() {
+  return (
+    <Link to="/" className="ct-new-header-logo shrink-0" aria-label="ØµÙØ­Ù‡ Ø§ØµÙ„ÛŒ Carrtell">
+      <img src={brandConfig.logo} alt={brandConfig.name} className="h-10 w-auto object-contain sm:h-11" />
+    </Link>
+  );
+}
+
+export default function Header() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [drawerCategoriesOpen, setDrawerCategoriesOpen] = useState(false);
+  const [drawerActiveCategorySlug, setDrawerActiveCategorySlug] = useState('');
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [selectedCustomerCar, setSelectedCustomerCar] = useState(() => readSelectedCustomerCar());
+  const [allCars, setAllCars] = useState<AdminCar[]>([]);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleBrand, setVehicleBrand] = useState('');
+  const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
+  const [vehicleNotice, setVehicleNotice] = useState('');
+  const [vehicleNoticeCorner, setVehicleNoticeCorner] = useState(false);
+  const [vehicleNoticeDismissed, setVehicleNoticeDismissed] = useState(false);
+  const [favoritesCount, setFavoritesCount] = useState(0);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const accountRef = useRef<HTMLDivElement | null>(null);
+  const vehiclePickerRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLDivElement | null>(null);
+  const searchPanelRef = useRef<HTMLDivElement | null>(null);
+  const [searchPanelStyle, setSearchPanelStyle] = useState<CSSProperties & Record<string, string | number>>({});
+  const drawerMegaCloseTimer = useRef<number | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { role, user, loading: authLoading, signOut } = useAuth();
+  const showGlobalSearch = location.pathname === '/' || location.pathname === '/shop';
+  const showStorefrontBars = false; // Category/vehicle rail is owned by storefront pages; never render it on checkout/account/product flows.
+
+  const keepDrawerMegaOpen = () => {
+    if (drawerMegaCloseTimer.current !== null) {
+      window.clearTimeout(drawerMegaCloseTimer.current);
+      drawerMegaCloseTimer.current = null;
+    }
+    setDrawerCategoriesOpen(true);
+    if (!drawerActiveCategorySlug && categories[0]) setDrawerActiveCategorySlug(categories[0].slug);
+  };
+
+  const scheduleDrawerMegaClose = () => {
+    if (drawerMegaCloseTimer.current !== null) window.clearTimeout(drawerMegaCloseTimer.current);
+    drawerMegaCloseTimer.current = window.setTimeout(() => {
+      setDrawerCategoriesOpen(false);
+      drawerMegaCloseTimer.current = null;
+    }, 140);
+  };
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 48);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+    setDrawerCategoriesOpen(false);
+    setAccountOpen(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    const unsubscribe = onSelectedCustomerCarChange(() => setSelectedCustomerCar(readSelectedCustomerCar()));
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const syncFavorites = () => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem('carrtell:favorites') || '[]');
+        setFavoritesCount(Array.isArray(parsed) ? parsed.length : 0);
+      } catch {
+        setFavoritesCount(0);
+      }
+    };
+    syncFavorites();
+    window.addEventListener('carrtell:favorites-changed', syncFavorites);
+    window.addEventListener('storage', syncFavorites);
+    return () => {
+      window.removeEventListener('carrtell:favorites-changed', syncFavorites);
+      window.removeEventListener('storage', syncFavorites);
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    getActiveCarsForCustomer()
+      .then((items) => {
+        if (mounted) setAllCars(items || []);
+      })
+      .catch(() => {
+        if (mounted) setAllCars([]);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  async function loadSearchCatalog() {
+    setSearchLoading(true);
+    setSearchError('');
+    try {
+      const [categoryItems, productItems] = await Promise.all([
+        getProductCategories().catch(() => []),
+        getStorefrontSearchProducts(600),
+      ]);
+      setCategories((categoryItems || []).filter((item) => item?.is_active !== false));
+      setProducts((productItems || []).filter((item) => Boolean(item && item.is_active !== false && item.name)));
+    } catch (error) {
+      console.error('Carrtell live search catalog failed', error);
+      try {
+        const fallbackProducts = await getProducts();
+        setProducts((fallbackProducts || []).filter((item) => Boolean(item && item.is_active !== false && item.name)));
+      } catch (fallbackError) {
+        console.error('Carrtell live search fallback failed', fallbackError);
+        setProducts([]);
+        setSearchError('Ø¯Ø±ÛŒØ§ÙØª Ù…Ø­ØµÙˆÙ„Ø§Øª Ø¬Ø³ØªØ¬Ùˆ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯. Ø¯ÙˆØ¨Ø§Ø±Ù‡ ØªÙ„Ø§Ø´ Ú©Ù†.');
+      }
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  function updateSearchPanelPosition() {
+    const anchor = searchRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const horizontalGap = viewportWidth < 768 ? 10 : 0;
+    setSearchPanelStyle({
+      '--ct-search-top': `${Math.max(8, rect.bottom + 7)}px`,
+      '--ct-search-left': `${viewportWidth < 768 ? horizontalGap : rect.left}px`,
+      '--ct-search-width': `${viewportWidth < 768 ? Math.max(0, viewportWidth - horizontalGap * 2) : rect.width}px`,
+      '--ct-search-max-height': viewportWidth < 768 ? 'min(56dvh, 520px)' : 'min(70vh, 600px)',
+    });
+  }
+
+  useEffect(() => {
+    void loadSearchCatalog();
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen || !normalizeLiveSearch(searchText)) return;
+    updateSearchPanelPosition();
+    const onViewportChange = () => updateSearchPanelPosition();
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('scroll', onViewportChange, true);
+    window.visualViewport?.addEventListener('resize', onViewportChange);
+    window.visualViewport?.addEventListener('scroll', onViewportChange);
+    return () => {
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('scroll', onViewportChange, true);
+      window.visualViewport?.removeEventListener('resize', onViewportChange);
+      window.visualViewport?.removeEventListener('scroll', onViewportChange);
+    };
+  }, [searchOpen, searchText]);
+
+  useEffect(() => {
+    const onMouseDown = (event: MouseEvent) => {
+      const node = event.target as Node;
+      if (mobileOpen && menuRef.current && !menuRef.current.contains(node)) setMobileOpen(false);
+      if (accountOpen && accountRef.current && !accountRef.current.contains(node)) setAccountOpen(false);
+      if (vehiclePickerOpen && vehiclePickerRef.current && !vehiclePickerRef.current.contains(node)) setVehiclePickerOpen(false);
+      if (searchOpen && searchRef.current && !searchRef.current.contains(node) && !searchPanelRef.current?.contains(node)) setSearchOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [mobileOpen, accountOpen, vehiclePickerOpen, searchOpen]);
+
+  function submitSearch(event: React.FormEvent) {
+    event.preventDefault();
+    const query = searchText.trim();
+    setSearchOpen(false);
+    navigate(query ? `/shop?q=${encodeURIComponent(query)}` : '/shop');
+  }
+
+  async function handleSignOut() {
+    await signOut();
+    saveSelectedCustomerCar(null);
+    localStorage.removeItem('carrtell_selected_car');
+    localStorage.removeItem('carrtell:shop-filters');
+    localStorage.removeItem('carrtell_shop_filters');
+    sessionStorage.removeItem('carrtell:shop-filters');
+    sessionStorage.removeItem('carrtell_shop_filters');
+    setSelectedCustomerCar(null);
+    setSearchText('');
+    setAccountOpen(false);
+    setMobileOpen(false);
+    navigate('/', { replace: true });
+  }
+
+  const accessLinks = categories.length > 0
+    ? categories.slice(0, 10).map((item) => ({ label: item.title, to: `/shop?category=${item.slug}`, emoji: item.icon_emoji || 'ðŸ”§' }))
+    : fallbackAccessLinks;
+  const normalizedSearch = normalizeLiveSearch(searchText);
+  const searchedProducts = useMemo(() => {
+    if (!normalizedSearch) return [];
+    const tokens = normalizedSearch.split(' ').filter(Boolean);
+    const scoreProduct = (product: Product) => {
+      const fields = [product.name, product.brand, product.category, product.oil_grade, product.quality_level, product.transmission_type, product.description, product.card_features].map(normalizeLiveSearch);
+      const name = fields[0]; const brand = fields[1]; const haystack = fields.join(' ');
+      const words = haystack.split(' ').filter(Boolean);
+      const allTokensMatch = tokens.every((token) => words.some((word) => word.startsWith(token) || word.includes(token)) || haystack.includes(token));
+      if (!allTokensMatch) return 0;
+      let score = tokens.length * 120;
+      if (name === normalizedSearch) score += 1000;
+      else if (name.startsWith(normalizedSearch)) score += 850;
+      else if (name.includes(normalizedSearch)) score += 650;
+      if (brand === normalizedSearch) score += 500;
+      else if (brand.startsWith(normalizedSearch)) score += 350;
+      tokens.forEach((token) => { if (name.split(' ').some((word) => word.startsWith(token))) score += 140; if (brand.startsWith(token)) score += 80; });
+      return score;
+    };
+    return products.map((product) => ({ product, score: scoreProduct(product) })).filter((entry) => entry.score > 0).sort((a,b) => b.score-a.score || String(a.product.name||'').localeCompare(String(b.product.name||''),'fa')).map((entry)=>entry.product);
+  }, [normalizedSearch, products]);
+
+  const liveCategorySuggestions = useMemo(() => normalizedSearch ? categories.filter((item) => normalizeLiveSearch(item.title).includes(normalizedSearch) || normalizeLiveSearch(item.title).split(' ').some((w) => w.startsWith(normalizedSearch))).slice(0, 5) : [], [categories, normalizedSearch]);
+  const liveBrandSuggestions = useMemo(() => normalizedSearch ? Array.from(new Set(products.map((item) => String(item.brand || '').trim()).filter(Boolean))).filter((brand) => normalizeLiveSearch(brand).includes(normalizedSearch) || normalizeLiveSearch(brand).startsWith(normalizedSearch)).slice(0, 5) : [], [products, normalizedSearch]);
+
+  const groupedSearchResults = useMemo(() => {
+    const categoryMap = new Map(categories.map((item) => [item.slug, item.title]));
+    const groups = new Map<string, Product[]>();
+    searchedProducts.forEach((product) => {
+      const title = categoryMap.get(product.category || '') || product.category || 'Ø³Ø§ÛŒØ± Ù…Ø­ØµÙˆÙ„Ø§Øª';
+      const current = groups.get(title) || [];
+      current.push(product);
+      groups.set(title, current);
+    });
+    return Array.from(groups.entries());
+  }, [categories, searchedProducts]);
+
+  const drawerActiveCategory = categories.find((item) => item.slug === drawerActiveCategorySlug) || categories[0] || null;
+  const drawerActiveProducts = drawerActiveCategory
+    ? products.filter((product) => product.category === drawerActiveCategory.slug).slice(0, 24)
+    : [];
+
+  const roleShortcut = role === 'admin'
+    ? { to: '/admin', label: 'Ù¾Ù†Ù„ Ù…Ø¯ÛŒØ±ÛŒØª', Icon: ShieldCheck }
+    : role === 'technician'
+      ? { to: '/driver', label: 'Ù¾Ù†Ù„ Ø³Ø±ÙˆÛŒØ³â€ŒÚ©Ø§Ø±', Icon: Wrench }
+      : null;
+  const RoleIcon = roleShortcut?.Icon;
+
+  function selectStoreCar(car: AdminCar) {
+    saveSelectedCustomerCar(car);
+    const selected = readSelectedCustomerCar();
+    setSelectedCustomerCar(selected);
+    setVehiclePickerOpen(false);
+    setVehicleSearch('');
+    setVehicleNoticeCorner(false);
+    setVehicleNoticeDismissed(false);
+    setVehicleNotice(`ØªÙ…Ø§Ù… Ù…Ø­ØµÙˆÙ„Ø§Øª Ù…ØªÙ†Ø§Ø³Ø¨ Ø¨Ø§ ${selected?.title || getCarTitle(car)} Ù†Ù…Ø§ÛŒØ´ Ø¯Ø§Ø¯Ù‡ Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯.`);
+    window.setTimeout(() => setVehicleNoticeCorner(true), 1400);
+  }
+
+  const vehicleBrands = useMemo(
+    () => Array.from(new Set(allCars.map((car) => String(car.brand || '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'fa')),
+    [allCars],
+  );
+
+  const filteredCars = useMemo(() => {
+    const query = vehicleSearch.trim().toLocaleLowerCase('fa');
+    const brandQuery = vehicleBrand.trim().toLocaleLowerCase('fa');
+
+    return allCars
+      .filter((car) => !brandQuery || String(car.brand || '').trim().toLocaleLowerCase('fa') === brandQuery)
+      .map((car) => {
+        const title = getCarTitle(car).toLocaleLowerCase('fa');
+        const brand = String(car.brand || '').toLocaleLowerCase('fa');
+        const model = String(car.model || '').toLocaleLowerCase('fa');
+        const trim = String(car.trim || '').toLocaleLowerCase('fa');
+        const engine = String(car.engine || '').toLocaleLowerCase('fa');
+
+        let score = 1;
+        if (query) {
+          if (title === query) score = 1000;
+          else if (model === query) score = 950;
+          else if (model.startsWith(query)) score = 900;
+          else if (title.startsWith(query)) score = 850;
+          else if (brand.startsWith(query)) score = 800;
+          else if (title.includes(query)) score = 700;
+          else if (trim.includes(query) || engine.includes(query)) score = 500;
+          else score = 0;
+        }
+
+        return { car, score };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || getCarTitle(a.car).localeCompare(getCarTitle(b.car), 'fa'))
+      .map((entry) => entry.car);
+  }, [allCars, vehicleBrand, vehicleSearch]);
+
+  function clearVehicleFilter() {
+    saveSelectedCustomerCar(null);
+    setSelectedCustomerCar(null);
+    setVehiclePickerOpen(false);
+    setVehicleNotice('');
+    setVehicleNoticeCorner(false);
+    setVehicleNoticeDismissed(false);
+  }
+
+  return (
+    <header className={`ct-new-site-header fixed inset-x-0 top-0 z-50 ${scrolled ? 'is-scrolled' : ''}`} dir="rtl">
+      {vehicleNotice && !vehicleNoticeDismissed && (
+        <div className={`ct-new-vehicle-notice ${vehicleNoticeCorner ? 'is-corner' : ''}`} role="status" aria-live="polite">
+          <Car className="h-5 w-5 shrink-0" />
+          <span>{vehicleNotice}</span>
+          {vehicleNoticeCorner && (
+            <button type="button" className="ct-new-vehicle-notice-close" onClick={() => setVehicleNoticeDismissed(true)} aria-label="Ø¨Ø³ØªÙ† Ø§Ø¹Ù„Ø§Ù†">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+      <div className="ct-new-promo-row">
+        <Link to="/#amazing-offers" className="ct-new-promo-link">
+          Ø¬Ø´Ù†ÙˆØ§Ø±Ù‡ ÙˆÛŒÚ˜Ù‡ CarrtellØ› ØªØ®ÙÛŒÙ Ù¾Ú©ÛŒØ¬â€ŒÙ‡Ø§ÛŒ Ø³Ø±ÙˆÛŒØ³ Ùˆ Ø§Ø±Ø³Ø§Ù„ Ø³Ø±ÛŒØ¹
+        </Link>
+      </div>
+
+      <div className="ct-new-main-row">
+        <div className="ct-new-main-inner">
+          <CarrtellLogo />
+
+          {showGlobalSearch && <div className="ct-new-search-wrap" ref={searchRef}>
+            <form onSubmit={submitSearch} className="ct-new-search-form">
+              <Search className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <input
+                value={searchText}
+                onFocus={() => { setSearchOpen(true); window.requestAnimationFrame(updateSearchPanelPosition); if (!products.length && !searchLoading) void loadSearchCatalog(); }}
+                onChange={(event) => {
+                  setSearchText(event.target.value);
+                  setSearchOpen(true);
+                  window.requestAnimationFrame(updateSearchPanelPosition);
+                }}
+                placeholder="Ø¬Ø³ØªØ¬ÙˆÛŒ Ù…Ø­ØµÙˆÙ„ØŒ Ø¨Ø±Ù†Ø¯ ÛŒØ§ Ø®ÙˆØ¯Ø±Ùˆ..."
+                aria-label="Ø¬Ø³ØªØ¬ÙˆÛŒ Ù…Ø­ØµÙˆÙ„Ø§Øª"
+                autoComplete="off"
+                className="ct-new-search-input"
+              />
+              {searchText && (
+                <button type="button" className="ct-new-search-clear" onClick={() => setSearchText('')} aria-label="Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ø¬Ø³ØªØ¬Ùˆ">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </form>
+
+            {searchOpen && normalizedSearch && typeof document !== 'undefined' && createPortal(
+              <div ref={searchPanelRef} className="ct-new-search-results ct-new-search-results-portal" style={searchPanelStyle} role="listbox" aria-label="Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯Ù‡Ø§ÛŒ Ø¬Ø³ØªØ¬Ùˆ">
+                {searchLoading ? (
+                  <div className="ct-new-search-empty">Ø¯Ø± Ø­Ø§Ù„ Ø¬Ø³ØªØ¬Ùˆ Ø¨ÛŒÙ† Ù…Ø­ØµÙˆÙ„Ø§Øª...</div>
+                ) : searchError ? (
+                  <button type="button" className="ct-new-search-retry" onClick={() => void loadSearchCatalog()}>{searchError}</button>
+                ) : groupedSearchResults.length > 0 ? (
+                  <>
+                    <div className="ct-new-search-results-head">
+                      <b>Ù†ØªØ§ÛŒØ¬ Ø¬Ø³ØªØ¬Ùˆ</b>
+                      <span>{new Intl.NumberFormat('fa-IR').format(searchedProducts.length)} Ú©Ø§Ù„Ø§</span>
+                    </div>
+                    <div className="ct-new-search-results-body">
+                      {(liveCategorySuggestions.length > 0 || liveBrandSuggestions.length > 0) && <div className="ct-live-search-shortcuts">
+                        {liveCategorySuggestions.map((item) => <Link key={`cat-${item.slug}`} to={`/shop?category=${encodeURIComponent(item.slug)}`} onClick={()=>{setSearchOpen(false);setSearchText('');}}><span>Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ</span><b>{item.title}</b></Link>)}
+                        {liveBrandSuggestions.map((brand) => <Link key={`brand-${brand}`} to={`/shop?q=${encodeURIComponent(brand)}`} onClick={()=>{setSearchOpen(false);setSearchText('');}}><span>Ø¨Ø±Ù†Ø¯</span><b>{brand}</b></Link>)}
+                      </div>}
+                      {groupedSearchResults.map(([categoryTitle, items]) => (
+                        <section key={categoryTitle} className="ct-new-search-group">
+                          <h3>{categoryTitle}</h3>
+                          <div>
+                            {items.slice(0, 8).map((product) => (
+                              <Link
+                                key={product.id || product.name}
+                                to={`/shop/product/${product.id}`}
+                                onClick={() => {
+                                  setSearchOpen(false);
+                                  setSearchText('');
+                                }}
+                                className="ct-new-search-item"
+                              >
+                                <span className="ct-new-search-thumb">
+                                  {product.image_url ? <img src={product.image_url} alt={product.name} /> : <Package className="h-5 w-5" />}
+                                </span>
+                                <span className="ct-new-search-copy">
+                                  <b>{product.name}</b>
+                                  <small>{[product.brand, product.oil_grade || product.quality_level].filter(Boolean).join(' â€¢ ')}</small>
+                                </span>
+                                <span className="ct-new-search-price">{new Intl.NumberFormat('fa-IR').format(Number(product.price || 0))} ØªÙˆÙ…Ø§Ù†</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                    <button type="button" className="ct-new-search-all" onClick={() => submitSearch({ preventDefault() {} } as React.FormEvent)}>
+                      Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ù‡Ù…Ù‡ Ù†ØªØ§ÛŒØ¬
+                    </button>
+                  </>
+                ) : (
+                  <div className="ct-new-search-empty">Ú©Ø§Ù„Ø§ÛŒÛŒ Ø¨Ø§ Ø§ÛŒÙ† Ø¹Ø¨Ø§Ø±Øª Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.</div>
+                )}
+              </div>,
+              document.body,
+            )}
+          </div>}
+
+          <div className="ct-new-actions">
+            {!authLoading && !user && (
+              <Link to="/login-otp" className="ct-new-action-button ct-new-login-button" title="ÙˆØ±ÙˆØ¯ ÛŒØ§ Ø«Ø¨Øªâ€ŒÙ†Ø§Ù…">
+                <CircleUserRound className="h-5 w-5" />
+                <span>ÙˆØ±ÙˆØ¯</span>
+              </Link>
+            )}
+
+            {user && (
+              <div className="relative" ref={accountRef}>
+                <button
+                  type="button"
+                  onClick={() => setAccountOpen((value) => !value)}
+                  className="ct-new-action-button ct-new-account-button"
+                  aria-expanded={accountOpen}
+                >
+                  <CircleUserRound className="h-5 w-5" />
+                  <span>{user.fullName?.trim() ? `Ø³Ù„Ø§Ù…ØŒ ${user.fullName.trim()}` : 'Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø¢Ù…Ø¯ÛŒØ¯'}</span>
+                  <ChevronDown className={`h-4 w-4 transition ${accountOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {accountOpen && (
+                  <div className="ct-new-account-menu">
+                    <div className="ct-new-account-menu-head">
+                      <b>{user.fullName?.trim() ? `Ø³Ù„Ø§Ù…ØŒ ${user.fullName.trim()}` : 'Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø¢Ù…Ø¯ÛŒØ¯'}</b>
+                      <span>{user.phone || 'Ø­Ø³Ø§Ø¨ Ú©Ø§Ø±Ø¨Ø±ÛŒ'}</span>
+                    </div>
+                    <nav>
+                      {[
+                        { to: '/dashboard', label: 'Ù¾Ø±ÙˆÙØ§ÛŒÙ„ Ù…Ù†', Icon: User },
+                        { to: '/dashboard#orders', label: 'Ø³ÙØ§Ø±Ø´â€ŒÙ‡Ø§ÛŒ Ù…Ù†', Icon: Package },
+                        { to: '/dashboard#addresses', label: 'Ø¢Ø¯Ø±Ø³â€ŒÙ‡Ø§ÛŒ Ù…Ù†', Icon: MapPin },
+                        { to: '/dashboard#favorites', label: 'Ø¹Ù„Ø§Ù‚Ù‡â€ŒÙ…Ù†Ø¯ÛŒâ€ŒÙ‡Ø§', Icon: Heart },
+                        { to: '/dashboard#discounts', label: 'Ú©Ø¯Ù‡Ø§ÛŒ ØªØ®ÙÛŒÙ', Icon: Ticket },
+                        { to: '/dashboard#messages', label: 'Ù¾ÛŒØ§Ù…â€ŒÙ‡Ø§', Icon: MessageCircle },
+                        { to: '/dashboard#settings', label: 'ØªÙ†Ø¸ÛŒÙ…Ø§Øª', Icon: Settings },
+                      ].map(({ to, label, Icon }) => (
+                        <Link key={label} to={to}>
+                          <Icon className="h-4 w-4" />
+                          {label}
+                        </Link>
+                      ))}
+                    </nav>
+                    <button type="button" onClick={() => void handleSignOut()} className="ct-new-account-signout">
+                      <LogOut className="h-4 w-4" />
+                      Ø®Ø±ÙˆØ¬ Ø§Ø² Ø­Ø³Ø§Ø¨
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Link to="/dashboard#favorites" className="ct-new-icon-button ct-new-favorites-button" aria-label="Ø¹Ù„Ø§Ù‚Ù‡â€ŒÙ…Ù†Ø¯ÛŒâ€ŒÙ‡Ø§" title="Ø¹Ù„Ø§Ù‚Ù‡â€ŒÙ…Ù†Ø¯ÛŒâ€ŒÙ‡Ø§">
+              <Heart className="h-5 w-5" />
+              {favoritesCount > 0 && <span className="ct-new-favorites-count">{favoritesCount > 99 ? 'Û¹Û¹+' : new Intl.NumberFormat('fa-IR').format(favoritesCount)}</span>}
+            </Link>
+
+            <MiniCart />
+
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen(false);
+                setVehiclePickerOpen(false);
+                setAccountOpen(false);
+                setMobileOpen(true);
+              }}
+              className="ct-new-icon-button"
+              aria-label="Ø¨Ø§Ø² Ú©Ø±Ø¯Ù† Ù…Ù†Ùˆ"
+              title="Ù…Ù†Ùˆ"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showStorefrontBars && <nav className="ct-new-access-row" aria-label="Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ Ù…Ø­ØµÙˆÙ„Ø§Øª">
+        <div className="ct-new-access-inner">
+          <div className="ct-new-access-vehicle" ref={vehiclePickerRef}>
+              <button
+                type="button"
+                onClick={() => { setVehiclePickerOpen((value) => !value); setVehicleSearch(''); setVehicleBrand(''); }}
+                className={`ct-new-access-vehicle-button ${selectedCustomerCar ? 'is-active' : ''}`}
+                aria-expanded={vehiclePickerOpen}
+              >
+                <Car className="h-4 w-4" />
+                <span>{selectedCustomerCar?.title || 'Ø§Ù†ØªØ®Ø§Ø¨ Ø®ÙˆØ¯Ø±Ùˆ'}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition ${vehiclePickerOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {vehiclePickerOpen && (
+                <div className="ct-new-vehicle-picker">
+                  <div className="ct-new-vehicle-picker-head">
+                    <div className="ct-new-vehicle-picker-title">
+                      <b>Ø§Ù†ØªØ®Ø§Ø¨ Ø®ÙˆØ¯Ø±Ùˆ</b>
+                      <span>Ø®ÙˆØ¯Ø±ÙˆÛŒ Ù…ÙˆØ±Ø¯Ù†Ø¸Ø± Ø±Ø§ Ø§Ø² ÙÙ‡Ø±Ø³Øª Ú©Ø§Ù…Ù„ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†</span>
+                    </div>
+                    <button type="button" className="ct-new-vehicle-picker-close" onClick={() => setVehiclePickerOpen(false)} aria-label="Ø¨Ø³ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨ Ø®ÙˆØ¯Ø±Ùˆ">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="ct-new-vehicle-brand-step">
+                    <label htmlFor="ct-header-vehicle-brand">Û±. Ø´Ø±Ú©Øª Ø³Ø§Ø²Ù†Ø¯Ù‡</label>
+                    <select
+                      id="ct-header-vehicle-brand"
+                      value={vehicleBrand}
+                      onChange={(event) => {
+                        setVehicleBrand(event.target.value);
+                        setVehicleSearch('');
+                      }}
+                    >
+                      <option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ø³Ø§Ø²Ù†Ø¯Ù‡</option>
+                      {vehicleBrands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                    </select>
+                  </div>
+                  <div className="ct-new-vehicle-search">
+                    <Search className="h-4 w-4" />
+                    <input
+                      value={vehicleSearch}
+                      onChange={(event) => setVehicleSearch(event.target.value)}
+                      placeholder={vehicleBrand ? `Û². Ø¬Ø³ØªØ¬Ùˆ Ø¨ÛŒÙ† Ø®ÙˆØ¯Ø±ÙˆÙ‡Ø§ÛŒ ${vehicleBrand}...` : 'Ø§Ø¨ØªØ¯Ø§ Ø³Ø§Ø²Ù†Ø¯Ù‡ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†...'}
+                      disabled={!vehicleBrand}
+                    />
+                  </div>
+                  <div className="ct-new-vehicle-picker-list">
+                    <button type="button" onClick={clearVehicleFilter} className={!selectedCustomerCar ? 'is-selected' : ''}>
+                      <span>ðŸš˜</span>
+                      <span><b>Ù‡Ù…Ù‡ Ø®ÙˆØ¯Ø±ÙˆÙ‡Ø§</b><small>Ù†Ù…Ø§ÛŒØ´ Ø¨Ø¯ÙˆÙ† ÙÛŒÙ„ØªØ± Ø®ÙˆØ¯Ø±Ùˆ</small></span>
+                    </button>
+                    {filteredCars.map((car) => (
+                      <button key={car.id} type="button" onClick={() => selectStoreCar(car)} className={selectedCustomerCar?.id === car.id ? 'is-selected' : ''}>
+                        <span>ðŸš—</span>
+                        <span><b>{getCarTitle(car)}</b><small>{[car.start_year, car.transmission_type].filter(Boolean).join(' â€¢ ') || 'Ø®ÙˆØ¯Ø±ÙˆÛŒ Ù‚Ø§Ø¨Ù„ Ø§Ù†ØªØ®Ø§Ø¨'}</small></span>
+                      </button>
+                    ))}
+                    {filteredCars.length === 0 && <p>Ø®ÙˆØ¯Ø±ÙˆÛŒÛŒ Ø¨Ø§ Ø§ÛŒÙ† Ù…Ø´Ø®ØµØ§Øª Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.</p>}
+                  </div>
+                </div>
+              )}
+          </div>
+
+          <div className="ct-new-access-scroll">
+            {accessLinks.map((item) => (
+              <Link key={`${item.label}-${item.to}`} to={item.to}>
+                <span aria-hidden="true">{item.emoji}</span>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+
+          <Link to="/book" className="ct-new-access-service-button">
+            <Wrench className="h-4 w-4" />
+            <span>Ø³Ø±ÙˆÛŒØ³ Ø¯Ø± Ù…Ø­Ù„</span>
+          </Link>
+        </div>
+      </nav>}
+
+      {mobileOpen && (
+        <div className="ct-new-drawer-backdrop" onClick={() => setMobileOpen(false)}>
+          <aside ref={menuRef} className="ct-new-drawer" onClick={(event) => event.stopPropagation()}>
+            <div className="ct-new-drawer-head">
+              <div className="ct-new-drawer-brand-row">
+                <CarrtellLogo />
+                <div className={`ct-new-drawer-selected-car ${selectedCustomerCar ? 'is-active' : ''}`}>
+                  <Car className="h-4 w-4" />
+                  <span>{selectedCustomerCar?.title || 'Ø®ÙˆØ¯Ø±Ùˆ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡'}</span>
+                </div>
+              </div>
+              <button type="button" onClick={() => setMobileOpen(false)} aria-label="Ø¨Ø³ØªÙ† Ù…Ù†Ùˆ">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={submitSearch} className="ct-new-drawer-search">
+              <Search className="h-5 w-5" />
+              <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Ø¬Ø³ØªØ¬Ùˆ..." />
+            </form>
+
+            <div className="ct-new-drawer-scroll">
+              <nav className="ct-new-drawer-nav">
+                <Link to="/"><span aria-hidden="true">ðŸ›ï¸</span><span>ÙØ±ÙˆØ´Ú¯Ø§Ù‡</span></Link>
+
+                <div
+                  className="ct-new-drawer-category-root"
+                  onMouseEnter={keepDrawerMegaOpen}
+                  onMouseLeave={scheduleDrawerMegaClose}
+                >
+                  <button
+                    type="button"
+                    className="ct-new-drawer-category-trigger"
+                    onClick={() => {
+                      setDrawerCategoriesOpen((value) => !value);
+                      if (!drawerActiveCategorySlug && categories[0]) setDrawerActiveCategorySlug(categories[0].slug);
+                    }}
+                    aria-expanded={drawerCategoriesOpen}
+                  >
+                    <span className="ct-new-drawer-link-copy"><span aria-hidden="true">ðŸ—‚ï¸</span><span>Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ Ù…Ø­ØµÙˆÙ„Ø§Øª</span></span>
+                    <ChevronDown className="h-4 w-4 -rotate-90" />
+                  </button>
+                </div>
+
+                {user && <Link to="/dashboard"><span aria-hidden="true">ðŸ‘¤</span><span>Ù¾Ø±ÙˆÙØ§ÛŒÙ„ Ù…Ù†</span></Link>}
+                {user && <Link to="/dashboard#orders"><span aria-hidden="true">ðŸ“¦</span><span>Ø³ÙØ§Ø±Ø´â€ŒÙ‡Ø§ÛŒ Ù…Ù†</span></Link>}
+                {user && <Link to="/dashboard#addresses"><span aria-hidden="true">ðŸ“</span><span>Ø¢Ø¯Ø±Ø³â€ŒÙ‡Ø§ÛŒ Ù…Ù†</span></Link>}
+                <Link to="/book"><span aria-hidden="true">ðŸ› ï¸</span><span>Ø³Ø±ÙˆÛŒØ³ Ø¯Ø± Ù…Ø­Ù„</span></Link>
+                <Link to="/blog"><span aria-hidden="true">ðŸ“°</span><span>ÙˆØ¨Ù„Ø§Ú¯</span></Link>
+                <Link to="/profile/support"><span aria-hidden="true">ðŸ’¬</span><span>ØªÙ…Ø§Ø³ Ùˆ Ù¾Ø´ØªÛŒØ¨Ø§Ù†ÛŒ</span></Link>
+                {roleShortcut && RoleIcon && (
+                  <Link to={roleShortcut.to} className="ct-new-drawer-role-link">
+                    <RoleIcon className="h-5 w-5" />
+                    {roleShortcut.label}
+                  </Link>
+                )}
+              </nav>
+            </div>
+
+            {drawerCategoriesOpen && (
+              <div
+                className="ct-new-drawer-mega"
+                onMouseEnter={keepDrawerMegaOpen}
+                onMouseLeave={scheduleDrawerMegaClose}
+              >
+                <div className="ct-new-drawer-mega-products">
+                  <div className="ct-new-drawer-mega-products-head">
+                    <b>{drawerActiveCategory?.title || 'Ù…Ø­ØµÙˆÙ„Ø§Øª'}</b>
+                    {drawerActiveCategory && <Link to={`/shop?category=${drawerActiveCategory.slug}`}>Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ù‡Ù…Ù‡</Link>}
+                  </div>
+                  <div className="ct-new-drawer-mega-products-grid">
+                    {drawerActiveProducts.map((product) => (
+                      <Link key={product.id || product.name} to={`/shop/product/${product.id}`} className="ct-new-drawer-product-row">
+                        <div className="ct-new-drawer-product-thumb">
+                          {product.image_url ? <img src={product.image_url} alt={product.name} /> : <span>ðŸ“¦</span>}
+                        </div>
+                        <div className="ct-new-drawer-product-info">
+                          <strong>{product.name}</strong>
+                          <small>{[product.brand, product.oil_grade, product.quality_level].filter(Boolean).join(' â€¢ ')}</small>
+                        </div>
+                        <div className="ct-new-drawer-product-price">
+                          {new Intl.NumberFormat('fa-IR').format(Number(product.amazing_price || product.price || 0))}
+                          <span>ØªÙˆÙ…Ø§Ù†</span>
+                        </div>
+                      </Link>
+                    ))}
+                    {drawerActiveProducts.length === 0 && <p>Ù…Ø­ØµÙˆÙ„ÛŒ Ø¯Ø± Ø§ÛŒÙ† Ø¯Ø³ØªÙ‡ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</p>}
+                  </div>
+                </div>
+
+                <div className="ct-new-drawer-mega-categories">
+                  <div className="ct-new-drawer-mega-heading">Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ Ù…Ø­ØµÙˆÙ„Ø§Øª</div>
+                  {categories.map((category) => (
+                    <Link
+                      key={category.id || category.slug}
+                      to={`/shop?category=${category.slug}`}
+                      className={drawerActiveCategory?.slug === category.slug ? 'is-active' : ''}
+                      onMouseEnter={() => setDrawerActiveCategorySlug(category.slug)}
+                      onFocus={() => setDrawerActiveCategorySlug(category.slug)}
+                    >
+                      <span>{category.icon_emoji || 'ðŸ”§'}</span>
+                      <span>{category.title}</span>
+                      <ChevronDown className="mr-auto h-3.5 w-3.5 -rotate-90" />
+                    </Link>
+                  ))}
+                </div>
+
+              </div>
+            )}
+
+            <div className="ct-new-drawer-footer">
+              {!authLoading && !user && (
+                <Link to="/login-otp" className="ct-new-drawer-login">
+                  <User className="h-5 w-5" />
+                  ÙˆØ±ÙˆØ¯ / Ø«Ø¨Øªâ€ŒÙ†Ø§Ù…
+                </Link>
+              )}
+
+              {user && (
+                <button type="button" onClick={() => void handleSignOut()} className="ct-new-drawer-signout">
+                  <LogOut className="h-5 w-5" />
+                  Ø®Ø±ÙˆØ¬ Ø§Ø² Ø­Ø³Ø§Ø¨
+                </button>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+    </header>
+  );
+}
+

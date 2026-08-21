@@ -146,7 +146,7 @@ export async function getProducts() {
 
   if (productsError) throw productsError;
 
-  const products = (productsData || []) as Product[];
+  const products = (productsData || []).filter((item): item is Product => Boolean(item && typeof item === 'object' && typeof (item as Product).name === 'string')) as Product[];
   const productIds = products.map((product) => product.id).filter(Boolean) as string[];
 
   if (!productIds.length) return products.map((product) => ({ ...product, compatible_car_ids: [] }));
@@ -159,6 +159,21 @@ export async function getProducts() {
   if (relationsError) throw relationsError;
 
   return mergeCompatibleCars(products, (relationsData || []) as ProductCompatibleCarRow[]);
+}
+
+
+export async function getStorefrontSearchProducts(limit = 600): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data || [])
+    .filter((item): item is Product => Boolean(item && typeof item === 'object' && typeof (item as Product).name === 'string'))
+    .map((item) => ({ ...item, compatible_car_ids: Array.isArray(item.compatible_car_ids) ? item.compatible_car_ids : [] }));
 }
 
 export async function createProduct(product: Product) {

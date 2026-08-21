@@ -113,16 +113,37 @@
   }
 
   /* Mobile drawer stays simple; no nested mega panel. */
-  .ct-new-drawer { height: min(78dvh, 680px) !important; }
+  .ct-new-drawer { height: min(88dvh, 760px) !important; width: min(390px, calc(100vw - 18px)) !important; border-radius: 0 0 24px 0 !important; }
   .ct-new-drawer-mega { display: none !important; }
-  .ct-new-drawer-nav { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .ct-new-drawer-nav { grid-template-columns: minmax(0, 1fr) !important; gap: 9px !important; }
   .ct-new-drawer-nav > a,
-  .ct-new-drawer-category-trigger { min-height: 48px !important; padding: 10px 12px !important; }
+  .ct-new-drawer-category-trigger { min-height: 52px !important; padding: 11px 14px !important; }
 
   /* Avoid giant type and excessive vertical spacing inherited from desktop. */
   .ct-site-content h1 { font-size: clamp(1.35rem, 6vw, 1.9rem) !important; line-height: 1.35 !important; }
   .ct-site-content h2 { font-size: clamp(1.15rem, 5vw, 1.55rem) !important; line-height: 1.4 !important; }
   .ct-site-content section { scroll-margin-top: 132px; }
+}
+
+/* v2.3.31: keep the hamburger compact after legacy mobile overrides. */
+@media (max-width: 767px) {
+  .ct-new-drawer {
+    top: max(10px, env(safe-area-inset-top)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 10px !important;
+    box-sizing: border-box !important;
+    width: min(320px, calc(100vw - 40px)) !important;
+    height: auto !important;
+    max-height: calc(100dvh - max(20px, env(safe-area-inset-top) + 10px)) !important;
+    padding: 12px !important;
+    border-radius: 22px !important;
+  }
+
+  .ct-new-drawer-scroll { flex: 0 1 auto !important; margin-top: 10px !important; padding-bottom: 2px !important; }
+  .ct-new-drawer-nav { grid-template-columns: minmax(0, 1fr) !important; gap: 7px !important; }
+  .ct-new-drawer-nav > a,
+  .ct-new-drawer-category-trigger { min-height: 46px !important; padding: 9px 13px !important; }
 }
 
 /* RC1-06B — standalone mobile routes, categorized store, vehicle modal */
@@ -135,8 +156,10 @@
 
   .ct-mobile-standalone-route main[dir="rtl"] > div { max-width: 100% !important; }
   .ct-mobile-standalone-route main[dir="rtl"] header { padding: 14px !important; border-radius: 20px !important; }
-  .ct-mobile-standalone-route main[dir="rtl"] nav.sticky { position: relative !important; top: auto !important; grid-template-columns: repeat(5,minmax(0,1fr)) !important; overflow-x: auto; border-radius: 18px !important; }
-  .ct-mobile-standalone-route main[dir="rtl"] nav.sticky button { min-width: 92px; padding: 10px 7px !important; font-size: 11px !important; }
+  .ct-mobile-standalone-route main[dir="rtl"] nav.sticky { position: relative !important; top: auto !important; border-radius: 18px !important; }
+  .ct-mobile-standalone-route .ct-dashboard-tabs { grid-template-columns: repeat(2,minmax(0,1fr)) !important; overflow: visible !important; }
+  .ct-mobile-standalone-route .ct-dashboard-tabs button { min-width: 0 !important; min-height: 46px; padding: 10px 7px !important; font-size: 11px !important; }
+  .ct-mobile-standalone-route .ct-dashboard-tabs button:first-child { grid-column: 1 / -1; }
   .ct-mobile-standalone-route main[dir="rtl"] section { border-radius: 20px !important; padding: 14px !important; }
 
   .ct-mobile-standalone-route [data-booking-slot],
@@ -254,5 +277,88 @@
 
   .ct-new-search-item {
     text-align: right;
+  }
+}
+
+/* HOTFIX-2026-08-15-MOBILE */
+@media (max-width: 767px) {
+  /* Fully opaque bottom bar: nothing underneath can show through it. */
+  .ct-mobile-bottom-nav {
+    background: #07101f !important;
+    border: 1px solid rgba(148, 163, 184, .28) !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.07) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    overflow: visible !important;
+    isolation: isolate !important;
+  }
+
+  .ct-mobile-bottom-nav::before,
+  .ct-mobile-bottom-nav::after,
+  body::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .ct-mobile-bottom-nav .ct-mobile-nav-icon {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Compact account-menu/logout button instead of the large ugly rectangle. */
+  .ct-new-account-signout {
+    width: calc(100% - 16px) !important;
+    min-height: 44px !important;
+    margin: 8px !important;
+    padding: 9px 12px !important;
+    border: 1px solid rgba(239,68,68,.34) !important;
+    border-radius: 13px !important;
+    background: rgba(239,68,68,.08) !important;
+    color: #f87171 !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    box-shadow: none !important;
+  }
+
+  .ct-new-account-signout svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* Search result layer above the fixed header/content on iPhone. */
+  .ct-new-search-wrap {
+    position: relative !important;
+    z-index: 100210 !important;
+  }
+
+  .ct-new-search-results {
+    display: block !important;
+    position: fixed !important;
+    top: 128px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+    z-index: 100300 !important;
+    max-height: min(62dvh, 520px) !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(245,183,0,.35) !important;
+    background: #0b1427 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 24px 60px rgba(0,0,0,.58) !important;
+  }
+
+  .ct-new-search-results-body {
+    max-height: min(46dvh, 390px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ct-new-search-empty,
+  .ct-new-search-results-head,
+  .ct-new-search-group h3,
+  .ct-new-search-copy b,
+  .ct-new-search-copy small,
+  .ct-new-search-price {
+    color: inherit !important;
   }
 }

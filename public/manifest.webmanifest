@@ -1,13 +1,41 @@
 {
-  "name": "Carrtell Technician",
+  "id": "/",
+  "name": "Carrtell",
   "short_name": "Carrtell",
-  "description": "پنل سرویس‌کار Carrtell",
+  "description": "فروشگاه محصولات خودرو و رزرو سرویس در محل Carrtell",
   "lang": "fa",
   "dir": "rtl",
-  "start_url": "/driver/dashboard",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#020617",
-  "icons": []
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "icons": [
+    {
+      "src": "/brand/app-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/app-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "فروشگاه",
+      "url": "/shop"
+    },
+    {
+      "name": "رزرو سرویس",
+      "url": "/book"
+    },
+    {
+      "name": "پیگیری سفارش",
+      "url": "/dashboard"
+    }
+  ]
 }

@@ -18,6 +18,9 @@ import {
   ShieldCheck,
   Clock3,
   ClipboardList,
+  LogOut,
+  KeyRound,
+  AlertTriangle,
 } from 'lucide-react';
 import { deleteCustomerAddress, formatCustomerAddress, getCustomerAddresses, saveCustomerAddress, type CustomerAddress } from '../customer/services/addressApi';
 import { getActiveCarsForCustomer, getCarTitle, type Car as AdminCar } from '../admin/services/carsApi';
@@ -25,6 +28,9 @@ import { readSelectedCustomerCar, saveSelectedCustomerCar } from '../customer/se
 import MapLocationPicker from '../components/MapLocationPicker';
 import { getOrderItems, getOrdersByPhone, type Order } from '../admin/services/ordersApi';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
+import { useAuth } from '../auth/AuthProvider';
+import { deleteCurrentCustomerAccount, setCustomerCredentials } from '../auth/authApi';
+import { requestOtp, verifyOtp } from '../services/smsOtpApi';
 import {
   buildReminders,
   deleteCustomerVehicle,
@@ -54,7 +60,6 @@ const IRAN_CITIES = [
 ];
 
 const fieldClass = 'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[var(--primary,#f5c518)] focus:ring-2 focus:ring-[var(--primary,#f5c518)]/20';
-const darkFieldClass = 'w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[var(--primary,#f5c518)] focus:ring-2 focus:ring-[var(--primary,#f5c518)]/20';
 const optionStyle = { background: '#ffffff', color: '#0f172a' };
 
 const statusLabels: Record<string, string> = {
@@ -148,16 +153,13 @@ function panelFromHash(): DashboardPanel {
 }
 
 export default function DashboardPage() {
-  const [phone, setPhone] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
+  const { user, loading: authLoading, signOut } = useAuth();
   const [profile, setProfile] = useState<CustomerProfile>(() => readJson<CustomerProfile | null>(CARTELL_USER_KEY, null) || { phone: '' });
   const [form, setForm] = useState<CustomerProfile>(() => readJson<CustomerProfile | null>(CARTELL_USER_KEY, null) || { phone: '' });
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressForm, setAddressForm] = useState<CustomerAddress>(() => emptyAddress(profile.phone));
   const [savingAddress, setSavingAddress] = useState(false);
   const [cars, setCars] = useState<AdminCar[]>([]);
-  const [carsLoading, setCarsLoading] = useState(false);
-  const [carsError, setCarsError] = useState('');
   const [selectedCarId, setSelectedCarId] = useState(() => readSelectedCustomerCar()?.id || '');
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -171,27 +173,96 @@ export default function DashboardPage() {
   const [serviceForm, setServiceForm] = useState({ service_type: 'سرویس خارج از Carrtell', service_date: new Date().toISOString().slice(0, 10), service_km: 0, next_service_km: 0, products_used: '', notes: '', warning_notes: '', invoice_image_url: '', changed_ids: [] as string[] });
   const [savingService, setSavingService] = useState(false);
   const [activePanel, setActivePanel] = useState<DashboardPanel>(() => panelFromHash());
+  const [credentialUsername, setCredentialUsername] = useState(user?.username || '');
+  const [credentialPassword, setCredentialPassword] = useState('');
+  const [credentialConfirm, setCredentialConfirm] = useState('');
+  const [credentialBusy, setCredentialBusy] = useState(false);
+  const [credentialNotice, setCredentialNotice] = useState('');
+  const [deleteStep, setDeleteStep] = useState<'idle' | 'otp'>('idle');
+  const [deleteOtp, setDeleteOtp] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState('');
 
-  const isLoggedIn = Boolean(profile.phone);
+  const isLoggedIn = Boolean(user?.id && user?.phone);
+
+  useEffect(() => { setCredentialUsername(user?.username || ''); }, [user?.username]);
+
+  async function saveLoginCredentials() {
+    setCredentialNotice('');
+    if (credentialPassword !== credentialConfirm) return setCredentialNotice('تکرار رمز عبور با رمز جدید یکسان نیست.');
+    setCredentialBusy(true);
+    try {
+      await setCustomerCredentials(credentialUsername, credentialPassword);
+      setCredentialPassword(''); setCredentialConfirm('');
+      setCredentialNotice('نام کاربری و رمز عبور با موفقیت ذخیره شد.');
+    } catch (error) { setCredentialNotice(error instanceof Error ? error.message : 'ذخیره اطلاعات ورود انجام نشد.'); }
+    finally { setCredentialBusy(false); }
+  }
+
+  async function logoutFromDashboard() {
+    await signOut();
+    window.location.assign('/');
+  }
+
+  async function requestAccountDeleteOtp() {
+    if (!form.phone) return setDeleteNotice('شماره موبایل حساب پیدا نشد.');
+    if (!window.confirm('حذف حساب دائمی است. برای ادامه کد تأیید پیامکی ارسال شود؟')) return;
+    setDeleteBusy(true); setDeleteNotice('');
+    try {
+      await requestOtp(form.phone);
+      setDeleteStep('otp');
+      setDeleteNotice('کد تأیید به شماره حساب ارسال شد.');
+    } catch (error) { setDeleteNotice(error instanceof Error ? error.message : 'ارسال کد انجام نشد.'); }
+    finally { setDeleteBusy(false); }
+  }
+
+  async function confirmAccountDeletion() {
+    if (!deleteOtp.trim()) return setDeleteNotice('کد تأیید را وارد کنید.');
+    setDeleteBusy(true); setDeleteNotice('');
+    try {
+      const verified = await verifyOtp(form.phone, deleteOtp.trim());
+      if (!verified.ok) throw new Error('کد تأیید صحیح نیست.');
+      await deleteCurrentCustomerAccount();
+      window.location.assign('/?accountDeleted=1');
+    } catch (error) { setDeleteNotice(error instanceof Error ? error.message : 'حذف حساب انجام نشد.'); }
+    finally { setDeleteBusy(false); }
+  }
   const selectedAdminCar = cars.find((car) => car.id === selectedCarId);
   const defaultVehicle = vehicles.find((item) => item.is_default) || vehicles[0] || null;
   const reminders = useMemo(() => buildReminders(vehicles), [vehicles]);
   const activeReminder = reminders.find((item) => item.vehicle_id === defaultVehicle?.id) || reminders[0] || null;
   const activeOrder = userOrders.find((order) => !['completed', 'cancelled'].includes(order.status || '')) || userOrders[0] || null;
 
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user?.id || !user.phone) {
+      setProfile({ phone: '' });
+      setForm({ phone: '' });
+      setUserOrders([]);
+      setVehicles([]);
+      setAddresses([]);
+      setServiceHistory([]);
+      return;
+    }
+
+    const localPhone = user.phone.replace(/^\+98/, '0');
+    const next: CustomerProfile = {
+      phone: localPhone,
+      fullName: user.fullName || undefined,
+    };
+    localStorage.setItem(CARTELL_USER_KEY, JSON.stringify(next));
+    setProfile(next);
+    setForm((current) => current.phone === localPhone ? { ...current, phone: localPhone, fullName: current.fullName || next.fullName } : next);
+  }, [authLoading, user?.id, user?.phone, user?.fullName]);
+
   const loadCustomerCars = async () => {
-    setCarsLoading(true);
-    setCarsError('');
     try {
       const items = await getActiveCarsForCustomer();
       setCars(items);
       const saved = readSelectedCustomerCar();
       if (saved?.id && items.some((car) => car.id === saved.id)) setSelectedCarId(saved.id);
-    } catch (error: any) {
+    } catch {
       setCars([]);
-      setCarsError(error?.message || 'لیست خودروها از پنل مدیریت دریافت نشد.');
-    } finally {
-      setCarsLoading(false);
     }
   };
 
@@ -252,19 +323,6 @@ export default function DashboardPage() {
 
   useEffect(() => { if (profile.phone) loadCustomerOrders(profile.phone); }, [profile.phone]);
 
-  const sendCode = () => {
-    if (!phone.trim()) return alert('شماره موبایل را وارد کن.');
-    setCodeSent(true);
-    alert('کد تایید آزمایشی ارسال شد. کد: 1234');
-  };
-
-  const login = () => {
-    const next = { ...profile, phone };
-    localStorage.setItem(CARTELL_USER_KEY, JSON.stringify(next));
-    setProfile(next);
-    setForm(next);
-  };
-
   const saveProfile = () => {
     localStorage.setItem(CARTELL_USER_KEY, JSON.stringify(form));
     setProfile(form);
@@ -293,14 +351,6 @@ export default function DashboardPage() {
     if (!confirm('این آدرس حذف شود؟')) return;
     await deleteCustomerAddress(id);
     setAddresses((items) => items.filter((item) => item.id !== id));
-  };
-
-  const selectCustomerCar = async (carId: string) => {
-    setSelectedCarId(carId);
-    const selected = cars.find((car) => car.id === carId);
-    saveSelectedCustomerCar(selected || null);
-    if (!selected || !defaultVehicle) return;
-    await setDefaultCustomerVehicle(profile.phone, defaultVehicle.id);
   };
 
   const fillVehicleFromAdminCar = (carId: string) => {
@@ -430,37 +480,25 @@ export default function DashboardPage() {
     }
   };
 
-  const summaryCards: Array<{ panel: DashboardPanel; icon: typeof FileText; title: string; value: string; hint: string }> = [
-    { panel: 'orders', icon: FileText, title: 'سفارش‌ها', value: userOrders.length.toLocaleString('fa-IR'), hint: activeOrder ? getStatusLabel(activeOrder.status) : 'سفارشی ثبت نشده' },
-    { panel: 'vehicles', icon: Car, title: 'خودروهای من', value: vehicles.length.toLocaleString('fa-IR'), hint: defaultVehicle?.title || 'خودرویی ثبت نشده' },
-    { panel: 'addresses', icon: MapPin, title: 'آدرس‌ها', value: addresses.length.toLocaleString('fa-IR'), hint: addresses.find((item) => item.is_default)?.title || 'آدرس پیش‌فرض ندارد' },
-    { panel: 'profile', icon: User, title: 'حساب کاربری', value: form.fullName ? 'تکمیل شده' : 'نیاز به تکمیل', hint: form.phone || 'شماره موبایل ثبت نشده' },
-  ];
-
   if (!isLoggedIn) {
     return (
-      <main dir="rtl" className="min-h-screen bg-[#f6f7f9] text-slate-900 px-4 pb-10 pt-32">
-        <section className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+      <main dir="rtl" className="min-h-screen bg-[#f6f7f9] text-slate-900 px-4 pb-10 pt-8">
+        <section className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
           <div className="mb-6 flex items-center gap-3">
             <LogIn className="text-[var(--primary,#f5c518)]" />
             <div>
-              <h1 className="text-2xl font-black">ورود به پروفایل</h1>
-              <p className="text-sm text-slate-500">برای مشاهده سفارش‌ها، گاراژ و دفترچه سرویس شماره موبایل را وارد کن.</p>
+              <h1 className="text-2xl font-black">ورود به حساب Carrtell</h1>
+              <p className="text-sm text-slate-500">برای مشاهده سفارش‌ها و خودروهای خود با شماره موبایل وارد شوید.</p>
             </div>
           </div>
-
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="شماره موبایل" className={`mb-3 ${darkFieldClass}`} />
-          {codeSent && <input placeholder="کد تایید: 1234" className={`mb-3 ${darkFieldClass}`} />}
-          <button onClick={codeSent ? login : sendCode} className="w-full rounded-2xl bg-[var(--primary,#f5c518)] py-4 font-black text-black">
-            {codeSent ? 'ورود به پروفایل' : 'ارسال کد تایید'}
-          </button>
+          <a href="/login-otp?returnTo=%2Fdashboard" className="block w-full rounded-2xl bg-[var(--primary,#f5c518)] py-4 text-center font-black text-black">ورود / ثبت‌نام</a>
         </section>
       </main>
     );
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f6f7f9] text-slate-900 px-4 pb-8 pt-32">
+    <main dir="rtl" className="ct-customer-dashboard min-h-screen bg-[#08111f] text-slate-100 px-4 pb-8 pt-10">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -471,69 +509,42 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <a href="/book" className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary,#f5c518)] px-5 py-3 font-black text-black"><Wrench size={18} /> رزرو سرویس</a>
-              <a href="/shop" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-bold"><Home size={18} /> فروشگاه</a>
+              <button type="button" onClick={() => void logoutFromDashboard()} className="inline-flex items-center gap-2 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 font-black text-rose-700"><LogOut size={18} /> خروج از حساب</button>
             </div>
           </div>
         </header>
 
-        <nav className="sticky top-24 z-20 grid grid-cols-2 gap-2 rounded-3xl border border-slate-200 bg-white/95 p-2 shadow-lg shadow-slate-900/5 backdrop-blur sm:grid-cols-5">
+        <nav className="ct-dashboard-tabs sticky top-3 z-20 grid grid-cols-5 gap-1.5 rounded-2xl border border-slate-700/70 bg-[#0d182a]/95 p-1.5 shadow-lg shadow-black/20 backdrop-blur">
           {([
-            ['overview', 'خلاصه', Home],
+            ['overview', 'خانه حساب', Home],
             ['orders', 'سفارش‌ها', FileText],
             ['vehicles', 'خودرو و سلامت', Car],
             ['addresses', 'آدرس‌ها', MapPin],
-            ['profile', 'حساب کاربری', User],
+            ['profile', 'مشخصات من', User],
           ] as const).map(([panel, label, Icon]) => (
-            <button key={String(panel)} type="button" onClick={() => { setActivePanel(panel as DashboardPanel); window.history.replaceState(null, '', panel === 'overview' ? '/dashboard' : `#${panel}`); }} className={`flex items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-black transition ${activePanel === panel ? 'bg-[var(--primary,#f5c518)] text-black shadow-md' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><Icon size={17} />{label}</button>
+            <button key={String(panel)} type="button" onClick={() => { setActivePanel(panel as DashboardPanel); window.history.replaceState(null, '', panel === 'overview' ? '/dashboard' : `#${panel}`); }} className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-black transition ${activePanel === panel ? 'bg-[var(--primary,#f5c518)] text-slate-950 shadow-md' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}><Icon size={17} />{label}</button>
           ))}
         </nav>
 
         {activePanel === 'overview' && (
-          <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {summaryCards.map((card) => {
-                const Icon = card.icon;
-                return (
-                  <button type="button" key={card.title} onClick={() => { setActivePanel(card.panel); window.history.replaceState(null, '', `#${card.panel}`); }} className="rounded-3xl border border-slate-200 bg-white p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--primary,#f5c518)]/60 hover:shadow-md">
-                    <div className="mb-4 flex items-center justify-between"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--primary,#f5c518)]/15"><Icon className="text-[var(--primary,#f5c518)]" /></span><span className="text-xs text-slate-500">مشاهده ←</span></div>
-                    <div className="text-sm text-slate-500">{card.title}</div><div className="mt-1 text-2xl font-black">{card.value}</div><div className="mt-2 truncate text-xs text-slate-500">{card.hint}</div>
-                  </button>
-                );
-              })}
-            </section>
+          <section className="ct-dashboard-category-hub grid gap-4 lg:grid-cols-3" aria-label="دسته‌بندی امکانات حساب">
+            <article className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5">
+              <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400 text-slate-950"><FileText /></span><div><h2 className="font-black">خرید و سفارش‌ها</h2><p className="mt-1 text-xs text-slate-400">پیگیری سفارش و دریافت فاکتور</p></div></div>
+              <div className="my-4 rounded-2xl bg-slate-950/55 p-4"><span className="text-xs text-slate-400">آخرین وضعیت</span><b className="mt-2 block">{activeOrder ? getStatusLabel(activeOrder.status) : 'سفارشی ثبت نشده'}</b></div>
+              <button type="button" onClick={() => { setActivePanel('orders'); window.history.replaceState(null, '', '#orders'); }} className="w-full rounded-2xl border border-slate-600 px-4 py-3 font-black hover:border-amber-400">مشاهده سفارش‌ها</button>
+            </article>
 
-            <section className="grid gap-4 lg:grid-cols-3">
-              <article className="rounded-3xl border border-slate-200 bg-white p-5 lg:col-span-2">
-                <div className="mb-4 flex items-center justify-between"><div><h2 className="font-black">وضعیت فعلی</h2><p className="mt-1 text-xs text-slate-500">مهم‌ترین اطلاعات حساب تو</p></div><Clock3 className="text-[var(--primary,#f5c518)]" /></div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs text-slate-500">آخرین سفارش</p><p className="mt-2 font-black">{activeOrder ? (activeOrder.order_number || 'سفارش اخیر') : 'سفارشی ثبت نشده'}</p><p className="mt-1 text-sm text-[var(--primary,#f5c518)]">{activeOrder ? getStatusLabel(activeOrder.status) : 'از فروشگاه شروع کن'}</p></div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs text-slate-500">خودروی فعال</p><p className="mt-2 font-black">{defaultVehicle?.title || selectedAdminCar ? (defaultVehicle?.title || getCarTitle(selectedAdminCar!)) : 'خودرو انتخاب نشده'}</p><p className="mt-1 text-sm text-slate-500">{defaultVehicle ? `کیلومتر فعلی: ${km(defaultVehicle.current_km)}` : 'برای پیشنهاد دقیق خودرو را اضافه کن'}</p></div>
-                </div>
-              </article>
-              <article className="rounded-3xl border border-slate-200 bg-white p-5">
-                <h2 className="font-black">دسترسی سریع</h2>
-                <div className="mt-4 grid gap-2">
-                  <a href="/book" className="flex items-center justify-between rounded-2xl bg-[var(--primary,#f5c518)] px-4 py-3 font-black text-black"><span>رزرو سرویس در محل</span><Wrench size={18} /></a>
-                  <button onClick={() => setActivePanel('vehicles')} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold"><span>پرونده سلامت خودرو</span><ShieldCheck size={18} /></button>
-                  <button onClick={() => setActivePanel('addresses')} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold"><span>مدیریت آدرس‌ها</span><MapPin size={18} /></button>
-                </div>
-              </article>
-            </section>
-          </>
-        )}
+            <article className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5">
+              <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400 text-slate-950"><Car /></span><div><h2 className="font-black">خودرو و سرویس</h2><p className="mt-1 text-xs text-slate-400">گاراژ، سلامت خودرو و سوابق سرویس</p></div></div>
+              <div className="my-4 rounded-2xl bg-slate-950/55 p-4"><span className="text-xs text-slate-400">خودروی فعال</span><b className="mt-2 block">{defaultVehicle?.title || (selectedAdminCar ? getCarTitle(selectedAdminCar) : 'خودرو انتخاب نشده')}</b>{activeReminder && <small className="mt-1 block text-amber-300">{getServiceStatusLabel(activeReminder.status)}</small>}</div>
+              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setActivePanel('vehicles'); window.history.replaceState(null, '', '#vehicles'); }} className="rounded-2xl border border-slate-600 px-3 py-3 text-sm font-black hover:border-amber-400">مدیریت خودرو</button><a href="/book" className="rounded-2xl bg-amber-400 px-3 py-3 text-center text-sm font-black text-slate-950">رزرو سرویس</a></div>
+            </article>
 
-        {activePanel === 'overview' && defaultVehicle && activeReminder && (
-          <section className={`rounded-3xl border p-5 ${getServiceStatusClass(activeReminder.status)}`}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Gauge className="shrink-0" />
-                <div>
-                  <h2 className="font-black">یادآوری سرویس کیلومتری {defaultVehicle.title}</h2>
-                  <p className="text-sm leading-7 opacity-90">کیلومتر فعلی: {km(defaultVehicle.current_km)} | سرویس بعدی: {km(activeReminder.next_service_km)} | {getServiceStatusLabel(activeReminder.status)}</p>
-                </div>
-              </div>
-              <a href="/book" className="rounded-2xl bg-black/30 px-5 py-3 font-black text-slate-900">رزرو سرویس</a>
-            </div>
+            <article className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5">
+              <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400 text-slate-950"><User /></span><div><h2 className="font-black">مشخصات و نشانی‌ها</h2><p className="mt-1 text-xs text-slate-400">اطلاعات ورود، تماس و آدرس‌های من</p></div></div>
+              <div className="my-4 grid grid-cols-2 gap-2"><div className="rounded-2xl bg-slate-950/55 p-3"><span className="text-[10px] text-slate-400">پروفایل</span><b className="mt-1 block text-sm">{form.fullName ? 'تکمیل شده' : 'نیاز به تکمیل'}</b></div><div className="rounded-2xl bg-slate-950/55 p-3"><span className="text-[10px] text-slate-400">آدرس‌ها</span><b className="mt-1 block text-sm">{addresses.length.toLocaleString('fa-IR')} مورد</b></div></div>
+              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setActivePanel('profile'); window.history.replaceState(null, '', '#profile'); }} className="rounded-2xl border border-slate-600 px-3 py-3 text-sm font-black hover:border-amber-400">مشخصات من</button><button type="button" onClick={() => { setActivePanel('addresses'); window.history.replaceState(null, '', '#addresses'); }} className="rounded-2xl border border-slate-600 px-3 py-3 text-sm font-black hover:border-amber-400">آدرس‌ها</button></div>
+            </article>
           </section>
         )}
 
@@ -562,27 +573,34 @@ export default function DashboardPage() {
             <button onClick={saveProfile} className="mt-4 rounded-2xl bg-[var(--primary,#f5c518)] px-6 py-3 font-black text-black">ذخیره اطلاعات</button>
           </div>
 
-          <div id="vehicles" className="rounded-3xl border border-slate-200 bg-white p-5">
-            <div className="mb-4 flex items-center gap-2"><Car className="text-[var(--primary,#f5c518)]" /><h2 className="text-xl font-black">خودروی فعال سایت</h2></div>
-            <div className="space-y-3 rounded-2xl bg-slate-50 p-4">
-              <label className="block text-sm font-bold text-slate-500">انتخاب خودرو از پنل مدیریت
-                <select value={selectedCarId} onChange={(e) => selectCustomerCar(e.target.value)} className={`mt-2 ${fieldClass}`} disabled={carsLoading}>
-                  <option style={optionStyle} value="">{carsLoading ? 'در حال دریافت خودروها...' : 'انتخاب خودرو'}</option>
-                  {cars.map((car) => <option style={optionStyle} key={car.id} value={car.id}>{getCarTitle(car)}</option>)}
-                </select>
-                {carsError && <p className="mt-2 text-xs text-red-300">{carsError}</p>}
-                <button type="button" onClick={loadCustomerCars} className="mt-3 rounded-xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-900 hover:bg-slate-200">بروزرسانی لیست خودروها</button>
-              </label>
-              {selectedAdminCar ? (
-                <div className="rounded-2xl border border-[var(--primary,#f5c518)]/20 bg-[var(--primary,#f5c518)]/10 p-4 text-sm leading-7 text-slate-500">
-                  <b className="block text-slate-900">{getCarTitle(selectedAdminCar)}</b>
-                  {selectedAdminCar.transmission_type && <span>گیربکس: {selectedAdminCar.transmission_type}</span>}
-                  {selectedAdminCar.service_interval_km ? <span className="block">دوره سرویس پیشنهادی: {km(selectedAdminCar.service_interval_km)}</span> : null}
-                  <p className="mt-2 text-xs text-[var(--primary,#f5c518)]">محصولات، پکیج‌ها و پیشنهادها بر اساس همین خودرو اولویت می‌گیرند.</p>
-                </div>
-              ) : <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">خودروت را انتخاب کن تا کل سایت بر اساس آن فیلتر شود.</div>}
+          <div className="rounded-3xl border border-slate-200 bg-white p-5">
+            <div className="mb-4 flex items-center gap-2"><KeyRound className="text-[var(--primary,#f5c518)]" /><h2 className="text-xl font-black">نام کاربری و رمز عبور</h2></div>
+            <p className="mb-4 text-sm leading-7 text-slate-500">برای ورود بدون پیامک، نام کاربری و رمز دلخواهت را اینجا تعیین یا تغییر بده.</p>
+            <div className="grid gap-3">
+              <input dir="ltr" autoCapitalize="none" autoComplete="username" value={credentialUsername} onChange={(e) => setCredentialUsername(e.target.value.toLowerCase())} placeholder="نام کاربری" className={fieldClass} />
+              <input dir="ltr" type="password" autoComplete="new-password" value={credentialPassword} onChange={(e) => setCredentialPassword(e.target.value)} placeholder="رمز جدید؛ حداقل ۸ کاراکتر" className={fieldClass} />
+              <input dir="ltr" type="password" autoComplete="new-password" value={credentialConfirm} onChange={(e) => setCredentialConfirm(e.target.value)} placeholder="تکرار رمز جدید" className={fieldClass} />
+            </div>
+            {credentialNotice && <p className="mt-3 text-sm font-bold text-slate-600">{credentialNotice}</p>}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" disabled={credentialBusy || credentialPassword.length < 8 || !credentialUsername.trim()} onClick={() => void saveLoginCredentials()} className="rounded-2xl bg-[var(--primary,#f5c518)] px-6 py-3 font-black text-black disabled:opacity-50">{credentialBusy ? 'در حال ذخیره...' : 'ذخیره نام کاربری و رمز'}</button>
+              <a href={`/login-otp?recovery=1&phone=${encodeURIComponent(form.phone || '')}&returnTo=%2Fdashboard%23profile`} className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-bold text-slate-700">بازیابی با پیامک</a>
             </div>
           </div>
+
+          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">
+            <div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" /><div><h2 className="font-black text-rose-900">حذف حساب کاربری</h2><p className="mt-1 text-sm leading-6 text-rose-700">اطلاعات شخصی و دسترسی حساب حذف می‌شود. سوابق مالی لازم فقط به‌صورت ناشناس نگهداری می‌شود.</p></div></div>
+            {deleteStep === 'idle' ? (
+              <button type="button" onClick={() => void requestAccountDeleteOtp()} disabled={deleteBusy} className="mt-4 rounded-2xl border border-rose-300 bg-white px-5 py-3 text-sm font-black text-rose-700 disabled:opacity-50">{deleteBusy ? 'در حال ارسال کد...' : 'حذف حساب با تأیید پیامکی'}</button>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <input inputMode="numeric" autoComplete="one-time-code" value={deleteOtp} onChange={(e) => setDeleteOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="کد ۶ رقمی تأیید" className={fieldClass} />
+                <div className="flex gap-2"><button type="button" onClick={() => void confirmAccountDeletion()} disabled={deleteBusy || deleteOtp.length < 4} className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{deleteBusy ? 'در حال حذف...' : 'تأیید و حذف دائمی'}</button><button type="button" onClick={() => { setDeleteStep('idle'); setDeleteOtp(''); setDeleteNotice(''); }} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">انصراف</button></div>
+              </div>
+            )}
+            {deleteNotice && <p className="mt-3 text-sm font-bold text-rose-700">{deleteNotice}</p>}
+          </div>
+
         </section>
         )}
 

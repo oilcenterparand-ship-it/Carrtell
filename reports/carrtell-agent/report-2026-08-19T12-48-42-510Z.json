@@ -1,0 +1,126 @@
+{
+  "generatedAt": "2026-08-19T12:48:42.510Z",
+  "startedAt": "2026-08-19T12:48:18.106Z",
+  "status": "passed",
+  "counts": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 5
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2494,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 260,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 1890,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › booking page has no horizontal overflow and cart/selection overlay locks background",
+      "status": "passed",
+      "durationMs": 2915,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "skipped",
+      "durationMs": 247,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 3305,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "skipped",
+      "durationMs": 246,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 1870,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 304,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 1984,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking page has no horizontal overflow and cart/selection overlay locks background",
+      "status": "passed",
+      "durationMs": 1475,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 1617,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 2249,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "skipped",
+      "durationMs": 289,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "info",
+      "area": "admin/auth",
+      "route": "/admin/login",
+      "message": "برای تست کامل مدیریت، CARRTELL_ADMIN_USERNAME و CARRTELL_ADMIN_PASSWORD را تنظیم کن.",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "برای تست کامل سرویس‌کار، CARRTELL_TECH_USERNAME و CARRTELL_TECH_PASSWORD را تنظیم کن.",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    },
+    {
+      "severity": "info",
+      "area": "admin/auth",
+      "route": "/admin/login",
+      "message": "برای تست کامل مدیریت، CARRTELL_ADMIN_USERNAME و CARRTELL_ADMIN_PASSWORD را تنظیم کن.",
+      "test": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "برای تست کامل سرویس‌کار، CARRTELL_TECH_USERNAME و CARRTELL_TECH_PASSWORD را تنظیم کن.",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    }
+  ]
+}

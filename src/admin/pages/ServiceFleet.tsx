@@ -1,217 +1,78 @@
-import { useEffect, useMemo, useState } from "react";
-import { Activity, CarFront, CheckCircle2, Clock3, Edit3, MapPinned, Navigation, Phone, Plus, RefreshCcw, Search, Trash2, UserRoundCheck, Wrench } from "lucide-react";
-import { getActiveBranches, Branch } from "../services/branchesApi";
-import {
-  FleetOperationalRow,
-  FleetSummary,
-  ServiceFleetInput,
-  TechnicianOperationalStatus,
-  deleteServiceFleetVehicle,
-  getFleetOperationalDashboard,
-  saveServiceFleetVehicle,
-  updateTechnicianOperationalStatus,
-} from "../services/serviceFleetApi";
+import { useEffect, useMemo, useState } from 'react';
+import { CarFront, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { deleteServiceFleetVehicle, getServiceFleet, saveServiceFleetVehicle, type ServiceFleetInput, type ServiceFleetVehicle } from '../services/serviceFleetApi';
+import { listServiceTechnicians, type ServiceTechnician } from '../services/technicianAdminApi';
 
-const emptyForm: ServiceFleetInput = {
-  title: "",
-  plate_number: "",
-  driver_name: "",
-  driver_phone: "",
-  service_area: "",
-  branch_id: "",
-  status: "active",
-  operational_status: "available",
-  notes: "",
-};
-
-const operationalLabels: Record<TechnicianOperationalStatus, string> = {
-  available: "آماده دریافت مأموریت",
-  en_route: "در مسیر مشتری",
-  in_service: "در حال انجام سرویس",
-  offline: "پایان شیفت / آفلاین",
-};
-
-const operationalStyles: Record<TechnicianOperationalStatus, string> = {
-  available: "bg-emerald-400/15 text-emerald-300 border-emerald-400/20",
-  en_route: "bg-blue-400/15 text-blue-300 border-blue-400/20",
-  in_service: "bg-amber-400/15 text-amber-300 border-amber-400/20",
-  offline: "bg-slate-500/20 text-slate-300 border-slate-500/20",
-};
+const empty: ServiceFleetInput = { title: '', plate_number: '', driver_id: '', driver_name: '', driver_phone: '', service_area: '', status: 'active', operational_status: 'available', notes: '' };
 
 export default function ServiceFleet() {
-  const [items, setItems] = useState<FleetOperationalRow[]>([]);
-  const [summary, setSummary] = useState<FleetSummary>({ today: 0, unassigned: 0, active: 0, completed: 0 });
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [query, setQuery] = useState("");
+  const [items, setItems] = useState<ServiceFleetVehicle[]>([]);
+  const [technicians, setTechnicians] = useState<ServiceTechnician[]>([]);
+  const [form, setForm] = useState<ServiceFleetInput>(empty);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<ServiceFleetInput>(emptyForm);
-  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
+  async function load() {
+    setBusy(true); setError('');
     try {
-      const [dashboard, branchList] = await Promise.all([getFleetOperationalDashboard(), getActiveBranches()]);
-      setItems(dashboard.rows);
-      setSummary(dashboard.summary);
-      setBranches(branchList);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "خطا در دریافت ناوگان");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+      const [fleet, techs] = await Promise.all([getServiceFleet(), listServiceTechnicians(true)]);
+      setItems(fleet); setTechnicians(techs);
+    } catch (e) { setError(e instanceof Error ? e.message : 'خطا در دریافت ناوگان'); }
+    finally { setBusy(false); }
+  }
   useEffect(() => { void load(); }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((item) => [item.title, item.plate_number, item.driver_name, item.driver_phone, item.service_area].filter(Boolean).some((value) => String(value).toLowerCase().includes(q)));
+    return items.filter(item => [item.title, item.plate_number, item.driver_name, item.driver_phone].some(v => String(v || '').toLowerCase().includes(q)));
   }, [items, query]);
 
-  const resetForm = () => { setEditingId(null); setForm(emptyForm); };
-  const startEdit = (item: FleetOperationalRow) => {
+  function chooseTechnician(id: string) {
+    const tech = technicians.find(item => item.id === id);
+    setForm(current => ({ ...current, driver_id: id, driver_name: tech?.full_name || '', driver_phone: tech?.phone || '' }));
+  }
+
+  function edit(item: ServiceFleetVehicle) {
     setEditingId(item.id);
-    setForm({
-      title: item.title || "",
-      plate_number: item.plate_number || "",
-      driver_name: item.driver_name || "",
-      driver_phone: item.driver_phone || "",
-      service_area: item.service_area || "",
-      branch_id: item.branch_id || "",
-      driver_id: item.driver_id || "",
-      status: item.status || "active",
-      operational_status: item.operational_status || "available",
-      notes: item.notes || "",
-    });
-  };
+    setForm({ title: item.title, plate_number: item.plate_number || '', driver_id: item.driver_id || '', driver_name: item.driver_name || '', driver_phone: item.driver_phone || '', service_area: item.service_area || '', status: item.status, operational_status: item.operational_status || 'available', notes: item.notes || '' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!form.title.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await saveServiceFleetVehicle(form, editingId || undefined);
-      resetForm();
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "خطا در ذخیره خودرو سرویس");
-    } finally { setSaving(false); }
-  };
+  async function save() {
+    setError(''); setMessage('');
+    if (!form.title.trim()) return setError('عنوان خودرو را وارد کن.');
+    setBusy(true);
+    try { await saveServiceFleetVehicle(form, editingId || undefined); setEditingId(null); setForm(empty); setMessage('خودروی سرویس ذخیره شد.'); await load(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'ذخیره خودرو انجام نشد.'); }
+    finally { setBusy(false); }
+  }
 
-  const remove = async (id: string) => {
-    if (!confirm("این خودرو سرویس حذف شود؟")) return;
+  async function remove(id: string) {
+    if (!confirm('این خودروی سرویس حذف شود؟')) return;
+    setBusy(true);
     try { await deleteServiceFleetVehicle(id); await load(); }
-    catch (err) { setError(err instanceof Error ? err.message : "خطا در حذف خودرو سرویس"); }
-  };
+    catch (e) { setError(e instanceof Error ? e.message : 'حذف خودرو انجام نشد.'); }
+    finally { setBusy(false); }
+  }
 
-  const changeOperationalStatus = async (item: FleetOperationalRow, status: TechnicianOperationalStatus) => {
-    if (status === "offline" && item.active_missions > 0) {
-      setError("تا وقتی مأموریت فعال دارد، پایان شیفت ممکن نیست.");
-      return;
-    }
-    try { await updateTechnicianOperationalStatus(item.id, status); await load(); }
-    catch (err) { setError(err instanceof Error ? err.message : "خطا در تغییر وضعیت تکنسین"); }
-  };
-
-  return (
-    <div className="space-y-6 text-slate-100" dir="rtl">
-      <div className="rounded-3xl border border-cyan-400/20 bg-gradient-to-l from-slate-950 via-slate-900 to-cyan-950/30 p-5 shadow-xl shadow-black/20">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm text-cyan-300">Carrtell Fleet Operations</p>
-            <h1 className="mt-1 text-2xl font-black text-white">مدیریت عملیاتی ناوگان</h1>
-            <p className="mt-2 text-sm text-slate-300">وضعیت تکنسین‌ها، مأموریت‌های امروز، پایان شیفت و آمار روزانه در یک صفحه.</p>
-          </div>
-          <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm hover:bg-white/15"><RefreshCcw className="h-4 w-4" /> بروزرسانی</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <SummaryCard title="سرویس‌های امروز" value={summary.today} icon={<Clock3 className="h-5 w-5" />} />
-        <SummaryCard title="در انتظار تخصیص" value={summary.unassigned} icon={<UserRoundCheck className="h-5 w-5" />} danger={summary.unassigned > 0} />
-        <SummaryCard title="در حال انجام" value={summary.active} icon={<Activity className="h-5 w-5" />} />
-        <SummaryCard title="تکمیل‌شده" value={summary.completed} icon={<CheckCircle2 className="h-5 w-5" />} />
-      </div>
-
-      {error && <div className="rounded-2xl border border-red-400/30 bg-red-950/40 p-4 text-sm text-red-100">{error}</div>}
-
-      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-5 shadow-xl shadow-black/20">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div><h2 className="font-bold text-white">وضعیت زنده تکنسین‌ها</h2><p className="mt-1 text-xs text-slate-400">موقعیت GPS در مرحله اتصال نقشه فعال می‌شود.</p></div>
-          <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900 px-3 py-2"><Search className="h-4 w-4 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="جستجوی تکنسین یا خودرو" className="bg-transparent text-sm text-white outline-none placeholder:text-slate-500" /></label>
-        </div>
-
-        {loading ? <div className="p-8 text-center text-slate-300">در حال دریافت...</div> : (
-          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-            {filtered.map((item) => {
-              const op = (item.operational_status || "available") as TechnicianOperationalStatus;
-              return (
-                <article key={item.id} className="rounded-3xl border border-white/10 bg-slate-900/80 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3"><span className="rounded-2xl bg-cyan-400/15 p-3 text-cyan-300"><CarFront className="h-6 w-6" /></span><div><h3 className="font-black text-white">{item.driver_name || item.title}</h3><p className="text-xs text-slate-400">{item.title} · {item.plate_number || "بدون پلاک"}</p></div></div>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-bold ${operationalStyles[op]}`}>{operationalLabels[op]}</span>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                    <Metric label="ماموریت امروز" value={item.today_missions} />
-                    <Metric label="فعال" value={item.active_missions} />
-                    <Metric label="تکمیل" value={item.completed_today} />
-                    <Metric label="لغو" value={item.cancelled_today} />
-                  </div>
-
-                  <div className="mt-3 rounded-2xl border border-white/10 bg-slate-950 p-3 text-sm">
-                    <div className="flex items-center justify-between"><span className="text-slate-400">ماموریت بعدی</span><strong className="text-cyan-300">{formatDateTime(item.next_mission_at)}</strong></div>
-                    <div className="mt-2 flex items-center justify-between"><span className="text-slate-400">میانگین زمان سرویس</span><strong>{item.average_service_minutes ? `${item.average_service_minutes.toLocaleString("fa-IR")} دقیقه` : "-"}</strong></div>
-                    <div className="mt-2 flex items-center justify-between"><span className="text-slate-400">مبلغ امروز</span><strong>{formatMoney(item.completed_amount_today)}</strong></div>
-                  </div>
-
-                  <select value={op} onChange={(e) => void changeOperationalStatus(item, e.target.value as TechnicianOperationalStatus)} className="mt-3 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white">
-                    {Object.entries(operationalLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <a href={item.driver_phone ? `tel:${item.driver_phone}` : undefined} className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/10 px-2 py-2 text-xs"><Phone className="h-4 w-4" /> تماس</a>
-                    <a href={item.active_request_id ? `/admin/dispatch` : undefined} className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/10 px-2 py-2 text-xs"><Navigation className="h-4 w-4" /> ماموریت</a>
-                    <button onClick={() => startEdit(item)} className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/10 px-2 py-2 text-xs"><Edit3 className="h-4 w-4" /> ویرایش</button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
-        <form onSubmit={submit} className="rounded-3xl border border-white/10 bg-slate-950/80 p-5 shadow-xl shadow-black/20">
-          <div className="mb-4 flex items-center gap-2"><Plus className="h-5 w-5 text-cyan-300" /><h2 className="font-bold text-white">{editingId ? "ویرایش ناوگان" : "ثبت خودرو و تکنسین"}</h2></div>
-          <div className="space-y-3">
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="عنوان خودرو سرویس" className="field" />
-            <input value={form.plate_number || ""} onChange={(e) => setForm({ ...form, plate_number: e.target.value })} placeholder="پلاک خودرو" className="field" />
-            <select value={form.branch_id || ""} onChange={(e) => setForm({ ...form, branch_id: e.target.value })} className="field"><option value="">بدون شعبه</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>
-            <input value={form.driver_name || ""} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} placeholder="نام تکنسین" className="field" />
-            <input value={form.driver_phone || ""} onChange={(e) => setForm({ ...form, driver_phone: e.target.value })} placeholder="شماره تکنسین" className="field" />
-            <textarea value={form.service_area || ""} onChange={(e) => setForm({ ...form, service_area: e.target.value })} placeholder="محدوده سرویس‌دهی" rows={2} className="field" />
-            <textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="توضیحات" rows={2} className="field" />
-          </div>
-          <div className="mt-5 flex gap-2"><button disabled={saving || !form.title.trim()} className="flex-1 rounded-2xl bg-cyan-300 px-4 py-3 font-bold text-slate-950 disabled:opacity-50">{saving ? "در حال ذخیره..." : "ذخیره"}</button>{editingId && <button type="button" onClick={resetForm} className="rounded-2xl border border-white/10 px-4 py-3">انصراف</button>}</div>
-        </form>
-
-        <section className="rounded-3xl border border-dashed border-cyan-400/20 bg-slate-950/60 p-5">
-          <div className="flex items-center gap-2 text-cyan-300"><MapPinned className="h-5 w-5" /><h2 className="font-bold">نقشه زنده ناوگان</h2></div>
-          <div className="mt-4 flex min-h-64 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-900/70 text-center text-slate-400"><Navigation className="mb-3 h-10 w-10 text-cyan-300" /><p className="font-bold text-white">آماده اتصال به API نقشه</p><p className="mt-2 max-w-md text-sm">در مرحله اتصال نشان، موقعیت تکنسین‌ها، مشتری‌ها، مسیر و زمان تقریبی رسیدن در همین بخش نمایش داده می‌شود.</p></div>
-          <div className="mt-4 flex flex-wrap gap-2">{items.map((item) => <button key={item.id} onClick={() => startEdit(item)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"><Wrench className="h-4 w-4 text-cyan-300" />{item.driver_name || item.title}<Trash2 onClick={(event) => { event.stopPropagation(); void remove(item.id); }} className="h-4 w-4 text-red-300" /></button>)}</div>
-        </section>
-      </div>
+  return <div className="space-y-5 text-white" dir="rtl">
+    <section className="rounded-3xl border border-cyan-400/20 bg-gradient-to-l from-cyan-500/10 via-slate-900 to-slate-950 p-5"><div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><h1 className="text-2xl font-black">خودروهای سرویس</h1><p className="mt-2 text-sm text-slate-300">خودرو را یک‌بار تعریف کن؛ هنگام تخصیص سفارش همین لیست نمایش داده می‌شود. انتخاب خودرو برای اعزام اختیاری است.</p></div><button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} /> بروزرسانی</button></div></section>
+    {error && <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-red-100">{error}</div>}{message && <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-100">{message}</div>}
+    <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
+      <section className="rounded-3xl border border-white/10 bg-slate-900 p-5"><div className="mb-4 flex items-center justify-between"><h2 className="font-black">{editingId ? 'ویرایش خودرو' : 'خودروی جدید'}</h2>{editingId && <button onClick={() => { setEditingId(null); setForm(empty); }}><X className="h-4 w-4" /></button>}</div><div className="space-y-3">
+        <input className="w-full rounded-xl border border-white/10 bg-slate-950 p-3" placeholder="عنوان خودرو؛ مثلا وانت کارتل ۱" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
+        <input className="w-full rounded-xl border border-white/10 bg-slate-950 p-3" placeholder="پلاک" value={form.plate_number || ''} onChange={e => setForm({ ...form, plate_number: e.target.value })} />
+        <select className="w-full rounded-xl border border-white/10 bg-slate-950 p-3" value={form.driver_id || ''} onChange={e => chooseTechnician(e.target.value)}><option value="">بدون سرویس‌کار پیش‌فرض</option>{technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}{t.phone ? ` - ${t.phone}` : ''}</option>)}</select>
+        <input className="w-full rounded-xl border border-white/10 bg-slate-950 p-3" placeholder="محدوده سرویس‌دهی" value={form.service_area || ''} onChange={e => setForm({ ...form, service_area: e.target.value })} />
+        <textarea className="min-h-20 w-full rounded-xl border border-white/10 bg-slate-950 p-3" placeholder="توضیحات" value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        <button onClick={() => void save()} disabled={busy} className="w-full rounded-xl bg-cyan-300 p-3 font-black text-slate-950 disabled:opacity-50">ذخیره خودرو</button>
+        {!technicians.length && <a href="/admin/technicians" className="block rounded-xl border border-amber-400/30 p-3 text-center text-sm font-bold text-amber-200">اول سرویس‌کار تعریف کن</a>}
+      </div></section>
+      <section className="rounded-3xl border border-white/10 bg-slate-900 p-5"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="font-black">لیست خودروها</h2><div className="flex gap-2"><input className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2" placeholder="جستجو" value={query} onChange={e => setQuery(e.target.value)} /><button onClick={() => { setEditingId(null); setForm(empty); }} className="inline-flex items-center gap-1 rounded-xl bg-cyan-300 px-3 py-2 text-sm font-black text-slate-950"><Plus className="h-4 w-4" /> افزودن</button></div></div><div className="grid gap-3 md:grid-cols-2">{filtered.map(item => <article key={item.id} className="rounded-2xl border border-white/10 bg-slate-950 p-4"><div className="flex items-start justify-between gap-3"><div className="flex gap-3"><CarFront className="h-6 w-6 text-cyan-300" /><div><strong>{item.title}</strong><div className="mt-1 text-sm text-slate-400">{item.plate_number || 'بدون پلاک'}</div><div className="mt-1 text-xs text-slate-500">{item.driver_name || 'بدون سرویس‌کار پیش‌فرض'}</div></div></div><div className="flex gap-1"><button onClick={() => edit(item)} className="rounded-lg bg-white/10 p-2"><Pencil className="h-4 w-4" /></button><button onClick={() => void remove(item.id)} className="rounded-lg bg-red-500/10 p-2 text-red-300"><Trash2 className="h-4 w-4" /></button></div></div></article>)}{!filtered.length && !busy && <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-slate-400 md:col-span-2">هنوز خودروی سرویس ثبت نشده است.</div>}</div></section>
     </div>
-  );
+  </div>;
 }
-
-function SummaryCard({ title, value, icon, danger = false }: { title: string; value: number; icon: React.ReactNode; danger?: boolean }) { return <div className={`rounded-2xl border p-4 ${danger ? "border-red-400/30 bg-red-500/10" : "border-white/10 bg-slate-900"}`}><div className="flex items-center justify-between text-sm text-slate-400"><span>{title}</span><span className={danger ? "text-red-300" : "text-cyan-300"}>{icon}</span></div><div className={`mt-2 text-2xl font-black ${danger ? "text-red-300" : "text-white"}`}>{value.toLocaleString("fa-IR")}</div></div>; }
-function Metric({ label, value }: { label: string; value: number }) { return <div className="rounded-xl bg-white/5 p-2"><div className="text-xs text-slate-500">{label}</div><div className="mt-1 font-black text-white">{value.toLocaleString("fa-IR")}</div></div>; }
-function formatDateTime(value?: string | null) { if (!value) return "-"; try { return new Intl.DateTimeFormat("fa-IR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value)); } catch { return value; } }
-function formatMoney(value?: number) { return value ? `${Math.round(value).toLocaleString("fa-IR")} تومان` : "-"; }

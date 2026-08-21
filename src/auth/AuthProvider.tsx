@@ -23,6 +23,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const freshUser = await getCurrentCarrtellUser();
+      const ownerKey = 'carrtell:browser-state-owner';
+      const previousOwner = localStorage.getItem(ownerKey);
+      const nextOwner = freshUser?.id || '';
+      if (previousOwner && nextOwner && previousOwner !== nextOwner) {
+        localStorage.removeItem('carrtell:selected-customer-car');
+        localStorage.removeItem('carrtell_selected_car');
+        localStorage.removeItem('carrtell:shop-filters');
+        localStorage.removeItem('carrtell_shop_filters');
+        sessionStorage.removeItem('carrtell:shop-filters');
+        sessionStorage.removeItem('carrtell_shop_filters');
+      }
+      if (nextOwner) localStorage.setItem(ownerKey, nextOwner);
       setUser(freshUser);
     } finally {
       setLoading(false);

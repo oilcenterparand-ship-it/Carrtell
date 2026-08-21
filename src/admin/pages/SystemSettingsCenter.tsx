@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_SYSTEM_SETTINGS, getSystemSettings, SystemSetting, upsertManySystemSettings } from '../services/systemSettingsApi';
+import { updateStaffTemporaryCredentials } from '../../auth/staffPasswordAuth';
 
 const groupLabels: Record<string, string> = {
   store: 'فروشگاه و برند',
@@ -33,6 +34,9 @@ export default function SystemSettingsCenter() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [staffUsername, setStaffUsername] = useState('admin');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffSaving, setStaffSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -57,6 +61,14 @@ export default function SystemSettingsCenter() {
           : item
       )
     );
+  }
+
+  async function saveStaffCredentials() {
+    if (!staffUsername.trim() || staffPassword.length < 5) { setMessage('برای ورود کارکنان، نام کاربری معتبر و رمز حداقل ۵ کاراکتری وارد کن.'); return; }
+    setStaffSaving(true); setMessage('');
+    try { await updateStaffTemporaryCredentials('admin', staffUsername, staffPassword); setStaffPassword(''); setMessage('اطلاعات ورود مدیریت ذخیره شد.'); }
+    catch (error: any) { setMessage(error?.message || 'ذخیره اطلاعات ورود ناموفق بود.'); }
+    finally { setStaffSaving(false); }
   }
 
   async function save() {
@@ -118,6 +130,16 @@ export default function SystemSettingsCenter() {
             {message && (
               <div className="mb-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">{message}</div>
             )}
+
+            <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
+              <h3 className="font-black text-amber-200">ورود مدیریت</h3>
+              <p className="mt-1 text-xs leading-6 text-slate-400">این بخش فقط برای نام کاربری و رمز مدیر اصلی است. حساب هر سرویس‌کار از صفحه «سرویس‌کارها» جداگانه ساخته و ویرایش می‌شود.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <input value={staffUsername} onChange={(e)=>setStaffUsername(e.target.value)} placeholder="نام کاربری مدیریت" className="rounded-xl border border-white/10 bg-slate-950 px-3 py-3" />
+                <input type="password" value={staffPassword} onChange={(e)=>setStaffPassword(e.target.value)} placeholder="رمز جدید مدیریت" className="rounded-xl border border-white/10 bg-slate-950 px-3 py-3" />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2"><button onClick={saveStaffCredentials} disabled={staffSaving} className="rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-slate-950 disabled:opacity-50">{staffSaving ? 'در حال ذخیره...' : 'ذخیره ورود مدیریت'}</button><a href="/admin/technicians" className="rounded-xl border border-cyan-400/30 px-4 py-3 text-sm font-black text-cyan-200">مدیریت سرویس‌کارها و رمزها</a></div>
+            </div>
 
             {loading ? (
               <div className="rounded-2xl bg-slate-900 p-6 text-slate-300">در حال دریافت تنظیمات...</div>

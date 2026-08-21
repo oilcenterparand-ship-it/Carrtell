@@ -1,26 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Car,
   ChevronDown,
   Heart,
   LogOut,
-  MapPin,
   Menu,
   CircleUserRound,
-  MessageCircle,
   Package,
   Search,
-  Settings,
   ShieldCheck,
-  Ticket,
-  User,
   Wrench,
   X,
 } from 'lucide-react';
 import { brandConfig } from '../config/brand';
 import { getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
-import { getProducts, type Product } from '../admin/services/productsApi';
+import { getProducts, getStorefrontSearchProducts, type Product } from '../admin/services/productsApi';
 import { getActiveCarsForCustomer, getCarTitle, type Car as AdminCar } from '../admin/services/carsApi';
 import {
   onSelectedCustomerCarChange,
@@ -29,6 +25,19 @@ import {
 } from '../customer/services/selectedCar';
 import { useAuth } from '../auth/AuthProvider';
 import MiniCart from './MiniCart';
+
+
+function normalizeLiveSearch(value: unknown) {
+  return String(value || '')
+    .toLocaleLowerCase('fa')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[ۀة]/g, 'ه')
+    .replace(/‌/g, ' ')
+    .replace(/[^0-9a-zآ-ی]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 const fallbackAccessLinks = [
   { label: 'پیشنهاد شگفت‌انگیز', to: '/#amazing-offers', emoji: '⚡' },
@@ -57,9 +66,12 @@ export default function Header() {
   const [searchText, setSearchText] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [selectedCustomerCar, setSelectedCustomerCar] = useState(() => readSelectedCustomerCar());
   const [allCars, setAllCars] = useState<AdminCar[]>([]);
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleBrand, setVehicleBrand] = useState('');
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
   const [vehicleNotice, setVehicleNotice] = useState('');
   const [vehicleNoticeCorner, setVehicleNoticeCorner] = useState(false);
@@ -69,11 +81,14 @@ export default function Header() {
   const accountRef = useRef<HTMLDivElement | null>(null);
   const vehiclePickerRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const searchPanelRef = useRef<HTMLDivElement | null>(null);
+  const [searchPanelStyle, setSearchPanelStyle] = useState<CSSProperties & Record<string, string | number>>({});
   const drawerMegaCloseTimer = useRef<number | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { role, user, loading: authLoading, signOut } = useAuth();
-  const showStorefrontBars = !(location.pathname === '/' || location.pathname.startsWith('/shop')); // Shop renders its compact category rail below Smart Match
+  const showGlobalSearch = location.pathname === '/' || location.pathname === '/shop';
+  const showStorefrontBars = false; // Category/vehicle rail is owned by storefront pages; never render it on checkout/account/product flows.
 
   const keepDrawerMegaOpen = () => {
     if (drawerMegaCloseTimer.current !== null) {
@@ -103,7 +118,7 @@ export default function Header() {
     setMobileOpen(false);
     setDrawerCategoriesOpen(false);
     setAccountOpen(false);
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, location.hash]);
 
   useEffect(() => {
     const unsubscribe = onSelectedCustomerCarChange(() => setSelectedCustomerCar(readSelectedCustomerCar()));
@@ -140,20 +155,64 @@ export default function Header() {
     return () => { mounted = false; };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    Promise.all([
-      getProductCategories().catch(() => []),
-      getProducts().catch(() => []),
-    ]).then(([categoryItems, productItems]) => {
-      if (!mounted) return;
-      setCategories((categoryItems || []).filter((item) => item.is_active !== false));
-      setProducts((productItems || []).filter((item) => item.is_active !== false));
+  async function loadSearchCatalog() {
+    setSearchLoading(true);
+    setSearchError('');
+    try {
+      const [categoryItems, productItems] = await Promise.all([
+        getProductCategories().catch(() => []),
+        getStorefrontSearchProducts(600),
+      ]);
+      setCategories((categoryItems || []).filter((item) => item?.is_active !== false));
+      setProducts((productItems || []).filter((item) => Boolean(item && item.is_active !== false && item.name)));
+    } catch (error) {
+      console.error('Carrtell live search catalog failed', error);
+      try {
+        const fallbackProducts = await getProducts();
+        setProducts((fallbackProducts || []).filter((item) => Boolean(item && item.is_active !== false && item.name)));
+      } catch (fallbackError) {
+        console.error('Carrtell live search fallback failed', fallbackError);
+        setProducts([]);
+        setSearchError('دریافت محصولات جستجو ناموفق بود. دوباره تلاش کن.');
+      }
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  function updateSearchPanelPosition() {
+    const anchor = searchRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const horizontalGap = viewportWidth < 768 ? 10 : 0;
+    setSearchPanelStyle({
+      '--ct-search-top': `${Math.max(8, rect.bottom + 7)}px`,
+      '--ct-search-left': `${viewportWidth < 768 ? horizontalGap : rect.left}px`,
+      '--ct-search-width': `${viewportWidth < 768 ? Math.max(0, viewportWidth - horizontalGap * 2) : rect.width}px`,
+      '--ct-search-max-height': viewportWidth < 768 ? 'min(56dvh, 520px)' : 'min(70vh, 600px)',
     });
-    return () => {
-      mounted = false;
-    };
+  }
+
+  useEffect(() => {
+    void loadSearchCatalog();
   }, []);
+
+  useEffect(() => {
+    if (!searchOpen || !normalizeLiveSearch(searchText)) return;
+    updateSearchPanelPosition();
+    const onViewportChange = () => updateSearchPanelPosition();
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('scroll', onViewportChange, true);
+    window.visualViewport?.addEventListener('resize', onViewportChange);
+    window.visualViewport?.addEventListener('scroll', onViewportChange);
+    return () => {
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('scroll', onViewportChange, true);
+      window.visualViewport?.removeEventListener('resize', onViewportChange);
+      window.visualViewport?.removeEventListener('scroll', onViewportChange);
+    };
+  }, [searchOpen, searchText]);
 
   useEffect(() => {
     const onMouseDown = (event: MouseEvent) => {
@@ -161,11 +220,18 @@ export default function Header() {
       if (mobileOpen && menuRef.current && !menuRef.current.contains(node)) setMobileOpen(false);
       if (accountOpen && accountRef.current && !accountRef.current.contains(node)) setAccountOpen(false);
       if (vehiclePickerOpen && vehiclePickerRef.current && !vehiclePickerRef.current.contains(node)) setVehiclePickerOpen(false);
-      if (searchOpen && searchRef.current && !searchRef.current.contains(node)) setSearchOpen(false);
+      if (searchOpen && searchRef.current && !searchRef.current.contains(node) && !searchPanelRef.current?.contains(node)) setSearchOpen(false);
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [mobileOpen, accountOpen, vehiclePickerOpen, searchOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen && !vehiclePickerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [mobileOpen, vehiclePickerOpen]);
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
@@ -189,26 +255,44 @@ export default function Header() {
     navigate('/', { replace: true });
   }
 
+  function closeDrawer() {
+    setMobileOpen(false);
+    setDrawerCategoriesOpen(false);
+  }
+
+  function handleDrawerCategories() {
+    closeDrawer();
+    navigate('/shop?view=categories');
+  }
+
   const accessLinks = categories.length > 0
     ? categories.slice(0, 10).map((item) => ({ label: item.title, to: `/shop?category=${item.slug}`, emoji: item.icon_emoji || '🔧' }))
     : fallbackAccessLinks;
-  const normalizedSearch = searchText.trim().toLocaleLowerCase('fa');
+  const normalizedSearch = normalizeLiveSearch(searchText);
   const searchedProducts = useMemo(() => {
     if (!normalizedSearch) return [];
-    return products.filter((product) => {
-      const haystack = [
-        product.name,
-        product.brand,
-        product.category,
-        product.oil_grade,
-        product.quality_level,
-        product.transmission_type,
-        product.description,
-        product.card_features,
-      ].filter(Boolean).join(' ').toLocaleLowerCase('fa');
-      return haystack.includes(normalizedSearch);
-    });
+    const tokens = normalizedSearch.split(' ').filter(Boolean);
+    const scoreProduct = (product: Product) => {
+      const fields = [product.name, product.brand, product.category, product.oil_grade, product.quality_level, product.transmission_type, product.description, product.card_features].map(normalizeLiveSearch);
+      const name = fields[0]; const brand = fields[1]; const haystack = fields.join(' ');
+      const words = haystack.split(' ').filter(Boolean);
+      const allTokensMatch = tokens.every((token) => words.some((word) => word.startsWith(token) || word.includes(token)) || haystack.includes(token));
+      if (!allTokensMatch) return 0;
+      let score = tokens.length * 120;
+      if (name === normalizedSearch) score += 1000;
+      else if (name.startsWith(normalizedSearch)) score += 850;
+      else if (name.includes(normalizedSearch)) score += 650;
+      if (brand === normalizedSearch) score += 500;
+      else if (brand.startsWith(normalizedSearch)) score += 350;
+      tokens.forEach((token) => { if (name.split(' ').some((word) => word.startsWith(token))) score += 140; if (brand.startsWith(token)) score += 80; });
+      return score;
+    };
+    return products.map((product) => ({ product, score: scoreProduct(product) })).filter((entry) => entry.score > 0).sort((a,b) => b.score-a.score || String(a.product.name||'').localeCompare(String(b.product.name||''),'fa')).map((entry)=>entry.product);
   }, [normalizedSearch, products]);
+  const drawerSearchResults = useMemo(() => searchedProducts.slice(0, 8), [searchedProducts]);
+
+  const liveCategorySuggestions = useMemo(() => normalizedSearch ? categories.filter((item) => normalizeLiveSearch(item.title).includes(normalizedSearch) || normalizeLiveSearch(item.title).split(' ').some((w) => w.startsWith(normalizedSearch))).slice(0, 5) : [], [categories, normalizedSearch]);
+  const liveBrandSuggestions = useMemo(() => normalizedSearch ? Array.from(new Set(products.map((item) => String(item.brand || '').trim()).filter(Boolean))).filter((brand) => normalizeLiveSearch(brand).includes(normalizedSearch) || normalizeLiveSearch(brand).startsWith(normalizedSearch)).slice(0, 5) : [], [products, normalizedSearch]);
 
   const groupedSearchResults = useMemo(() => {
     const categoryMap = new Map(categories.map((item) => [item.slug, item.title]));
@@ -246,11 +330,43 @@ export default function Header() {
     window.setTimeout(() => setVehicleNoticeCorner(true), 1400);
   }
 
-  const filteredCars = allCars.filter((car) => {
+  const vehicleBrands = useMemo(
+    () => Array.from(new Set(allCars.map((car) => String(car.brand || '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'fa')),
+    [allCars],
+  );
+
+  const filteredCars = useMemo(() => {
     const query = vehicleSearch.trim().toLocaleLowerCase('fa');
-    if (!query) return true;
-    return `${car.brand} ${car.model} ${car.trim || ''} ${car.engine || ''}`.toLocaleLowerCase('fa').includes(query);
-  });
+    const brandQuery = vehicleBrand.trim().toLocaleLowerCase('fa');
+
+    return allCars
+      .filter((car) => !brandQuery || String(car.brand || '').trim().toLocaleLowerCase('fa') === brandQuery)
+      .map((car) => {
+        const title = getCarTitle(car).toLocaleLowerCase('fa');
+        const brand = String(car.brand || '').toLocaleLowerCase('fa');
+        const model = String(car.model || '').toLocaleLowerCase('fa');
+        const trim = String(car.trim || '').toLocaleLowerCase('fa');
+        const engine = String(car.engine || '').toLocaleLowerCase('fa');
+
+        let score = 1;
+        if (query) {
+          if (title === query) score = 1000;
+          else if (model === query) score = 950;
+          else if (model.startsWith(query)) score = 900;
+          else if (title.startsWith(query)) score = 850;
+          else if (brand.startsWith(query)) score = 800;
+          else if (title.includes(query)) score = 700;
+          else if (trim.includes(query) || engine.includes(query)) score = 500;
+          else score = 0;
+        }
+
+        return { car, score };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || getCarTitle(a.car).localeCompare(getCarTitle(b.car), 'fa'))
+      .map((entry) => entry.car);
+  }, [allCars, vehicleBrand, vehicleSearch]);
 
   function clearVehicleFilter() {
     saveSelectedCustomerCar(null);
@@ -284,15 +400,16 @@ export default function Header() {
         <div className="ct-new-main-inner">
           <CarrtellLogo />
 
-          <div className="ct-new-search-wrap" ref={searchRef}>
+          {showGlobalSearch && <div className="ct-new-search-wrap" ref={searchRef}>
             <form onSubmit={submitSearch} className="ct-new-search-form">
               <Search className="h-5 w-5 shrink-0" aria-hidden="true" />
               <input
                 value={searchText}
-                onFocus={() => setSearchOpen(true)}
+                onFocus={() => { setSearchOpen(true); window.requestAnimationFrame(updateSearchPanelPosition); if (!products.length && !searchLoading) void loadSearchCatalog(); }}
                 onChange={(event) => {
                   setSearchText(event.target.value);
                   setSearchOpen(true);
+                  window.requestAnimationFrame(updateSearchPanelPosition);
                 }}
                 placeholder="جستجوی محصول، برند یا خودرو..."
                 aria-label="جستجوی محصولات"
@@ -306,15 +423,23 @@ export default function Header() {
               )}
             </form>
 
-            {searchOpen && normalizedSearch && (
-              <div className="ct-new-search-results">
-                {groupedSearchResults.length > 0 ? (
+            {searchOpen && normalizedSearch && typeof document !== 'undefined' && createPortal(
+              <div ref={searchPanelRef} className="ct-new-search-results ct-new-search-results-portal" style={searchPanelStyle} role="listbox" aria-label="پیشنهادهای جستجو">
+                {searchLoading ? (
+                  <div className="ct-new-search-empty">در حال جستجو بین محصولات...</div>
+                ) : searchError ? (
+                  <button type="button" className="ct-new-search-retry" onClick={() => void loadSearchCatalog()}>{searchError}</button>
+                ) : groupedSearchResults.length > 0 ? (
                   <>
                     <div className="ct-new-search-results-head">
                       <b>نتایج جستجو</b>
                       <span>{new Intl.NumberFormat('fa-IR').format(searchedProducts.length)} کالا</span>
                     </div>
                     <div className="ct-new-search-results-body">
+                      {(liveCategorySuggestions.length > 0 || liveBrandSuggestions.length > 0) && <div className="ct-live-search-shortcuts">
+                        {liveCategorySuggestions.map((item) => <Link key={`cat-${item.slug}`} to={`/shop?category=${encodeURIComponent(item.slug)}`} onClick={()=>{setSearchOpen(false);setSearchText('');}}><span>دسته‌بندی</span><b>{item.title}</b></Link>)}
+                        {liveBrandSuggestions.map((brand) => <Link key={`brand-${brand}`} to={`/shop?q=${encodeURIComponent(brand)}`} onClick={()=>{setSearchOpen(false);setSearchText('');}}><span>برند</span><b>{brand}</b></Link>)}
+                      </div>}
                       {groupedSearchResults.map(([categoryTitle, items]) => (
                         <section key={categoryTitle} className="ct-new-search-group">
                           <h3>{categoryTitle}</h3>
@@ -350,59 +475,28 @@ export default function Header() {
                 ) : (
                   <div className="ct-new-search-empty">کالایی با این عبارت پیدا نشد.</div>
                 )}
-              </div>
+              </div>,
+              document.body,
             )}
-          </div>
+          </div>}
 
           <div className="ct-new-actions">
             {!authLoading && !user && (
-              <Link to="/login-otp" className="ct-new-action-button ct-new-login-button" title="ورود یا ثبت‌نام">
+              <Link to="/login-otp" className="ct-new-action-button ct-new-login-button" title="ورود یا ثبت‌نام" data-testid="header-login-button">
                 <CircleUserRound className="h-5 w-5" />
                 <span>ورود</span>
               </Link>
             )}
 
             {user && (
-              <div className="relative" ref={accountRef}>
-                <button
-                  type="button"
-                  onClick={() => setAccountOpen((value) => !value)}
-                  className="ct-new-action-button ct-new-account-button"
-                  aria-expanded={accountOpen}
-                >
+              <div className="ct-new-header-user-actions" ref={accountRef}>
+                <Link to="/dashboard" className="ct-new-action-button ct-new-account-button" data-testid="header-user-name">
                   <CircleUserRound className="h-5 w-5" />
-                  <span>{user.fullName?.trim() ? `سلام، ${user.fullName.trim()}` : 'سلام، خوش آمدید'}</span>
-                  <ChevronDown className={`h-4 w-4 transition ${accountOpen ? 'rotate-180' : ''}`} />
+                  <span>{user.fullName?.trim() || user.username?.trim() || 'حساب من'}</span>
+                </Link>
+                <button type="button" onClick={() => void handleSignOut()} className="ct-new-header-signout" data-testid="header-signout-button" aria-label="خروج از حساب" title="خروج از حساب">
+                  <LogOut className="h-4 w-4" /><span>خروج</span>
                 </button>
-
-                {accountOpen && (
-                  <div className="ct-new-account-menu">
-                    <div className="ct-new-account-menu-head">
-                      <b>{user.fullName?.trim() ? `سلام، ${user.fullName.trim()}` : 'سلام، خوش آمدید'}</b>
-                      <span>{user.phone || 'حساب کاربری'}</span>
-                    </div>
-                    <nav>
-                      {[
-                        { to: '/dashboard', label: 'پروفایل من', Icon: User },
-                        { to: '/dashboard#orders', label: 'سفارش‌های من', Icon: Package },
-                        { to: '/dashboard#addresses', label: 'آدرس‌های من', Icon: MapPin },
-                        { to: '/dashboard#favorites', label: 'علاقه‌مندی‌ها', Icon: Heart },
-                        { to: '/dashboard#discounts', label: 'کدهای تخفیف', Icon: Ticket },
-                        { to: '/dashboard#messages', label: 'پیام‌ها', Icon: MessageCircle },
-                        { to: '/dashboard#settings', label: 'تنظیمات', Icon: Settings },
-                      ].map(({ to, label, Icon }) => (
-                        <Link key={label} to={to}>
-                          <Icon className="h-4 w-4" />
-                          {label}
-                        </Link>
-                      ))}
-                    </nav>
-                    <button type="button" onClick={() => void handleSignOut()} className="ct-new-account-signout">
-                      <LogOut className="h-4 w-4" />
-                      خروج از حساب
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
@@ -415,8 +509,14 @@ export default function Header() {
 
             <button
               type="button"
-              onClick={() => setMobileOpen(true)}
-              className="ct-new-icon-button"
+              onClick={() => {
+                setSearchOpen(false);
+                setVehiclePickerOpen(false);
+                setAccountOpen(false);
+                setMobileOpen(true);
+              }}
+              className="ct-new-icon-button ct-new-menu-button"
+              data-testid="main-hamburger-menu"
               aria-label="باز کردن منو"
               title="منو"
             >
@@ -431,7 +531,7 @@ export default function Header() {
           <div className="ct-new-access-vehicle" ref={vehiclePickerRef}>
               <button
                 type="button"
-                onClick={() => setVehiclePickerOpen((value) => !value)}
+                onClick={() => { setVehiclePickerOpen((value) => !value); setVehicleSearch(''); setVehicleBrand(''); }}
                 className={`ct-new-access-vehicle-button ${selectedCustomerCar ? 'is-active' : ''}`}
                 aria-expanded={vehiclePickerOpen}
               >
@@ -440,36 +540,6 @@ export default function Header() {
                 <ChevronDown className={`h-3.5 w-3.5 transition ${vehiclePickerOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {vehiclePickerOpen && (
-                <div className="ct-new-vehicle-picker">
-                  <div className="ct-new-vehicle-picker-head">
-                    <div className="ct-new-vehicle-picker-title">
-                      <b>انتخاب خودرو</b>
-                      <span>خودروی موردنظر را از فهرست کامل انتخاب کن</span>
-                    </div>
-                    <button type="button" className="ct-new-vehicle-picker-close" onClick={() => setVehiclePickerOpen(false)} aria-label="بستن انتخاب خودرو">
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <div className="ct-new-vehicle-search">
-                    <Search className="h-4 w-4" />
-                    <input value={vehicleSearch} onChange={(event) => setVehicleSearch(event.target.value)} placeholder="جستجوی برند یا مدل خودرو..." />
-                  </div>
-                  <div className="ct-new-vehicle-picker-list">
-                    <button type="button" onClick={clearVehicleFilter} className={!selectedCustomerCar ? 'is-selected' : ''}>
-                      <span>🚘</span>
-                      <span><b>همه خودروها</b><small>نمایش بدون فیلتر خودرو</small></span>
-                    </button>
-                    {filteredCars.map((car) => (
-                      <button key={car.id} type="button" onClick={() => selectStoreCar(car)} className={selectedCustomerCar?.id === car.id ? 'is-selected' : ''}>
-                        <span>🚗</span>
-                        <span><b>{getCarTitle(car)}</b><small>{[car.start_year, car.transmission_type].filter(Boolean).join(' • ') || 'خودروی قابل انتخاب'}</small></span>
-                      </button>
-                    ))}
-                    {filteredCars.length === 0 && <p>خودرویی با این مشخصات پیدا نشد.</p>}
-                  </div>
-                </div>
-              )}
           </div>
 
           <div className="ct-new-access-scroll">
@@ -488,31 +558,78 @@ export default function Header() {
         </div>
       </nav>}
 
-      {mobileOpen && (
+      {mobileOpen && typeof document !== 'undefined' && createPortal((
         <div className="ct-new-drawer-backdrop" onClick={() => setMobileOpen(false)}>
           <aside ref={menuRef} className="ct-new-drawer" onClick={(event) => event.stopPropagation()}>
-            <div className="ct-new-drawer-head">
-              <div className="ct-new-drawer-brand-row">
-                <CarrtellLogo />
-                <div className={`ct-new-drawer-selected-car ${selectedCustomerCar ? 'is-active' : ''}`}>
-                  <Car className="h-4 w-4" />
-                  <span>{selectedCustomerCar?.title || 'خودرو انتخاب نشده'}</span>
-                </div>
-              </div>
+            <div className="ct-new-drawer-close-row">
               <button type="button" onClick={() => setMobileOpen(false)} aria-label="بستن منو">
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
+            <button
+              type="button"
+              className={`ct-new-drawer-vehicle ${selectedCustomerCar ? 'is-active' : ''}`}
+              data-testid="drawer-vehicle-picker-button"
+              onClick={() => {
+                setMobileOpen(false);
+                setVehicleSearch('');
+                setVehicleBrand(selectedCustomerCar?.brand || '');
+                setVehiclePickerOpen(true);
+              }}
+            >
+              <span className="ct-new-drawer-vehicle-icon"><Car className="h-6 w-6" /></span>
+              <span className="ct-new-drawer-vehicle-copy">
+                <b>{selectedCustomerCar ? 'خودروی انتخابی' : 'انتخاب خودرو'}</b>
+                <small>{selectedCustomerCar?.title || 'برای نمایش محصولات سازگار با خودروی شما'}</small>
+              </span>
+              <span className="ct-new-drawer-vehicle-action">{selectedCustomerCar ? 'تغییر' : 'انتخاب'}</span>
+            </button>
+
             <form onSubmit={submitSearch} className="ct-new-drawer-search">
               <Search className="h-5 w-5" />
-              <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="جستجو..." />
+              <input
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="جستجوی محصول، برند یا خودرو..."
+                autoComplete="off"
+                aria-label="جستجوی زنده محصولات در منو"
+              />
             </form>
+
+            {normalizedSearch && (
+              <div className="ct-new-drawer-live-results" role="listbox" aria-label="محصولات مرتبط">
+                {searchLoading ? (
+                  <p>در حال جستجو بین محصولات...</p>
+                ) : drawerSearchResults.length ? (
+                  <>
+                    {drawerSearchResults.map((product) => (
+                      <Link
+                        key={product.id || product.name}
+                        to={`/shop/product/${product.id}`}
+                        onClick={() => { setSearchText(''); setMobileOpen(false); }}
+                        className="ct-new-drawer-live-item"
+                      >
+                        <span className="ct-new-drawer-live-thumb">
+                          {product.image_url ? <img src={product.image_url} alt={product.name} /> : <Package className="h-5 w-5" />}
+                        </span>
+                        <span className="ct-new-drawer-live-copy">
+                          <b>{product.name}</b>
+                          <small>{[product.brand, product.oil_grade || product.quality_level].filter(Boolean).join(' • ')}</small>
+                        </span>
+                        <strong>{new Intl.NumberFormat('fa-IR').format(Number(product.amazing_price || product.price || 0))}<small> تومان</small></strong>
+                      </Link>
+                    ))}
+                    <button type="button" onClick={submitSearch} className="ct-new-drawer-live-all">مشاهده همه نتایج</button>
+                  </>
+                ) : (
+                  <p>محصول مرتبطی پیدا نشد.</p>
+                )}
+              </div>
+            )}
 
             <div className="ct-new-drawer-scroll">
               <nav className="ct-new-drawer-nav">
-                <Link to="/"><span aria-hidden="true">🛍️</span><span>فروشگاه</span></Link>
-
                 <div
                   className="ct-new-drawer-category-root"
                   onMouseEnter={keepDrawerMegaOpen}
@@ -521,10 +638,7 @@ export default function Header() {
                   <button
                     type="button"
                     className="ct-new-drawer-category-trigger"
-                    onClick={() => {
-                      setDrawerCategoriesOpen((value) => !value);
-                      if (!drawerActiveCategorySlug && categories[0]) setDrawerActiveCategorySlug(categories[0].slug);
-                    }}
+                    onClick={handleDrawerCategories}
                     aria-expanded={drawerCategoriesOpen}
                   >
                     <span className="ct-new-drawer-link-copy"><span aria-hidden="true">🗂️</span><span>دسته‌بندی محصولات</span></span>
@@ -532,14 +646,13 @@ export default function Header() {
                   </button>
                 </div>
 
-                <Link to="/dashboard"><span aria-hidden="true">👤</span><span>پروفایل من</span></Link>
-                <Link to="/dashboard#orders"><span aria-hidden="true">📦</span><span>سفارش‌های من</span></Link>
-                <Link to="/dashboard#addresses"><span aria-hidden="true">📍</span><span>آدرس‌های من</span></Link>
-                <Link to="/book"><span aria-hidden="true">🛠️</span><span>سرویس در محل</span></Link>
-                <Link to="/blog"><span aria-hidden="true">📰</span><span>وبلاگ</span></Link>
-                <Link to="/profile/support"><span aria-hidden="true">💬</span><span>تماس و پشتیبانی</span></Link>
+                <Link to="/book" onClick={closeDrawer}><span aria-hidden="true">🛠️</span><span>سرویس در محل</span></Link>
+                <Link to="/blog" onClick={closeDrawer}><span aria-hidden="true">📰</span><span>وبلاگ</span></Link>
+                <Link to="/dashboard#orders" onClick={closeDrawer}><span aria-hidden="true">📦</span><span>پیگیری خرید</span></Link>
+                <Link to="/profile/support" onClick={closeDrawer}><span aria-hidden="true">🎧</span><span>پشتیبانی</span></Link>
+                <Link to="/profile/support#contact" onClick={closeDrawer}><span aria-hidden="true">☎️</span><span>ارتباط با ما</span></Link>
                 {roleShortcut && RoleIcon && (
-                  <Link to={roleShortcut.to} className="ct-new-drawer-role-link">
+                  <Link to={roleShortcut.to} className="ct-new-drawer-role-link" onClick={closeDrawer}>
                     <RoleIcon className="h-5 w-5" />
                     {roleShortcut.label}
                   </Link>
@@ -598,24 +711,71 @@ export default function Header() {
               </div>
             )}
 
-            <div className="ct-new-drawer-footer">
-              {!authLoading && !user && (
-                <Link to="/login-otp" className="ct-new-drawer-login">
-                  <User className="h-5 w-5" />
-                  ورود / ثبت‌نام
-                </Link>
-              )}
-
-              {user && (
-                <button type="button" onClick={() => void handleSignOut()} className="ct-new-drawer-signout">
-                  <LogOut className="h-5 w-5" />
-                  خروج از حساب
-                </button>
-              )}
-            </div>
           </aside>
         </div>
-      )}
+      ), document.body)}
+
+      {vehiclePickerOpen && typeof document !== 'undefined' && createPortal((
+        <div className="ct-drawer-vehicle-modal-backdrop" onClick={() => setVehiclePickerOpen(false)}>
+          <section
+            ref={vehiclePickerRef}
+            className="ct-drawer-vehicle-modal"
+            data-testid="drawer-vehicle-picker-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ct-drawer-vehicle-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="ct-drawer-vehicle-modal-head">
+              <div>
+                <h2 id="ct-drawer-vehicle-title">انتخاب خودرو</h2>
+                <span>خودرو را انتخاب کن تا فقط محصولات سازگار نمایش داده شوند.</span>
+              </div>
+              <button type="button" onClick={() => setVehiclePickerOpen(false)} aria-label="بستن انتخاب خودرو">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <label className="ct-drawer-vehicle-field" htmlFor="ct-drawer-vehicle-brand">
+              <span>شرکت سازنده</span>
+              <select
+                id="ct-drawer-vehicle-brand"
+                value={vehicleBrand}
+                onChange={(event) => {
+                  setVehicleBrand(event.target.value);
+                  setVehicleSearch('');
+                }}
+              >
+                <option value="">همه سازنده‌ها</option>
+                {vehicleBrands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+              </select>
+            </label>
+
+            <label className="ct-drawer-vehicle-search">
+              <Search className="h-4 w-4" />
+              <input
+                value={vehicleSearch}
+                onChange={(event) => setVehicleSearch(event.target.value)}
+                placeholder={vehicleBrand ? `جستجو بین خودروهای ${vehicleBrand}...` : 'جستجوی نام یا مدل خودرو...'}
+              />
+            </label>
+
+            <div className="ct-drawer-vehicle-list">
+              <button type="button" onClick={clearVehicleFilter} className={!selectedCustomerCar ? 'is-selected' : ''}>
+                <span className="ct-drawer-vehicle-list-icon">🚘</span>
+                <span><b>همه خودروها</b><small>نمایش محصولات بدون فیلتر خودرو</small></span>
+              </button>
+              {filteredCars.map((car) => (
+                <button key={car.id} type="button" onClick={() => selectStoreCar(car)} className={selectedCustomerCar?.id === car.id ? 'is-selected' : ''}>
+                  <span className="ct-drawer-vehicle-list-icon">🚗</span>
+                  <span><b>{getCarTitle(car)}</b><small>{[car.start_year, car.transmission_type].filter(Boolean).join(' • ') || 'خودروی قابل انتخاب'}</small></span>
+                </button>
+              ))}
+              {filteredCars.length === 0 && <p>خودرویی با این مشخصات پیدا نشد.</p>}
+            </div>
+          </section>
+        </div>
+      ), document.body)}
     </header>
   );
 }

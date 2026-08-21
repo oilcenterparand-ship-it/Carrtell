@@ -2,9 +2,10 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Eye, EyeOff, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../auth/AdminAuthProvider';
+import { signInStaffWithTemporaryPassword } from '../../auth/staffPasswordAuth';
 
 export default function AdminLogin() {
-  const { login, isAuthenticated, loading } = useAdminAuth();
+  const { refresh, isAuthenticated, loading } = useAdminAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -19,7 +20,7 @@ export default function AdminLogin() {
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(''); setSubmitting(true);
-    try { await login(username, password); navigate(returnTo, { replace: true }); }
+    try { await signInStaffWithTemporaryPassword('admin', username, password); await refresh(); navigate(returnTo, { replace: true }); }
     catch (err) { setError(err instanceof Error ? err.message : 'ورود ناموفق بود.'); }
     finally { setSubmitting(false); }
   }
@@ -38,8 +39,8 @@ export default function AdminLogin() {
           <label className="mb-2 block text-sm font-bold">رمز عبور</label>
           <div className="relative mb-4"><LockKeyhole className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" /><input autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-12 py-3.5 outline-none focus:border-amber-400" placeholder="رمز عبور" /><button type="button" onClick={() => setShowPassword(v => !v)} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-xl p-2 text-slate-400">{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button></div>
           {error && <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
-          <button disabled={submitting || !username.trim() || password.length < 6} className="w-full rounded-2xl bg-amber-400 px-4 py-3.5 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'در حال ورود...' : 'ورود امن'}</button>
-          <p className="mt-5 text-center text-xs leading-6 text-slate-500">حساب مدیریت باید توسط Super Admin ساخته شده باشد.</p>
+          <button disabled={submitting || !username.trim() || !password} className="w-full rounded-2xl bg-amber-400 px-4 py-3.5 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'در حال ورود...' : 'ورود امن'}</button>
+          <p className="mt-5 text-center text-xs leading-6 text-slate-500">نام کاربری و رمز موقت از تنظیمات مرکزی مدیریت قابل تغییر است.</p>
         </form>
       </div>
     </main>

@@ -27,35 +27,70 @@ export type CarPackage = {
 };
 
 type PackageRow = Omit<CarPackage, 'items'> & {
-  car_package_items?: (CarPackageItem & { products?: Product })[];
+  items?: Array<CarPackageItem & { products?: Product | Product[] }>;
+  car_package_items?: Array<CarPackageItem & { products?: Product | Product[] }>;
 };
+
+function normalizeRelatedProduct(value?: Product | Product[]) {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
 
 function makeSlug(title: string) {
   return title.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
 function mapPackage(row: PackageRow): CarPackage {
-  const items = (row.car_package_items || []).map((item) => ({
+  const rawItems = Array.isArray(row.car_package_items)
+    ? row.car_package_items
+    : Array.isArray(row.items)
+      ? row.items
+      : [];
+
+  const items = rawItems.map((item) => ({
     id: item.id,
     package_id: item.package_id,
     product_id: item.product_id,
     quantity: item.quantity || 1,
-    product: item.products,
+    product: item.product || normalizeRelatedProduct(item.products),
   }));
 
-  const { car_package_items, ...pkg } = row;
+  const { car_package_items, items: _rawItems, ...pkg } = row;
   return { ...pkg, items };
 }
 
 export async function getCarPackages() {
-  const { data, error } = await supabase
+  const { data: packageData, error: packageError } = await supabase
     .from('car_packages')
-    .select('*, car_package_items(id, package_id, product_id, quantity, products(*))')
+    .select('*')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return ((data || []) as PackageRow[]).map(mapPackage);
+  if (packageError) throw packageError;
+
+  const packageRows = (packageData || []) as PackageRow[];
+  const packageIds = packageRows.map((pkg) => pkg.id).filter(Boolean) as string[];
+  if (!packageIds.length) return [];
+
+  const { data: itemData, error: itemError } = await supabase
+    .from('car_package_items')
+    .select('id, package_id, product_id, quantity, products(*)')
+    .in('package_id', packageIds);
+
+  if (itemError) throw itemError;
+
+  const itemsByPackage = new Map<string, PackageRow['car_package_items']>();
+  ((itemData || []) as NonNullable<PackageRow['car_package_items']>).forEach((item) => {
+    if (!item.package_id) return;
+    const current = itemsByPackage.get(item.package_id) || [];
+    current.push(item);
+    itemsByPackage.set(item.package_id, current);
+  });
+
+  return packageRows.map((pkg) => mapPackage({
+    ...pkg,
+    car_package_items: pkg.id ? itemsByPackage.get(pkg.id) || [] : [],
+  }));
 }
 
 export async function createCarPackage(pkg: CarPackage) {

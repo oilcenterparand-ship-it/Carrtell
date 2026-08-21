@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-08-20T15:49:56.232Z",
+  "startedAt": "2026-08-20T15:49:55.080Z",
+  "status": "failed",
+  "counts": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0
+  },
+  "feedbackCounts": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "tests": [],
+  "feedback": []
+}

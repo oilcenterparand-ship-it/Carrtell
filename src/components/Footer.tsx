@@ -46,6 +46,7 @@ export default function Footer() {
                 { to: '/book', label: 'رزرو سرویس' },
                 { to: '/dashboard', label: 'پنل کاربری' },
                 { to: '/investor', label: 'سرمایه‌گذاری' },
+                { to: '/download', label: 'دانلود اپ Carrtell' },
               ].map((link) => (
                 <li key={link.to}>
                   <Link

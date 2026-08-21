@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-08-19T14:36:17.780Z",
+  "startedAt": "2026-08-19T14:36:06.866Z",
+  "status": "passed",
+  "counts": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "feedbackCounts": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "tests": [
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 4261,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 1683,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 2114,
+      "project": ""
+    }
+  ],
+  "feedback": []
+}

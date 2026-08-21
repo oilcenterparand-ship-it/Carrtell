@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, ShoppingBag, ShoppingCart, Trash2, X } from 'lucide-react';
 import { changeCartQuantity, getCartCount, readCart, removeProductFromCart, type CartMap } from '../lib/cart';
@@ -32,6 +33,7 @@ export default function MiniCart() {
   const [cart, setCart] = useState<CartMap>(() => readCart());
   const [theme, setTheme] = useState<ThemeSettings>(defaultThemeSettings);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -62,17 +64,21 @@ export default function MiniCart() {
 
   useEffect(() => {
     const sync = () => setCart(readCart());
+    const openCart = () => { setCart(readCart()); setOpen(true); };
     window.addEventListener('carrtell-cart-updated', sync);
+    window.addEventListener('carrtell-cart-open', openCart);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener('carrtell-cart-updated', sync);
+      window.removeEventListener('carrtell-cart-open', openCart);
       window.removeEventListener('storage', sync);
     };
   }, []);
 
   useEffect(() => {
     function closeOnClick(event: MouseEvent) {
-      if (!boxRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!boxRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     }
     if (open) document.addEventListener('mousedown', closeOnClick);
     return () => document.removeEventListener('mousedown', closeOnClick);
@@ -80,7 +86,7 @@ export default function MiniCart() {
 
   const items = useMemo(() => Object.values(cart), [cart]);
   const count = getCartCount(cart);
-  const total = items.reduce((sum, item) => sum + getProductFinalPrice(item.product) * item.quantity, 0);
+  const total = items.reduce((sum, item) => { const q = Number(item?.quantity); const quantity = Number.isFinite(q) && q > 0 ? q : 0; return sum + getProductFinalPrice(item.product) * quantity; }, 0);
 
   const panelBg = theme.surfaceColor || defaultThemeSettings.surfaceColor;
   const itemBg = theme.searchBackground || theme.cardBackground || '#f8fafc';
@@ -112,7 +118,7 @@ export default function MiniCart() {
     <div className="relative" ref={boxRef} dir="rtl" style={{ fontFamily: theme.headerFontFamily || theme.fontFamily }}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={(event) => { event.preventDefault(); event.stopPropagation(); setCart(readCart()); setOpen((v) => !v); }}
         className="ct-new-cart-button relative flex h-11 w-11 items-center justify-center rounded-full border transition"
         style={{
           background: 'transparent',
@@ -120,6 +126,8 @@ export default function MiniCart() {
           borderColor: 'transparent',
         }}
         aria-label="سبد خرید"
+        data-testid="header-cart-button"
+        aria-expanded={open}
       >
         <ShoppingBag className="h-5 w-5" />
         <span
@@ -130,9 +138,11 @@ export default function MiniCart() {
         </span>
       </button>
 
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <div
-          className="absolute left-0 top-14 z-[99999] flex h-[min(520px,calc(100vh-120px))] w-[330px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-3xl shadow-2xl"
+          ref={panelRef}
+          data-testid="mini-cart-panel"
+          className="fixed left-3 right-3 top-[118px] z-[2147483646] mx-auto flex max-h-[min(430px,calc(100dvh-155px))] w-auto max-w-[380px] flex-col overflow-hidden rounded-3xl shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-14 sm:mx-0 sm:w-[330px]"
           style={{
             background: `linear-gradient(180deg, ${panelBg} 0%, ${theme.cardBackground || panelBg} 100%)`,
             color: panelText,
@@ -210,7 +220,8 @@ export default function MiniCart() {
               رفتن به سبد خرید
             </Link>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

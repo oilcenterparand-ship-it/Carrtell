@@ -5,7 +5,7 @@ import { CheckCircle2, CreditCard, MapPin, PackageCheck, ShoppingCart, Truck, Wr
 import MapLocationPicker from '../components/MapLocationPicker';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
-import { emitAuthChanged } from '../auth/authApi';
+import { emitAuthChanged, normalizeDigits } from '../auth/authApi';
 import { IRAN_PROVINCES, getProvinceCounties } from '../data/iranLocations';
 import { clearLegacyPersistentCart } from '../lib/cart';
 import DiscountCodeBox from '../components/discounts/DiscountCodeBox';
@@ -79,6 +79,13 @@ function toNumber(value: unknown) {
 
 function money(value: number) {
   return `${Math.round(value).toLocaleString('fa-IR')} تومان`;
+}
+
+function toLocalCheckoutPhone(value: unknown) {
+  const digits = normalizeDigits(String(value || '')).replace(/\D/g, '');
+  if (/^989\d{9}$/.test(digits)) return `0${digits.slice(2)}`;
+  if (/^9\d{9}$/.test(digits)) return `0${digits}`;
+  return digits;
 }
 
 const SERVICE_TIME_SLOTS = [
@@ -233,11 +240,9 @@ export default function CartPage() {
   const discountAmount = Math.min(Number(appliedDiscount?.amount || 0), subtotal);
   const total = Math.max(0, subtotal + serviceFee + shippingFee - discountAmount);
   const freeShippingThreshold = 3000000;
-  const freeShippingRemaining = Math.max(0, freeShippingThreshold - subtotal);
-  const freeShippingProgress = Math.min(100, (subtotal / freeShippingThreshold) * 100);
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId) || null;
   const carTitle = getCarTitle(selectedCar);
-  const customerInfoValid = Boolean(customer.full_name.trim() && /^09\d{9}$/.test(customer.phone.replace(/\s/g, '')));
+  const customerInfoValid = Boolean(customer.full_name.trim() && /^09\d{9}$/.test(toLocalCheckoutPhone(customer.phone)));
   const postalRequired = false;
   const postalCodeValid = !newAddress.postal_code.trim() || /^\d{10}$/.test(newAddress.postal_code.replace(/\D/g, ''));
   const addressReady = shippingMethod === 'pickup'
@@ -256,6 +261,20 @@ export default function CartPage() {
     setSelectedAddressId('');
     setShowNewAddressForm(true);
 
+    try {
+      const rawDraft = sessionStorage.getItem('carrtell_checkout_draft');
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft);
+        if (draft.customer) setCustomer({ ...draft.customer, phone: toLocalCheckoutPhone(draft.customer.phone) });
+        if (draft.newAddress) setNewAddress(draft.newAddress);
+        if (draft.deliveryMode) setDeliveryMode(draft.deliveryMode);
+        if (draft.shippingMethod) setShippingMethod(draft.shippingMethod);
+        if (draft.serviceDate) setServiceDate(draft.serviceDate);
+        if (draft.serviceTime) setServiceTime(draft.serviceTime);
+        if (draft.selectedAddressId) { setSelectedAddressId(draft.selectedAddressId); setShowNewAddressForm(false); }
+      }
+    } catch { /* invalid old checkout draft */ }
+
     supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user;
       if (!user) return;
@@ -264,7 +283,7 @@ export default function CartPage() {
       setCustomer((prev) => ({
         ...prev,
         full_name: metadata.full_name || metadata.name || prev.full_name,
-        phone: metadata.phone || user.phone || prev.phone,
+        phone: toLocalCheckoutPhone(metadata.phone || user.phone || prev.phone),
       }));
 
       const { data: profile } = await supabase
@@ -277,7 +296,7 @@ export default function CartPage() {
         setCustomer((prev) => ({
           ...prev,
           full_name: profile.full_name || prev.full_name,
-          phone: profile.phone || prev.phone,
+          phone: toLocalCheckoutPhone(profile.phone || prev.phone),
         }));
       }
 
@@ -378,26 +397,19 @@ export default function CartPage() {
       setCustomer((prev) => ({
         ...prev,
         full_name: authUser.fullName || prev.full_name,
-        phone: authUser.phone || prev.phone,
+        phone: toLocalCheckoutPhone(authUser.phone || prev.phone),
       }));
     }
   }, [authUser]);
 
   useEffect(() => {
     if (authLoading) return;
-
-    // کاربر مهمان هرگز نباید خارج از مرحله سبد خرید باقی بماند.
-    if (!isAuthenticated && step !== 'cart') {
-      setStep('cart');
-    }
-
-    if (!isAuthenticated) {
+    if (!items.length && step !== 'cart') { setStep('cart'); return; }
+    const resume = sessionStorage.getItem('carrtell_checkout_resume');
+    if (isAuthenticated && resume === 'payment' && items.length) {
+      setStep('payment');
       sessionStorage.removeItem('carrtell_checkout_resume');
-      setStep('cart');
-      return;
     }
-
-    sessionStorage.removeItem('carrtell_checkout_resume');
   }, [authLoading, isAuthenticated, items.length, step]);
 
   useEffect(() => {
@@ -431,10 +443,6 @@ export default function CartPage() {
       setMessage('سبد خرید خالی است.');
       return;
     }
-    if (!isAuthenticated) {
-      navigate('/login-otp?returnTo=%2Fcart');
-      return;
-    }
     setStep('info');
   }
 
@@ -444,13 +452,14 @@ export default function CartPage() {
       setMessage('نام و نام خانوادگی را وارد کن.');
       return;
     }
-    if (!/^09\d{9}$/.test(customer.phone.replace(/\s/g, ''))) {
+    const normalizedPhone = toLocalCheckoutPhone(customer.phone);
+    if (!/^09\d{9}$/.test(normalizedPhone)) {
       setMessage('شماره موبایل معتبر وارد کن؛ مانند 09123456789.');
       return;
     }
 
     localStorage.setItem('carrtell_customer_profile', JSON.stringify({
-      phone: customer.phone.trim(),
+      phone: normalizedPhone,
       fullName: customer.full_name.trim(),
     }));
     localStorage.setItem('carrtell_user_role', authUser?.role || 'customer');
@@ -461,7 +470,7 @@ export default function CartPage() {
       await supabase.from('profiles').upsert({
         id: data.user.id,
         full_name: customer.full_name.trim(),
-        phone: customer.phone.trim(),
+        phone: normalizedPhone,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
       await refreshAuth();
@@ -556,13 +565,24 @@ export default function CartPage() {
     setMessage('');
     if (!canGoPayment()) return;
     const saved = await saveAddressIfRequested();
-    if (saved) {
-      setStep('payment');
+    if (!saved) return;
+
+    if (!isAuthenticated) {
+      sessionStorage.setItem('carrtell_checkout_draft', JSON.stringify({
+        customer: { ...customer, phone: normalizeDigits(customer.phone).replace(/\D/g, '') },
+        newAddress, deliveryMode, shippingMethod, serviceDate, serviceTime, selectedAddressId,
+      }));
+      sessionStorage.setItem('carrtell_checkout_resume', 'payment');
+      navigate('/login-otp?returnTo=%2Fcart');
+      return;
     }
+
+    setStep('payment');
   }
 
   async function createOrder() {
     if (!isAuthenticated) {
+      sessionStorage.setItem('carrtell_checkout_resume', 'payment');
       navigate('/login-otp?returnTo=%2Fcart');
       return;
     }
@@ -584,7 +604,7 @@ export default function CartPage() {
       const carId = selectedCar?.car_id || selectedCar?.id || null;
       const orderAddress = selectedAddress
         ? addressText(selectedAddress)
-        : [newAddress.province, newAddress.county, newAddress.neighborhood, newAddress.street, `پلاک ${newAddress.plaque}`, newAddress.unit ? `واحد ${newAddress.unit}` : '', newAddress.postal_code ? `کدپستی ${newAddress.postal_code}` : ''].filter(Boolean).join('، ');
+        : [newAddress.province, newAddress.county, newAddress.neighborhood, newAddress.street].filter(Boolean).join('، ');
 
       const orderPayload = {
         user_id: user?.id || authUser?.id || null,
@@ -655,6 +675,14 @@ export default function CartPage() {
 
       const orderId = String(order.id);
 
+      if (serviceDraft) {
+        const { error: serviceDraftError } = await supabase.rpc('carrtell_attach_order_service_draft', {
+          p_order_id: orderId,
+          p_service: serviceDraft,
+        });
+        if (serviceDraftError) throw serviceDraftError;
+      }
+
       setCreatedOrderId(orderId);
       sessionStorage.setItem('carrtell_last_order_id', orderId);
       setStep('done');
@@ -676,7 +704,7 @@ export default function CartPage() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (false && !isAuthenticated) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-slate-900" dir="rtl">
         <section className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-7 text-center shadow-2xl">
@@ -770,7 +798,7 @@ export default function CartPage() {
           </div>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div className={`grid gap-6 ${items.length > 0 ? 'lg:grid-cols-[1fr_380px]' : ''}`}>
           <section className="space-y-6">
             {step === 'cart' && (
               <div className={cardClass}>
@@ -778,19 +806,6 @@ export default function CartPage() {
                   <h2 className="text-xl font-black">محصولات سبد خرید</h2>
                   <Link to="/shop" className="text-sm text-amber-300 hover:text-amber-200">ادامه خرید</Link>
                 </div>
-                {items.length > 0 && (
-                  <div className="mb-5 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4">
-                    <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                      <span className="font-bold text-amber-100">
-                        {freeShippingRemaining > 0 ? `فقط ${money(freeShippingRemaining)} تا ارسال رایگان باقی مانده` : 'ارسال رایگان برای این سفارش فعال شد'}
-                      </span>
-                      <Truck className="h-5 w-5 text-amber-300" />
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                      <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${freeShippingProgress}%` }} />
-                    </div>
-                  </div>
-                )}
                 {!items.length ? (
                   <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.03] px-6 py-12 text-center">
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white/5 text-slate-400">
@@ -808,13 +823,13 @@ export default function CartPage() {
                       const id = getItemId(item);
                       return (
                         <div key={id} className="group grid gap-3 rounded-3xl border border-white/10 bg-slate-950/60 p-3.5 transition hover:border-amber-300/25 hover:bg-slate-950/80 sm:grid-cols-[88px_1fr_auto]">
-                          <Link to={`/product/${id}`} className="flex h-[88px] w-[88px] items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-white">
+                          <Link to={`/shop/product/${id}`} className="flex h-[88px] w-[88px] items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-white">
                             {(item.image_url || item.image) ? (
                               <img src={item.image_url || item.image} alt={getItemName(item)} className="h-full w-full object-contain p-1.5 transition duration-300 group-hover:scale-105" />
                             ) : <ShoppingCart className="h-8 w-8 text-slate-300" />}
                           </Link>
                           <div className="min-w-0">
-                            <Link to={`/product/${id}`} className="line-clamp-2 font-black leading-7 text-white hover:text-amber-200">{getItemName(item)}</Link>
+                            <Link to={`/shop/product/${id}`} className="line-clamp-2 font-black leading-7 text-white hover:text-amber-200">{getItemName(item)}</Link>
                             <p className="mt-1 text-xs text-slate-400">{item.brand_name || item.category_name || 'محصول خودرو'}</p>
                             <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
                               <p className="text-sm text-slate-400">قیمت واحد: <b className="text-slate-200">{money(getItemPrice(item))}</b></p>
@@ -836,11 +851,6 @@ export default function CartPage() {
                     })}
                   </div>
                 )}
-                <div className="mt-5 flex justify-end">
-                  <button onClick={beginCheckout} className="rounded-2xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300">
-                    ادامه ثبت سفارش
-                  </button>
-                </div>
               </div>
             )}
 
@@ -854,7 +864,7 @@ export default function CartPage() {
                   </label>
                   <label className="space-y-2 text-sm text-slate-300">
                     شماره تماس
-                    <input className={inputClass} value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="09xxxxxxxxx" />
+                    <input inputMode="tel" className={inputClass} value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: toLocalCheckoutPhone(e.target.value) })} placeholder="09xxxxxxxxx" />
                   </label>
                   <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
                     توضیحات سفارش
@@ -1057,23 +1067,6 @@ export default function CartPage() {
                         />
                         {addressFieldErrors.street && <span className="block text-xs text-red-300">{addressFieldErrors.street}</span>}
                       </label>
-                      <input className={inputClass} placeholder="پلاک" value={newAddress.plaque} onChange={(e) => setNewAddress({ ...newAddress, plaque: e.target.value })} />
-                      <input className={inputClass} placeholder="واحد" value={newAddress.unit} onChange={(e) => setNewAddress({ ...newAddress, unit: e.target.value })} />
-                      <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
-                        کدپستی
-                        <input
-                          inputMode="numeric"
-                          maxLength={10}
-                          className={`${inputClass} ${addressFieldErrors.postalCode ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20' : ''}`}
-                          placeholder="۱۰ رقم بدون خط تیره"
-                          value={newAddress.postal_code}
-                          onChange={(e) => {
-                            setNewAddress({ ...newAddress, postal_code: e.target.value.replace(/\D/g, '').slice(0, 10) });
-                            setAddressFieldErrors((prev) => ({ ...prev, postalCode: undefined }));
-                          }}
-                        />
-                        {addressFieldErrors.postalCode && <span className="block text-xs text-red-300">{addressFieldErrors.postalCode}</span>}
-                      </label>
                       <div className="md:col-span-2">
                         <MapLocationPicker
                           initialLatitude={newAddress.latitude ? Number(newAddress.latitude) : null}
@@ -1117,7 +1110,7 @@ export default function CartPage() {
                   <p>مشتری: <b className="text-white">{customer.full_name}</b></p>
                   <p>شماره تماس: <b className="text-white">{customer.phone}</b></p>
                   <p>روش دریافت: <b className="text-white">{deliveryMode === 'service' ? 'خرید + سرویس در محل' : shippingMethod === 'pickup' ? 'تحویل حضوری' : shippingMethod === 'express' ? 'ارسال سریع' : 'ارسال عادی'}</b></p>
-                  <p>آدرس: <b className="text-white">{shippingMethod === 'pickup' ? 'تحویل حضوری از شعبه' : selectedAddress && !showNewAddressForm ? addressText(selectedAddress) : [newAddress.province, newAddress.county, newAddress.street, newAddress.plaque, newAddress.postal_code].filter(Boolean).join('، ')}</b></p>
+                  <p>آدرس: <b className="text-white">{shippingMethod === 'pickup' ? 'تحویل حضوری از شعبه' : selectedAddress && !showNewAddressForm ? addressText(selectedAddress) : [newAddress.province, newAddress.county, newAddress.neighborhood, newAddress.street].filter(Boolean).join('، ')}</b></p>
                   {deliveryMode === 'service' && <p>زمان سرویس: <b className="text-white">{serviceDate ? new Intl.DateTimeFormat('fa-IR-u-ca-persian', { dateStyle: 'full' }).format(new Date(`${serviceDate}T12:00:00`)) : '-'}، بازه {SERVICE_TIME_SLOTS.find((slot) => slot.value === serviceTime)?.label || '-'}</b></p>}
                   {carTitle && <p>خودرو: <b className="text-amber-200">{carTitle}</b></p>}
                 </div>
@@ -1140,45 +1133,42 @@ export default function CartPage() {
             )}
           </section>
 
-          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-            <div className={cardClass}>
-              <h3 className="mb-4 text-lg font-black">خلاصه سفارش</h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <div className="flex justify-between"><span>تعداد کالا</span><b>{items.length.toLocaleString('fa-IR')}</b></div>
-                <div className="flex justify-between"><span>جمع کالاها</span><b>{money(subtotal)}</b></div>
-                <div className="flex justify-between"><span>روش دریافت</span><b>{deliveryMode === 'service' ? 'سرویس در محل' : shippingMethod === 'pickup' ? 'تحویل حضوری' : shippingMethod === 'express' ? 'ارسال سریع' : 'ارسال عادی'}</b></div>
-                {deliveryMode === 'delivery' && <div className="flex justify-between"><span>هزینه ارسال</span><b>{shippingFee === 0 ? 'رایگان' : money(shippingFee)}</b></div>}
-                {deliveryMode === 'service' && (
-                  <>
-                    <div className="flex justify-between"><span>هزینه ایاب و ذهاب</span><b>{money(dispatchFee)}</b></div>
-                    <div className="flex justify-between"><span>اجرت سرویس در محل</span><b>{money(serviceLaborFee)}</b></div>
-                  </>
+          {items.length > 0 && (
+            <aside className="space-y-3 lg:sticky lg:top-24 lg:self-start" data-cart-summary>
+              <div className={cardClass}>
+                <h3 className="mb-4 text-lg font-black">هزینه محصولات</h3>
+                <div className="space-y-3 text-sm text-slate-300">
+                  <div className="flex justify-between"><span>تعداد کالا</span><b>{items.reduce((sum, item) => sum + getItemQty(item), 0).toLocaleString('fa-IR')}</b></div>
+                  <div className="flex justify-between"><span>جمع محصولات</span><b className="text-amber-300">{money(subtotal)}</b></div>
+                  {deliveryMode === 'delivery' && <div className="flex justify-between"><span>هزینه ارسال</span><b>{shippingFee === 0 ? 'رایگان' : money(shippingFee)}</b></div>}
+                  {discountAmount > 0 && <div className="flex justify-between text-emerald-300"><span>تخفیف ({appliedDiscount?.code})</span><b>- {money(discountAmount)}</b></div>}
+                </div>
+                {step !== 'done' && (
+                  <div className="mt-4">
+                    <DiscountCodeBox total={subtotal} userId={authUser?.id || null} onApplied={(result) => setAppliedDiscount(result)} />
+                    {appliedDiscount?.ok && <button type="button" onClick={() => setAppliedDiscount(null)} className="mt-2 text-xs text-rose-300 hover:text-rose-200">حذف کد تخفیف</button>}
+                  </div>
                 )}
-                {discountAmount > 0 && <div className="flex justify-between text-emerald-300"><span>تخفیف ({appliedDiscount?.code})</span><b>- {money(discountAmount)}</b></div>}
-                <div className="border-t border-white/10 pt-3 text-base">
-                  <div className="flex justify-between"><span>مبلغ قابل پرداخت</span><b className="text-amber-300">{money(total)}</b></div>
-                </div>
               </div>
-              {items.length > 0 && step !== 'done' && (
-                <div className="mt-4">
-                  <DiscountCodeBox
-                    total={subtotal}
-                    userId={authUser?.id || null}
-                    onApplied={(result) => setAppliedDiscount(result)}
-                  />
-                  {appliedDiscount?.ok && (
-                    <button type="button" onClick={() => setAppliedDiscount(null)} className="mt-2 text-xs text-rose-300 hover:text-rose-200">حذف کد تخفیف</button>
-                  )}
+
+              {deliveryMode === 'service' && (
+                <div className={`${cardClass} border-amber-400/25`} data-service-cost-summary>
+                  <div className="mb-4 flex items-center gap-2"><Wrench className="h-5 w-5 text-amber-300" /><h3 className="text-lg font-black">هزینه خدمات انتخابی</h3></div>
+                  <div className="space-y-3 text-sm text-slate-300">
+                    <div className="flex justify-between"><span>ایاب‌وذهاب</span><b>{money(dispatchFee)}</b></div>
+                    <div className="flex justify-between"><span>اجرت سرویس در محل</span><b>{money(serviceLaborFee)}</b></div>
+                    <div className="flex justify-between border-t border-white/10 pt-3"><span>جمع خدمات</span><b className="text-amber-300">{money(serviceFee)}</b></div>
+                  </div>
                 </div>
               )}
-              {step === 'cart' && items.length > 0 && (
-                <button type="button" onClick={beginCheckout} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-3.5 font-black text-slate-950 shadow-lg shadow-amber-500/10 hover:bg-amber-300">
-                  ادامه ثبت سفارش <ArrowLeft className="h-4 w-4" />
-                </button>
-              )}
-            </div>
 
-          </aside>
+              <div className={`${cardClass} border-emerald-400/25`} data-cart-grand-total>
+                <div className="flex items-center justify-between gap-4"><span className="font-black">{deliveryMode === 'service' ? 'جمع نهایی محصولات و خدمات' : 'مبلغ نهایی سفارش'}</span><b className="shrink-0 text-lg text-emerald-300">{money(total)}</b></div>
+                <p className="mt-2 text-xs text-slate-400">شامل محصولات، روش دریافت{deliveryMode === 'service' ? ' و خدمات انتخابی' : ''}{discountAmount > 0 ? ' و تخفیف' : ''}</p>
+                {step === 'cart' && <button type="button" onClick={beginCheckout} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-3.5 font-black text-slate-950 shadow-lg shadow-amber-500/10 hover:bg-amber-300">ادامه ثبت سفارش <ArrowLeft className="h-4 w-4" /></button>}
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     </main>

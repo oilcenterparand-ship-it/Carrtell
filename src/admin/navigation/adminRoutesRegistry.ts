@@ -22,6 +22,7 @@ export const adminRouteRegistry: AdminRouteItem[] = [
   { path: '/admin/smart-sales', title: 'فروش هوشمند', group: 'بازاریابی', audience: 'admin', status: 'active' },
   { path: '/admin/loyalty', title: 'باشگاه مشتریان', group: 'بازاریابی', audience: 'admin', status: 'active' },
   { path: '/admin/dispatch', title: 'مرکز اعزام', group: 'سرویس در محل', audience: 'admin', status: 'active' },
+  { path: '/admin/technicians', title: 'سرویس‌کارها', group: 'سرویس در محل', audience: 'admin', status: 'active' },
   { path: '/admin/service-fleet', title: 'ناوگان سرویس', group: 'سرویس در محل', audience: 'admin', status: 'active' },
   { path: '/admin/branches', title: 'شعب', group: 'سرویس در محل', audience: 'admin', status: 'active' },
   { path: '/admin/inventory', title: 'انبار', group: 'انبار', audience: 'admin', status: 'active' },

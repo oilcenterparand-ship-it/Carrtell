@@ -6,6 +6,7 @@ export type ServiceRequestStatus =
   | 'pending_review'
   | 'confirmed'
   | 'assigned'
+  | 'accepted'
   | 'dispatching'
   | 'en_route'
   | 'arrived'
@@ -63,6 +64,7 @@ export type ServiceRequest = {
   completed_at?: string | null;
   status: ServiceRequestStatus;
   customer_user_id?: string | null;
+  guest_token?: string | null;
   payment_status?: 'pending' | 'paid' | 'failed';
   payment_reference?: string | null;
   paid_at?: string | null;
@@ -145,6 +147,7 @@ function normalizeStatus(status?: string | null): ServiceRequestStatus {
   if (
     status === 'confirmed' ||
     status === 'assigned' ||
+    status === 'accepted' ||
     status === 'dispatching' ||
     status === 'en_route' ||
     status === 'arrived' ||
@@ -213,6 +216,7 @@ function normalizeRequest(row: Partial<ServiceRequest>): ServiceRequest {
     completed_at: row.completed_at || null,
     status: normalizeStatus(row.status),
     customer_user_id: row.customer_user_id || null,
+    guest_token: row.guest_token || null,
     payment_status: row.payment_status === 'paid' || row.payment_status === 'failed' ? row.payment_status : 'pending',
     payment_reference: row.payment_reference || null,
     paid_at: row.paid_at || null,
@@ -221,7 +225,7 @@ function normalizeRequest(row: Partial<ServiceRequest>): ServiceRequest {
 }
 
 function publicRequestPayload(payload: ServiceRequest) {
-  const { id: _id, created_at: _createdAt, ...insertPayload } = payload;
+  const { created_at: _createdAt, ...insertPayload } = payload;
   return insertPayload;
 }
 
@@ -247,6 +251,7 @@ export function getServiceRequestStatusLabel(status: ServiceRequestStatus) {
     pending_review: 'در انتظار بررسی',
     confirmed: 'تأیید شده',
     assigned: 'تخصیص داده شده',
+    accepted: 'قبول شده توسط سرویس‌کار',
     dispatching: 'اعزام سرویس‌کار',
     en_route: 'در مسیر مشتری',
     arrived: 'رسیده به محل',
@@ -263,39 +268,50 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
   if (!input.vehicle_title.trim()) throw new Error('انتخاب خودرو الزامی است.');
   if (!input.address_text.trim()) throw new Error('انتخاب آدرس الزامی است.');
 
+  const { data: authData } = await supabase.auth.getUser();
+  const currentUser = authData.user;
+  const hasExplicitCustomerUser = Object.prototype.hasOwnProperty.call(input, 'customer_user_id');
+  const resolvedCustomerUserId = hasExplicitCustomerUser
+    ? (input.customer_user_id || null)
+    : (currentUser?.id || null);
+  const guestToken = resolvedCustomerUserId ? null : crypto.randomUUID();
+
   const payload = normalizeRequest({
     ...input,
+    id: crypto.randomUUID(),
+    customer_user_id: resolvedCustomerUserId,
+    guest_token: guestToken,
     customer_phone: cleanPhone,
     request_number: makeRequestNumber(),
     next_service_km: calcNextServiceKm(input.last_service_km, input.service_interval_km),
     status: 'pending_review',
+    payment_status: 'pending',
   });
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('service_requests')
-    .insert(publicRequestPayload(payload))
-    .select('*')
-    .single();
+    .insert(publicRequestPayload(payload));
 
-  if (!error && data) {
-    const created = normalizeRequest(data as ServiceRequest);
+  if (!error) {
+    if (guestToken) sessionStorage.setItem(`carrtell:service-guest-token:${payload.id}`, guestToken);
+
     if (input.booking_slot_id) {
       const { data: reservation, error: reservationError } = await supabase.rpc('reserve_booking_slot', {
         p_slot_id: input.booking_slot_id,
         p_booking_date: input.preferred_date,
-        p_service_request_id: created.id,
+        p_service_request_id: payload.id,
       });
       const result = Array.isArray(reservation) ? reservation[0] : reservation;
       if (reservationError || !result?.success) {
-        await supabase.from('service_requests').delete().eq('id', created.id);
         throw new Error(result?.message || 'ظرفیت این بازه زمانی تکمیل شده است؛ بازه دیگری را انتخاب کنید.');
       }
     }
-    return created;
+    return payload;
   }
 
   const localRequest = normalizeRequest(payload);
   writeLocal([localRequest, ...readLocal()]);
+  if (guestToken) sessionStorage.setItem(`carrtell:service-guest-token:${localRequest.id}`, guestToken);
   return localRequest;
 }
 
@@ -310,29 +326,18 @@ export async function getServiceRequests(): Promise<ServiceRequest[]> {
 }
 
 export async function getDriverUsers(): Promise<DriverUser[]> {
-  const tableAttempts = [
-    { table: 'profiles', select: 'id, full_name, phone, email, role' },
-    { table: 'user_profiles', select: 'id, full_name, phone, email, role' },
-    { table: 'users', select: 'id, full_name, phone, email, role' },
-  ];
+  const { data, error } = await supabase
+    .from('service_technicians')
+    .select('id, full_name, phone, username')
+    .eq('is_active', true)
+    .order('full_name', { ascending: true });
 
-  for (const attempt of tableAttempts) {
-    const { data, error } = await supabase
-      .from(attempt.table)
-      .select(attempt.select)
-      .eq('role', 'driver')
-      .order('full_name', { ascending: true });
-
-    if (!error && Array.isArray(data)) {
-      return data.map((item) => normalizeDriver(item as unknown as Record<string, unknown>)).filter(Boolean) as DriverUser[];
-    }
-  }
-
-  return [];
+  if (error) throw error;
+  return (data ?? []).map((item) => normalizeDriver(item as unknown as Record<string, unknown>)).filter(Boolean) as DriverUser[];
 }
 
 export async function getDriverServiceRequests(currentUser?: CarrtellAuthUser | null): Promise<ServiceRequest[]> {
-  const allowed: ServiceRequestStatus[] = ['assigned', 'dispatching', 'en_route', 'arrived', 'in_progress'];
+  const allowed: ServiceRequestStatus[] = ['assigned', 'accepted', 'dispatching', 'en_route', 'arrived', 'in_progress'];
   let query = supabase
     .from('service_requests')
     .select('*')
@@ -430,6 +435,17 @@ export async function updateServiceRequestProgress(id: string, input: ServicePro
 export async function getServiceRequestById(id: string): Promise<ServiceRequest> {
   const { data, error } = await supabase.from('service_requests').select('*').eq('id', id).maybeSingle();
   if (!error && data) return normalizeRequest(data as ServiceRequest);
+
+  const guestToken = sessionStorage.getItem(`carrtell:service-guest-token:${id}`);
+  if (guestToken) {
+    const { data: guestData, error: guestError } = await supabase.rpc('get_service_request_guest', {
+      p_request_id: id,
+      p_guest_token: guestToken,
+    });
+    const row = Array.isArray(guestData) ? guestData[0] : guestData;
+    if (!guestError && row) return normalizeRequest(row as ServiceRequest);
+  }
+
   const local = readLocal().find((item) => item.id === id);
   if (local) return normalizeRequest(local);
   throw error || new Error('درخواست سرویس پیدا نشد.');
@@ -439,6 +455,45 @@ export async function payServiceRequestTest(id: string): Promise<ServiceRequest>
   const { data, error } = await supabase.rpc('pay_service_request_test', { p_request_id: id });
   const row = Array.isArray(data) ? data[0] : data;
   if (!error && row) return normalizeRequest(row as ServiceRequest);
+
+  const guestToken = sessionStorage.getItem(`carrtell:service-guest-token:${id}`);
+  if (guestToken) {
+    const { data: guestData, error: guestError } = await supabase.rpc('pay_service_request_guest_test', {
+      p_request_id: id,
+      p_guest_token: guestToken,
+    });
+    const guestRow = Array.isArray(guestData) ? guestData[0] : guestData;
+    if (!guestError && guestRow) return normalizeRequest(guestRow as ServiceRequest);
+  }
+
   const reference = `TEST-${Date.now()}`;
   return updateLocalRequest(id, { payment_status: 'paid', payment_reference: reference, paid_at: nowIso() });
+}
+
+
+export async function claimGuestServiceRequest(id: string): Promise<ServiceRequest> {
+  const guestToken = sessionStorage.getItem(`carrtell:service-guest-token:${id}`);
+  if (!guestToken) throw new Error('اطلاعات رزرو مهمان در این مرورگر پیدا نشد.');
+
+  // OTP verification already creates an authenticated Supabase session. Before
+  // asking the customer for another OTP, try to restore/refresh that session.
+  let { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    const refreshed = await supabase.auth.refreshSession().catch(() => null);
+    sessionData = refreshed?.data ?? sessionData;
+  }
+  if (!sessionData.session?.user) {
+    throw new Error('تأیید قبلی شماره در این مرورگر منقضی شده است. رزرو و پرداخت ثبت شده؛ برای فعال‌سازی حساب فقط یک‌بار از ورود پیامکی استفاده کنید.');
+  }
+
+  const { data, error } = await supabase.rpc('claim_service_request_guest', {
+    p_request_id: id,
+    p_guest_token: guestToken,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error) throw error;
+  if (!row) throw new Error('اتصال رزرو به حساب کاربری انجام نشد.');
+
+  sessionStorage.removeItem(`carrtell:service-guest-token:${id}`);
+  return normalizeRequest(row as ServiceRequest);
 }

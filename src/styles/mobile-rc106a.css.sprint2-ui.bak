@@ -1,0 +1,258 @@
+/* RC1-06A — focused mobile layout cleanup */
+@media (max-width: 767px) {
+  :root { --ct-mobile-nav-h: 64px; }
+
+  html, body, #root { max-width: 100%; overflow-x: clip; }
+  body { padding-bottom: calc(var(--ct-mobile-nav-h) + 16px + env(safe-area-inset-bottom)); }
+
+  /* One header, no overlap with content or vehicle strip. */
+  .ct-new-site-header {
+    position: fixed !important;
+    inset: 0 0 auto 0 !important;
+    z-index: 5000 !important;
+    contain: layout paint;
+  }
+  .ct-new-main-inner {
+    min-height: 92px !important;
+    padding: 6px 10px 8px !important;
+    grid-template-columns: 72px minmax(0, 1fr) 82px !important;
+    grid-template-areas: "logo spacer actions" "search search search" !important;
+  }
+  .ct-new-header-logo img { height: 36px !important; max-width: 78px !important; }
+  .ct-new-search-form { height: 42px !important; }
+  .ct-new-promo-row { height: 24px !important; min-height: 24px !important; }
+  .ct-new-promo-row * { line-height: 24px !important; }
+  .ct-site-content { padding-top: 124px !important; }
+  html.ct-shop-route .ct-site-content { padding-top: 118px !important; }
+
+  /* Never let category/vehicle bars float through the viewport. */
+  .ct-new-access-row,
+  .ct-new-tool-row,
+  .ct-new-category-strip,
+  .ct-new-vehicle-strip,
+  .ct-new-category-rail,
+  .ct-category-bar,
+  .ct-new-smart-match {
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    z-index: 1 !important;
+  }
+
+  /* Single bottom navigation only. */
+  .ct-mobile-bottom-nav {
+    height: var(--ct-mobile-nav-h) !important;
+    right: 10px !important;
+    left: 10px !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    z-index: 100000 !important;
+  }
+  .ct-mobile-bottom-nav a { height: 52px !important; font-size: 10px !important; }
+  .ct-mobile-bottom-nav a svg { width: 20px !important; height: 20px !important; }
+
+  /* Keep page actions above the mobile nav. */
+  .ct-shop-page,
+  .ct-site-content > main { padding-bottom: calc(var(--ct-mobile-nav-h) + 22px) !important; }
+
+  /* Compact promotional cards: one horizontal rail, not tall columns. */
+  .ct-shop-promo-cards {
+    display: flex !important;
+    gap: 10px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 4px 2px 10px !important;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .ct-shop-promo-cards::-webkit-scrollbar { display: none; }
+  .ct-shop-promo-card {
+    flex: 0 0 76vw !important;
+    width: 76vw !important;
+    min-width: 76vw !important;
+    max-width: 76vw !important;
+    height: 104px !important;
+    min-height: 104px !important;
+    max-height: 104px !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    scroll-snap-align: center;
+  }
+  .ct-shop-promo-card h3 { font-size: 15px !important; line-height: 1.35 !important; }
+  .ct-shop-promo-card p { display: none !important; }
+
+  /* Product/filter area: dense, readable, collapsible. */
+  .ct-shop-page section { margin-block: 10px !important; }
+  .ct-shop-page .ct-collection-hero { padding: 12px !important; min-height: 0 !important; }
+  .ct-shop-page .ct-collection-hero p { display: none !important; }
+  .ct-shop-page .ct-collection-search { display: none !important; }
+  .ct-shop-page [data-mobile-filter-panel="closed"] { display: none !important; }
+
+  /* Product grid cards stay inside viewport. */
+  .ct-shop-page [class*="grid-cols-"] { min-width: 0 !important; }
+  .ct-shop-page .container-custom { padding-inline: 8px !important; }
+
+  /* Booking slots: compact and never white-on-white. */
+  .ct-booking-slot,
+  [data-booking-slot] {
+    min-height: 60px !important;
+    padding: 8px 10px !important;
+    border-radius: 14px !important;
+    transition: border-color .15s ease, background-color .15s ease, color .15s ease !important;
+  }
+  .ct-booking-slot:hover,
+  [data-booking-slot]:hover {
+    background: var(--ct-surface-2, #111b2f) !important;
+    color: var(--ct-text, #f8fafc) !important;
+  }
+  .ct-booking-slot.is-selected,
+  [data-booking-slot][aria-pressed="true"] {
+    background: #f5b700 !important;
+    color: #0b1220 !important;
+    border-color: #f5b700 !important;
+  }
+
+  /* Mobile drawer stays simple; no nested mega panel. */
+  .ct-new-drawer { height: min(78dvh, 680px) !important; }
+  .ct-new-drawer-mega { display: none !important; }
+  .ct-new-drawer-nav { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .ct-new-drawer-nav > a,
+  .ct-new-drawer-category-trigger { min-height: 48px !important; padding: 10px 12px !important; }
+
+  /* Avoid giant type and excessive vertical spacing inherited from desktop. */
+  .ct-site-content h1 { font-size: clamp(1.35rem, 6vw, 1.9rem) !important; line-height: 1.35 !important; }
+  .ct-site-content h2 { font-size: clamp(1.15rem, 5vw, 1.55rem) !important; line-height: 1.4 !important; }
+  .ct-site-content section { scroll-margin-top: 132px; }
+}
+
+/* RC1-06B — standalone mobile routes, categorized store, vehicle modal */
+@media (max-width: 767px) {
+  .ct-mobile-standalone-route .ct-new-site-header,
+  .ct-mobile-standalone-route > footer,
+  .ct-mobile-standalone-route .ct-whatsapp-button { display: none !important; }
+  .ct-mobile-standalone-route .ct-site-content { padding-top: 0 !important; }
+  .ct-mobile-standalone-route .ct-site-content > main { padding-top: 14px !important; }
+
+  .ct-mobile-standalone-route main[dir="rtl"] > div { max-width: 100% !important; }
+  .ct-mobile-standalone-route main[dir="rtl"] header { padding: 14px !important; border-radius: 20px !important; }
+  .ct-mobile-standalone-route main[dir="rtl"] nav.sticky { position: relative !important; top: auto !important; grid-template-columns: repeat(5,minmax(0,1fr)) !important; overflow-x: auto; border-radius: 18px !important; }
+  .ct-mobile-standalone-route main[dir="rtl"] nav.sticky button { min-width: 92px; padding: 10px 7px !important; font-size: 11px !important; }
+  .ct-mobile-standalone-route main[dir="rtl"] section { border-radius: 20px !important; padding: 14px !important; }
+
+  .ct-mobile-standalone-route [data-booking-slot],
+  .ct-mobile-standalone-route .ct-booking-slot { min-height: 52px !important; padding: 7px 9px !important; }
+
+  .ct-collection-hero { padding: 12px !important; }
+  .ct-collection-hero > div { gap: 8px !important; }
+  .ct-collection-search { display: block !important; padding: 7px !important; }
+  .ct-collection-search input { height: 38px !important; border-radius: 12px !important; font-size: 13px !important; }
+  .ct-collection-categories { margin-block: 8px !important; }
+  .ct-collection-categories > div { scrollbar-width: none; }
+  .ct-collection-categories > div::-webkit-scrollbar { display:none; }
+  .ct-collection-categories button { flex: 0 0 auto; border: 1px solid var(--ct-border,#334155); border-radius: 999px; padding: 8px 12px; color: inherit; font-size: 12px; font-weight: 800; background: rgba(255,255,255,.04); }
+  .ct-collection-categories button.is-active { background: var(--ct-primary,#f5c518); color:#0b1220; border-color:var(--ct-primary,#f5c518); }
+
+  .ct-new-vehicle-picker-backdrop { position: fixed; inset: 0; z-index: 99980; background: rgba(2,6,23,.72); backdrop-filter: blur(3px); }
+  .ct-new-access-vehicle .ct-new-vehicle-picker { z-index: 99990 !important; top: max(18px, env(safe-area-inset-top)) !important; bottom: calc(78px + env(safe-area-inset-bottom)) !important; right: 12px !important; left: 12px !important; width: auto !important; max-height: none !important; border: 2px solid var(--ct-primary,#f5c518) !important; border-radius: 22px !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+  .ct-new-vehicle-picker-head { flex: 0 0 auto; display:flex !important; align-items:center; justify-content:space-between; gap:10px; padding:12px !important; }
+  .ct-new-vehicle-picker-close { display:inline-flex !important; align-items:center; gap:5px; min-width:auto !important; padding:8px 10px !important; border:1px solid var(--ct-border,#334155); border-radius:12px; font-size:12px; }
+  .ct-new-vehicle-search { flex:0 0 auto; margin: 0 10px 8px !important; }
+  .ct-new-vehicle-picker-list { flex:1 1 auto; max-height:none !important; overflow-y:auto !important; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:20px !important; }
+
+  .ct-dashboard-orders-card { padding: 12px !important; border-radius: 16px !important; }
+}
+@media (max-width: 767px) {
+  .ct-customer-dashboard.is-orders-panel { padding-inline: 10px !important; }
+  .ct-customer-dashboard.is-orders-panel > div > header,
+  .ct-customer-dashboard.is-orders-panel > div > nav { display:none !important; }
+  .ct-customer-dashboard.is-orders-panel > div { padding-top: 0 !important; }
+  .ct-customer-dashboard.is-orders-panel .ct-dashboard-orders-card > div { display:grid !important; grid-template-columns:1fr !important; gap:10px !important; }
+  .ct-customer-dashboard.is-orders-panel .ct-dashboard-orders-card .flex.flex-wrap.gap-2 { display:grid !important; grid-template-columns:1fr 1fr !important; }
+  .ct-customer-dashboard.is-orders-panel .ct-dashboard-orders-card a,
+  .ct-customer-dashboard.is-orders-panel .ct-dashboard-orders-card button { justify-content:center; padding:9px 10px !important; font-size:11px !important; }
+}
+
+/* RC1-06C — iOS search, booking selection and searchable car picker */
+@media (max-width: 767px) {
+  /* iOS Safari zooms inputs below 16px. */
+  .ct-new-search-input,
+  .ct-new-search-form input,
+  .ct-new-drawer-search input,
+  .ct-collection-search input,
+  .ct-book-car-modal input {
+    font-size: 16px !important;
+  }
+
+  .ct-new-search-results {
+    position: fixed !important;
+    top: 132px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+    max-height: min(58dvh, 520px) !important;
+    z-index: 100200 !important;
+    overflow: hidden !important;
+  }
+  .ct-new-search-results-body { max-height: min(43dvh, 390px) !important; overflow-y: auto !important; }
+
+  .ct-mobile-standalone-route .ct-booking-slot,
+  .ct-mobile-standalone-route [data-booking-slot] {
+    background: #0b1427 !important;
+    color: #f8fafc !important;
+    border-color: #2d3b55 !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  .ct-mobile-standalone-route .ct-booking-slot:hover,
+  .ct-mobile-standalone-route .ct-booking-slot:focus,
+  .ct-mobile-standalone-route .ct-booking-slot:active,
+  .ct-mobile-standalone-route [data-booking-slot]:hover,
+  .ct-mobile-standalone-route [data-booking-slot]:focus,
+  .ct-mobile-standalone-route [data-booking-slot]:active {
+    background: #111d33 !important;
+    color: #f8fafc !important;
+    border-color: #f5c518 !important;
+  }
+  .ct-mobile-standalone-route .ct-booking-slot.is-selected,
+  .ct-mobile-standalone-route [data-booking-slot][aria-pressed="true"] {
+    background: #f5c518 !important;
+    color: #0b1220 !important;
+    border-color: #f5c518 !important;
+  }
+  .ct-mobile-standalone-route .ct-booking-slot.is-selected *,
+  .ct-mobile-standalone-route [data-booking-slot][aria-pressed="true"] * { color: #0b1220 !important; }
+
+  .ct-book-car-modal-backdrop { overscroll-behavior: contain; }
+  .ct-book-car-modal { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+
+/* RC1-06D — auth-first booking, mobile keyboard/modal safety */
+@media (max-width: 767px) {
+  body.ct-modal-open .ct-mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .ct-book-car-modal {
+    max-height: min(82dvh, 720px) !important;
+    margin-bottom: max(0px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .ct-book-car-modal footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: #020617;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .ct-new-search-results {
+    max-height: min(62dvh, 520px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ct-new-search-item {
+    text-align: right;
+  }
+}

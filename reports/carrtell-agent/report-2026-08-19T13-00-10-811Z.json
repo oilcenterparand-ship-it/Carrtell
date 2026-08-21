@@ -1,0 +1,140 @@
+{
+  "generatedAt": "2026-08-19T13:00:10.811Z",
+  "startedAt": "2026-08-19T12:56:46.311Z",
+  "status": "failed",
+  "counts": {
+    "passed": 9,
+    "failed": 4,
+    "skipped": 2
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2193,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "timedOut",
+      "durationMs": 45321,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "timedOut",
+      "durationMs": 45333,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2470,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › booking page has no horizontal overflow and cart/selection overlay locks background",
+      "status": "passed",
+      "durationMs": 1753,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "skipped",
+      "durationMs": 272,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 1913,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 21592,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 22172,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2210,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 325,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2549,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking page has no horizontal overflow and cart/selection overlay locks background",
+      "status": "passed",
+      "durationMs": 1695,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 1893,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 1710,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 21637,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 21949,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/\\/driver(?:$|\\/)/\u001b[39m\nReceived string:  \u001b[31m\"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[39m\nTimeout: 20000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 20000ms\u001b[22m\n\u001b[2m    43 × locator resolved to <html lang=\"fa\" dir=\"rtl\" class=\"ct-theme-ready\" data-ct-theme-base=\"dark\" data-ct-user-mode=\"system\" data-ct-resolved-mode=\"dark\" data-ct-theme-preset=\"premium-dark\">…</html>\u001b[22m\n\u001b[2m       - unexpected value \"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[22m\n",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/\\/driver(?:$|\\/)/\u001b[39m\nReceived string:  \u001b[31m\"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[39m\nTimeout: 20000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 20000ms\u001b[22m\n\u001b[2m    43 × locator resolved to <html lang=\"fa\" dir=\"rtl\" class=\"ct-theme-ready\" data-ct-theme-base=\"dark\" data-ct-user-mode=\"system\" data-ct-resolved-mode=\"dark\" data-ct-theme-preset=\"premium-dark\">…</html>\u001b[22m\n\u001b[2m       - unexpected value \"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[22m\n",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/\\/driver(?:$|\\/)/\u001b[39m\nReceived string:  \u001b[31m\"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[39m\nTimeout: 20000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 20000ms\u001b[22m\n\u001b[2m    43 × locator resolved to <html lang=\"fa\" dir=\"rtl\" class=\"ct-theme-ready\" data-ct-theme-base=\"dark\" data-ct-user-mode=\"system\" data-ct-resolved-mode=\"dark\" data-ct-theme-preset=\"premium-dark\">…</html>\u001b[22m\n\u001b[2m       - unexpected value \"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[22m\n",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/\\/driver(?:$|\\/)/\u001b[39m\nReceived string:  \u001b[31m\"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[39m\nTimeout: 20000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 20000ms\u001b[22m\n\u001b[2m    43 × locator resolved to <html lang=\"fa\" dir=\"rtl\" class=\"ct-theme-ready\" data-ct-theme-base=\"dark\" data-ct-user-mode=\"system\" data-ct-resolved-mode=\"dark\" data-ct-theme-preset=\"premium-dark\">…</html>\u001b[22m\n\u001b[2m       - unexpected value \"http://127.0.0.1:4173/login-otp?returnTo=%2Fdriver\"\u001b[22m\n",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    }
+  ]
+}

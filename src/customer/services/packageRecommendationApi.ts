@@ -4,6 +4,5 @@ export async function getApprovedPackagesForVehicle(carId?: string | null): Prom
   const packages = await getCarPackages();
   return (packages || [])
     .filter((pkg) => pkg.is_active !== false)
-    .filter((pkg) => !carId || !pkg.car_id || pkg.car_id === carId)
-    .filter((pkg) => (pkg.items || []).some((item) => item.product && item.product.stock > 0 && item.product.is_active !== false));
+    .filter((pkg) => !carId || !pkg.car_id || pkg.car_id === carId);
 }

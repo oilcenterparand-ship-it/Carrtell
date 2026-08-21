@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-08-19T13:28:50.150Z",
+  "startedAt": "2026-08-19T13:28:40.783Z",
+  "status": "passed",
+  "counts": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "feedbackCounts": {
+    "error": 0,
+    "warning": 1,
+    "info": 0
+  },
+  "tests": [
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 3449,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 1974,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 1992,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "warning",
+      "area": "customer/hamburger",
+      "route": "/shop",
+      "message": "پنل 95٪ عرض صفحه را گرفته و بیش از حد کشیده است.",
+      "details": {
+        "box": {
+          "x": -11.846540451049805,
+          "y": 10,
+          "width": 392.00001335144043,
+          "height": 523.59375
+        },
+        "viewport": {
+          "width": 412,
+          "height": 915
+        },
+        "wRatio": 0.9514563430860205
+      },
+      "test": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login"
+    }
+  ]
+}

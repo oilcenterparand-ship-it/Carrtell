@@ -1,3 +1,4 @@
+import { sendSmsByTemplate } from './smsApi';
 import { supabase } from '../../lib/supabase';
 
 export type LegacyDispatchStatus = 'pending' | 'approved' | 'dispatched' | 'on_way' | 'in_service' | 'working';
@@ -6,6 +7,7 @@ export type DispatchStatus =
   | 'pending_review'
   | 'confirmed'
   | 'assigned'
+  | 'accepted'
   | 'en_route'
   | 'arrived'
   | 'in_progress'
@@ -15,7 +17,8 @@ export type DispatchStatus =
 export const dispatchStatusLabels: Record<DispatchStatus, string> = {
   pending_review: 'در انتظار بررسی',
   confirmed: 'تأیید شده',
-  assigned: 'اختصاص داده‌شده',
+  assigned: 'منتظر قبول سرویس‌کار',
+  accepted: 'قبول شده',
   en_route: 'در مسیر مشتری',
   arrived: 'رسیده به محل',
   in_progress: 'در حال انجام سرویس',
@@ -62,6 +65,7 @@ export async function getDispatchRequests(status?: string) {
       pending_review: ['pending_review', 'pending'],
       confirmed: ['confirmed', 'approved'],
       assigned: ['assigned'],
+      accepted: ['accepted'],
       en_route: ['en_route', 'dispatched', 'on_way'],
       arrived: ['arrived'],
       in_progress: ['in_progress', 'in_service', 'working'],
@@ -85,16 +89,13 @@ export async function getDispatchRequests(status?: string) {
 }
 
 export async function getAvailableDrivers() {
-  const attempts = ['profiles', 'user_profiles', 'users'];
-  for (const table of attempts) {
-    const { data, error } = await supabase
-      .from(table)
-      .select('id, full_name, phone, role')
-      .eq('role', 'driver')
-      .order('full_name', { ascending: true });
-    if (!error) return data ?? [];
-  }
-  return [];
+  const { data, error } = await supabase
+    .from('service_technicians')
+    .select('id, full_name, phone, username, is_active')
+    .eq('is_active', true)
+    .order('full_name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function getFleetVehicles() {
@@ -140,6 +141,18 @@ export async function assignServiceRequest(
   const { data, error } = await supabase.from('service_requests').update(patch).eq('id', requestId).select().single();
   if (error) throw error;
   await logDispatchEvent(requestId, 'assign', undefined, 'assigned', { driverId, fleetVehicleId, scheduledAt });
+  if (driver?.phone) {
+    await sendSmsByTemplate({
+      phone: driver.phone,
+      template_key: 'technician_mission_assigned',
+      related_type: 'service_request',
+      related_id: requestId,
+      variables: {
+        customer_name: String((data as Record<string, any>)?.customer_name || 'مشتری'),
+        service_code: String((data as Record<string, any>)?.request_number || requestId.slice(0, 8)),
+      },
+    }).catch((smsError) => console.warn('technician assignment sms queue failed', smsError));
+  }
   return normalizeRow(data as Record<string, any>);
 }
 
@@ -159,11 +172,14 @@ export async function updateServiceStatus(requestId: string, status: DispatchSta
 }
 
 async function findDriver(driverId: string) {
-  for (const table of ['profiles', 'user_profiles', 'users']) {
-    const { data, error } = await supabase.from(table).select('id, full_name, phone').eq('id', driverId).maybeSingle();
-    if (!error && data) return data as { id: string; full_name?: string | null; phone?: string | null };
-  }
-  return null;
+  const { data, error } = await supabase
+    .from('service_technicians')
+    .select('id, full_name, phone')
+    .eq('id', driverId)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (error) throw error;
+  return data as { id: string; full_name?: string | null; phone?: string | null } | null;
 }
 
 export async function logDispatchEvent(
@@ -225,7 +241,7 @@ export async function getDriverTasks(driverId?: string) {
   let query = supabase
     .from('service_requests')
     .select('*')
-    .in('status', ['assigned', 'en_route', 'dispatched', 'on_way', 'arrived', 'in_progress', 'in_service', 'working'])
+    .in('status', ['assigned', 'accepted', 'en_route', 'dispatched', 'on_way', 'arrived', 'in_progress', 'in_service', 'working'])
     .order('created_at', { ascending: false });
   if (driverId) query = query.or(`assigned_driver_id.eq.${driverId},driver_id.eq.${driverId}`);
   const { data, error } = await query;

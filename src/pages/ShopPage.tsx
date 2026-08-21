@@ -6,15 +6,14 @@ import {
   ChevronDown,
   Droplets,
   Grid3X3,
-  Home,
   Heart,
   PackageCheck,
+  Minus,
   Plus,
   Search,
   SlidersHorizontal,
   ShoppingCart,
   Star,
-  User,
   RotateCcw,
   Wrench,
   X,
@@ -27,7 +26,7 @@ import { getHomeBanners, getHomeSections, getTodayShoppingSettings, type HomeBan
 import { defaultThemeSettings, getThemeSettings, type ThemeSettings } from '../admin/services/settingsApi';
 import { CARRTELL_APPEARANCE_EVENT, loadCarrtellAppearance, type CarrtellThemePresetId } from '../lib/appearanceThemes';
 import { applyHomepagePreset } from '../lib/homepageThemePresets';
-import { addProductToCart, readCart, type CartItem } from '../lib/cart';
+import { addProductToCart, changeCartQuantity, readCart, type CartItem } from '../lib/cart';
 import { onSelectedCustomerCarChange, readSelectedCustomerCar, saveSelectedCustomerCar } from '../customer/services/selectedCar';
 import { getApprovedProductReviewSummaries, type ProductReviewSummary } from '../admin/services/customerReviewsApi';
 import '../styles/carrtellFonts.css';
@@ -108,8 +107,9 @@ function getReadableTextColor(background?: string, fallback = '#0f172a') {
 }
 
 
-function productMatchesCar(product: Product, carId: string) {
+function productMatchesCar(product: Product | null | undefined, carId: string) {
   if (!carId || carId === 'all') return true;
+  if (!product) return false;
   return !!product.compatible_all_cars || (product.compatible_car_ids || []).includes(carId);
 }
 
@@ -137,7 +137,7 @@ function getCountdown(endsAt?: string) {
   };
 }
 
-export function ProductCard({ product, reservedQuantity, onAddToCart, compact = false, grid = false, theme = defaultThemeSettings, selectedCarId, ratingSummary }: { product: Product; reservedQuantity: number; onAddToCart: (product: Product) => void; compact?: boolean; grid?: boolean; theme?: ThemeSettings; selectedCarId?: string; ratingSummary?: ProductReviewSummary }) {
+export function ProductCard({ product, reservedQuantity, onAddToCart, onChangeQuantity, compact = false, grid = false, theme = defaultThemeSettings, selectedCarId, ratingSummary }: { product: Product; reservedQuantity: number; onAddToCart: (product: Product, origin?: any) => unknown; onChangeQuantity?: (product: Product, delta: number) => void; compact?: boolean; grid?: boolean; theme?: ThemeSettings; selectedCarId?: string; ratingSummary?: ProductReviewSummary }) {
   const isAvailable = isProductAvailable(product, reservedQuantity);
   const amazingActive = isAmazingActive(product);
   const finalPrice = getProductFinalPrice(product);
@@ -267,17 +267,25 @@ export function ProductCard({ product, reservedQuantity, onAddToCart, compact = 
             </div>
           </div>
 
-          <button
-            type="button"
-            disabled={!isAvailable}
-            onClick={(event) => { event.preventDefault(); event.stopPropagation(); onAddToCart(product); }}
-            className={`group/add flex h-9 shrink-0 items-center justify-center gap-1 overflow-hidden rounded-xl border px-2.5 text-[10px] font-black shadow-sm transition-all duration-300 active:scale-95 ${isAvailable ? 'hover:-translate-y-0.5 hover:shadow-lg' : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300'}`}
-            style={isAvailable ? { background: `linear-gradient(135deg, ${theme.addButtonBackground || theme.primaryColor}, #facc15)`, borderColor: theme.addButtonBackground || theme.primaryColor, color: '#171717' } : undefined}
-            aria-label="افزودن به سبد خرید"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            <span className="hidden xl:inline">افزودن</span>
-          </button>
+          {reservedQuantity > 0 ? (
+            <div className="ct-product-qty-control" aria-label="تعداد در سبد خرید">
+              <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onChangeQuantity?.(product, 1); }} disabled={reservedQuantity >= Number(product.stock || 0)} aria-label="افزایش تعداد"><Plus className="h-4 w-4" /></button>
+              <span>{new Intl.NumberFormat('fa-IR').format(reservedQuantity)}</span>
+              <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onChangeQuantity?.(product, -1); }} aria-label="کاهش تعداد"><Minus className="h-4 w-4" /></button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={!isAvailable}
+              onClick={(event) => { event.preventDefault(); event.stopPropagation(); onAddToCart(product, event.currentTarget); }}
+              className={`group/add flex h-9 shrink-0 items-center justify-center gap-1 overflow-hidden rounded-xl border px-2.5 text-[10px] font-black shadow-sm transition-all duration-300 active:scale-95 ${isAvailable ? 'hover:-translate-y-0.5 hover:shadow-lg' : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300'}`}
+              style={isAvailable ? { background: `linear-gradient(135deg, ${theme.addButtonBackground || theme.primaryColor}, #facc15)`, borderColor: theme.addButtonBackground || theme.primaryColor, color: '#171717' } : undefined}
+              aria-label="افزودن به سبد خرید"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              <span className="hidden xl:inline">افزودن</span>
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -322,7 +330,7 @@ export default function ShopPage() {
     document.documentElement.classList.add('ct-shop-route');
     return () => document.documentElement.classList.remove('ct-shop-route');
   }, []);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [packages, setPackages] = useState<CarPackage[]>([]);
@@ -343,6 +351,7 @@ export default function ShopPage() {
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showCarFilter, setShowCarFilter] = useState(false);
   const [carFilterSearch, setCarFilterSearch] = useState('');
+  const [carFilterBrand, setCarFilterBrand] = useState('');
   const [cart, setCart] = useState<Record<string, CartItem>>(() => readCart());
   const [nowTick, setNowTick] = useState(0);
   const [theme, setTheme] = useState<ThemeSettings>(defaultThemeSettings);
@@ -364,7 +373,7 @@ export default function ShopPage() {
           getTodayShoppingSettings(),
           getApprovedProductReviewSummaries().catch(() => ({})),
         ]);
-        setProducts(productsData.filter((p) => p.is_active));
+        setProducts((productsData || []).filter((p) => Boolean(p && typeof p === 'object' && p.is_active)));
         setCars(carsData.filter((car) => car.is_active !== false));
         setPackages(packagesData.filter((pkg) => pkg.is_active !== false));
         setCategories(categoriesData.filter((category) => category.is_active !== false));
@@ -407,7 +416,28 @@ export default function ShopPage() {
     setSearch(searchParams.get('q') || '');
     const category = searchParams.get('category');
     if (category) setActiveCategory(category);
+    if (searchParams.get('view') === 'categories') setShowCategoryMenu(true);
   }, [searchParams]);
+
+  function closeCategoryMenu() {
+    setShowCategoryMenu(false);
+    if (searchParams.get('view') === 'categories') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('view');
+      setSearchParams(next, { replace: true });
+    }
+  }
+
+  function chooseCategory(category: string) {
+    setActiveCategory(category);
+    const next = new URLSearchParams(searchParams);
+    next.delete('view');
+    if (category === 'all') next.delete('category');
+    else next.set('category', category);
+    setSearchParams(next, { replace: true });
+    setShowCategoryMenu(false);
+    window.requestAnimationFrame(() => document.querySelector('.ct-shop-compact-categories')?.scrollIntoView({ block: 'start' }));
+  }
 
   useEffect(() => {
     const syncCart = () => setCart(readCart());
@@ -536,15 +566,41 @@ export default function ShopPage() {
   }
 
   const cartItems = Object.values(cart);
-  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartCount = cartItems.reduce((sum, item) => { const q = Number(item?.quantity); return sum + (Number.isFinite(q) && q > 0 ? q : 0); }, 0);
 
-  function addToCart(product: Product) {
+  function animateToCart(origin?: HTMLElement | null, product?: Product) {
+    if (!origin || typeof document === 'undefined') return;
+    const target = document.querySelector('.ct-new-cart-button') as HTMLElement | null;
+    if (!target) return;
+    const from = origin.getBoundingClientRect();
+    const to = target.getBoundingClientRect();
+    const flyer = document.createElement('div');
+    flyer.className = 'ct-cart-flyer';
+    if (product?.image_url) { const img = document.createElement('img'); img.src = product.image_url; flyer.appendChild(img); } else { flyer.textContent = '🛒'; }
+    flyer.style.left = `${from.left + from.width / 2 - 18}px`;
+    flyer.style.top = `${from.top + from.height / 2 - 18}px`;
+    document.body.appendChild(flyer);
+    requestAnimationFrame(() => {
+      flyer.style.transform = `translate(${to.left + to.width / 2 - (from.left + from.width / 2)}px, ${to.top + to.height / 2 - (from.top + from.height / 2)}px) scale(.35)`;
+      flyer.style.opacity = '0.25';
+    });
+    window.setTimeout(() => flyer.remove(), 650);
+  }
+
+  function addToCart(product: Product, origin?: HTMLElement | null) {
     const result = addProductToCart(product, 1);
     if (!result.ok) {
       alert(result.message);
       return;
     }
+    animateToCart(origin, product);
     setCart(result.cart || readCart());
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent('carrtell-cart-open')), 420);
+  }
+
+  function changeQuantity(product: Product, delta: number) {
+    changeCartQuantity(product, delta);
+    setCart(readCart());
   }
 
 
@@ -565,12 +621,12 @@ export default function ShopPage() {
   return (
     <main className="ct-shop-page min-h-screen pb-20 pt-0 md:pb-0" style={{ background: theme.backgroundColor, color: theme.textColor, fontFamily: theme.fontFamily }}>
       {showCategoryMenu && (
-        <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setShowCategoryMenu(false)}>
-          <div className="h-full w-[82%] max-w-sm overflow-y-auto p-5 shadow-2xl" style={{ background: theme.surfaceColor, color: categoryPanelTextColor }} onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6 flex items-center justify-between"><b>دسته‌بندی‌ها</b><button onClick={() => setShowCategoryMenu(false)}><X /></button></div>
+        <div className="ct-shop-category-modal fixed inset-0 z-[100100] bg-black/70" onClick={closeCategoryMenu} data-testid="mobile-category-modal">
+          <div className="ct-shop-category-sheet h-full w-[82%] max-w-sm overflow-y-auto p-5 shadow-2xl" style={{ background: theme.surfaceColor, color: categoryPanelTextColor }} onClick={(e) => e.stopPropagation()}>
+            <div className="ct-shop-category-sheet-head mb-6 flex items-center justify-between"><div><b>دسته‌بندی محصولات</b><p>دسته موردنظرت را انتخاب کن</p></div><button type="button" onClick={closeCategoryMenu} aria-label="بستن دسته‌بندی‌ها"><X /></button></div>
             <div className="max-h-[calc(100vh-100px)] space-y-2 overflow-y-auto pl-1">
-              <button onClick={() => { setActiveCategory('all'); setShowCategoryMenu(false); }} className="w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.productFilterBackground, color: theme.productFilterTextColor, borderColor: theme.cardBorderColor }}>همه محصولات</button>
-              {categoryOptions.map((category) => <button key={category.slug} onClick={() => { setActiveCategory(category.slug); setShowCategoryMenu(false); }} className="w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.searchBackground, color: searchTextColor }}>{category.title}</button>)}
+              <button onClick={() => chooseCategory('all')} className="ct-shop-category-choice w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.productFilterBackground, color: theme.productFilterTextColor, borderColor: theme.cardBorderColor }}><span className="ct-shop-category-choice-icon"><Grid3X3 /></span><span>همه محصولات</span><ArrowLeft /></button>
+              {categoryOptions.map((category) => <button key={category.slug} onClick={() => chooseCategory(category.slug)} className="ct-shop-category-choice w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.searchBackground, color: searchTextColor }}><span className="ct-shop-category-choice-icon"><CategoryQuickIcon category={category} /></span><span>{category.title}</span><ArrowLeft /></button>)}
             </div>
           </div>
         </div>
@@ -594,13 +650,18 @@ export default function ShopPage() {
       )}
 
       {showCarFilter && (
-        <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setShowCarFilter(false)}>
-          <div className="mr-auto h-full w-[88%] max-w-md overflow-auto p-5 shadow-2xl" style={{ background: theme.surfaceColor, color: surfaceTextColor }} onClick={(e) => e.stopPropagation()}>
-            <div className="mb-5 flex items-center justify-between"><b>انتخاب خودرو</b><button onClick={() => setShowCarFilter(false)}><X /></button></div>
-            <div className="relative mb-4"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={carFilterSearch} onChange={(e) => setCarFilterSearch(e.target.value)} placeholder="جستجوی خودرو..." className="w-full rounded-2xl border py-3 pl-4 pr-10 text-sm" style={{ background: theme.productFilterBackground, color: theme.productFilterTextColor, borderColor: theme.cardBorderColor }} /></div>
-            <button onClick={() => { setActiveCarId('all'); saveSelectedCustomerCar(null); setShowCarFilter(false); }} className="mb-4 w-full rounded-2xl px-4 py-3 text-right text-sm font-black" style={{ background: theme.carFilterButtonBackground, color: getReadableTextColor(theme.carFilterButtonBackground, '#0f172a') }}>همه خودروها</button>
-            {Object.entries(groupedCars).map(([brand, brandCars]) => <div key={brand} className="mb-4"><h3 className="mb-2 rounded-xl px-3 py-2 text-xs font-black" style={{ background: theme.searchBackground, color: theme.tabActiveColor }}>{brand}</h3>{brandCars.map((car) => <button key={car.id} onClick={() => { setActiveCarId(car.id!); saveSelectedCustomerCar(car); setShowCarFilter(false); }} className="mb-2 w-full rounded-2xl px-4 py-3 text-right text-sm font-bold" style={{ background: theme.searchBackground, color: searchTextColor }}>{getCarTitle(car)}</button>)}</div>)}
-          </div>
+        <div className="ct-shop-car-picker-backdrop fixed inset-0 z-[100000] flex items-center justify-center bg-black/70 p-3" onClick={() => setShowCarFilter(false)}>
+          <section className="ct-shop-car-picker w-full max-w-md overflow-hidden rounded-[1.6rem] border border-amber-400/70 shadow-2xl" style={{ background: theme.surfaceColor, color: surfaceTextColor }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b p-4" style={{borderColor: theme.cardBorderColor}}><div><b className="text-lg">انتخاب خودرو</b><p className="mt-1 text-xs opacity-60">ابتدا سازنده، سپس مدل خودرو را انتخاب کنید.</p></div><button className="grid h-10 w-10 place-items-center rounded-xl border" style={{borderColor: theme.cardBorderColor}} onClick={() => setShowCarFilter(false)}><X className="h-5 w-5" /></button></div>
+            <div className="grid gap-3 p-4">
+              <label className="grid gap-1.5 text-xs font-black"><span>۱. شرکت سازنده</span><select value={carFilterBrand} onChange={(e) => { setCarFilterBrand(e.target.value); setCarFilterSearch(''); }} className="h-12 rounded-xl border px-3 text-sm outline-none" style={{background:theme.searchBackground,color:searchTextColor,borderColor:theme.cardBorderColor}}><option value="">همه سازنده‌ها</option>{Object.keys(groupedCars).sort((a,b)=>a.localeCompare(b,'fa')).map(brand=><option key={brand} value={brand}>{brand}</option>)}</select></label>
+              <div className="relative"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-400" /><input value={carFilterSearch} onChange={(e) => setCarFilterSearch(e.target.value)} placeholder="۲. نام مدل؛ مثلاً پراید..." className="h-12 w-full rounded-xl border py-3 pl-4 pr-10 text-sm outline-none" style={{ background: theme.productFilterBackground, color: theme.productFilterTextColor, borderColor: theme.cardBorderColor }} /></div>
+            </div>
+            <div className="ct-shop-car-picker-list max-h-[42dvh] overflow-y-auto px-4 pb-4">
+              <button onClick={() => { setActiveCarId('all'); saveSelectedCustomerCar(null); setShowCarFilter(false); }} className="mb-2 w-full rounded-xl px-4 py-3 text-right text-sm font-black" style={{ background: theme.carFilterButtonBackground, color: getReadableTextColor(theme.carFilterButtonBackground, '#0f172a') }}>همه خودروها</button>
+              {Object.entries(groupedCars).filter(([brand]) => !carFilterBrand || brand === carFilterBrand).map(([brand, brandCars]) => { const q=carFilterSearch.trim().toLocaleLowerCase('fa'); const list=brandCars.filter(car=>!q || getCarTitle(car).toLocaleLowerCase('fa').includes(q) || String(car.model||'').toLocaleLowerCase('fa').includes(q)); if(!list.length)return null; return <div key={brand} className="mb-3"><h3 className="sticky top-0 mb-2 rounded-lg px-3 py-2 text-xs font-black" style={{ background: theme.searchBackground, color: theme.tabActiveColor }}>{brand}</h3>{list.map((car) => <button key={car.id} onClick={() => { setActiveCarId(car.id!); saveSelectedCustomerCar(car); setShowCarFilter(false); }} className="mb-2 w-full rounded-xl border px-4 py-3 text-right text-sm font-bold" style={{ background: theme.searchBackground, color: searchTextColor,borderColor:theme.cardBorderColor }}>{getCarTitle(car)}</button>)}</div>})}
+            </div>
+          </section>
         </div>
       )}
 
@@ -861,6 +922,7 @@ export default function ShopPage() {
                   product={product}
                   reservedQuantity={product.id ? reservedQuantityByProductId[product.id] || 0 : 0}
                   onAddToCart={addToCart}
+                  onChangeQuantity={changeQuantity}
                   grid
                   theme={theme}
                   selectedCarId={activeCarId !== 'all' ? activeCarId : undefined}
@@ -875,14 +937,6 @@ export default function ShopPage() {
 
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 px-4 py-2 backdrop-blur-xl md:hidden" style={{ background: theme.footerBackground, fontFamily: theme.footerFontFamily || theme.fontFamily }}>
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-2 text-slate-500">
-          <Link to="/" className="flex flex-col items-center gap-1 rounded-2xl p-2 hover:text-pink-600"><Home className="h-6 w-6" /></Link>
-          <button onClick={() => setShowCategoryMenu(true)} className="flex flex-col items-center gap-1 rounded-2xl p-2 hover:text-pink-600"><Grid3X3 className="h-6 w-6" /></button>
-          <Link to="/cart" className="relative flex flex-col items-center gap-1 rounded-2xl p-2 hover:text-pink-600"><ShoppingCart className="h-6 w-6" />{cartCount > 0 && <span className="absolute right-6 top-1 rounded-full bg-pink-600 px-1.5 text-[10px] font-black text-white">{cartCount}</span>}</Link>
-          <Link to="/dashboard" className="flex flex-col items-center gap-1 rounded-2xl p-2 hover:text-pink-600"><User className="h-6 w-6" /></Link>
-        </div>
-      </nav>
     </main>
   );
 }

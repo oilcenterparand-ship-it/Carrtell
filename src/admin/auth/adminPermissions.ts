@@ -42,7 +42,7 @@ export function permissionForAdminPath(path: string): AdminPermission | null {
   if (path.startsWith('/admin/support') || path.startsWith('/admin/notifications')) return 'support.view';
   if (path.startsWith('/admin/blog') || path.startsWith('/admin/seo') || path.startsWith('/admin/home-content') || path.startsWith('/admin/appearance')) return 'content.view';
   if (path.startsWith('/admin/dispatch') || path.startsWith('/admin/service-') || path.startsWith('/admin/operations-center') || path.startsWith('/admin/branches')) return 'dispatch.view';
-  if (path.startsWith('/admin/staff')) return 'staff.view';
+  if (path.startsWith('/admin/staff') || path.startsWith('/admin/technicians')) return 'staff.view';
   if (path.startsWith('/admin/roles')) return 'roles.view';
   if (path.startsWith('/admin/audit')) return 'audit.view';
   if (path.startsWith('/admin/settings') || path.startsWith('/admin/system-') || path.startsWith('/admin/diagnostics') || path.startsWith('/admin/route-') || path.startsWith('/admin/navigation-') || path.startsWith('/admin/sms-')) return 'settings.view';

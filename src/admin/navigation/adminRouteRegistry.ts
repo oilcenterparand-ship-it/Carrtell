@@ -53,6 +53,7 @@ export const adminRouteRegistry: AdminRouteGroup[] = [
       { title: 'درخواست‌های سرویس', path: '/admin/service-requests' },
       { title: 'مرکز اعزام Dispatch', path: '/admin/dispatch' },
       { title: 'شعب', path: '/admin/branches' },
+      { title: 'سرویس‌کارها', path: '/admin/technicians' },
       { title: 'ناوگان سرویس', path: '/admin/service-fleet' },
     ],
   },

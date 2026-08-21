@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-08-19T12:50:00.155Z",
+  "startedAt": "2026-08-19T12:49:46.599Z",
+  "status": "passed",
+  "counts": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 1
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2372,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › booking page has no horizontal overflow and cart/selection overlay locks background",
+      "status": "passed",
+      "durationMs": 1853,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "skipped",
+      "durationMs": 265,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2703,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking page has no horizontal overflow and cart/selection overlay locks background",
+      "status": "passed",
+      "durationMs": 1860,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 1756,
+      "project": ""
+    }
+  ],
+  "feedback": []
+}

@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase';
 
-export type DriverJobStatus = 'assigned' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
+export type DriverJobStatus = 'assigned' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
 
 export type DriverJob = {
   id: string;
@@ -25,6 +25,8 @@ export type DriverJob = {
   preferred_date?: string | null;
   preferred_time?: string | null;
   assigned_at?: string | null;
+  accepted_at?: string | null;
+  service_started_at?: string | null;
   started_at?: string | null;
   arrived_at?: string | null;
   completed_at?: string | null;
@@ -125,6 +127,7 @@ export async function updateDriverJobStatus(id: string, status: DriverJobStatus)
   const now = new Date().toISOString();
   if (isTestJobId(id)) {
     const updated = { ...getStoredTestJob(), status } as DriverJob;
+    if (status === 'accepted') updated.accepted_at = now;
     if (status === 'en_route') updated.started_at = now;
     if (status === 'arrived') updated.arrived_at = now;
     if (status === 'completed') updated.completed_at = now;
@@ -132,6 +135,7 @@ export async function updateDriverJobStatus(id: string, status: DriverJobStatus)
     return updated;
   }
   const patch: Record<string, unknown> = { status, updated_at: now };
+  if (status === 'accepted') patch.accepted_at = now;
   if (status === 'en_route') patch.started_at = now;
   if (status === 'arrived') patch.arrived_at = now;
   if (status === 'in_progress') patch.service_started_at = now;
@@ -196,12 +200,14 @@ function parseUsedProducts(value?: string) {
 }
 
 export const driverStatusLabels: Record<string, string> = {
-  pending_review: 'در انتظار بررسی', pending: 'در انتظار بررسی', confirmed: 'تأیید شده', approved: 'تأیید شده', assigned: 'اختصاص داده‌شده', en_route: 'در مسیر مشتری', on_way: 'در مسیر مشتری', dispatched: 'در مسیر مشتری', arrived: 'رسیده به محل', in_progress: 'در حال انجام سرویس', working: 'در حال انجام سرویس', in_service: 'در حال انجام سرویس', completed: 'تکمیل شده', cancelled: 'لغو شده',
+  pending_review: 'در انتظار بررسی', pending: 'در انتظار بررسی', confirmed: 'تأیید شده', approved: 'تأیید شده', assigned: 'ماموریت جدید', accepted: 'قبول شده', en_route: 'در مسیر مشتری', on_way: 'در مسیر مشتری', dispatched: 'در مسیر مشتری', arrived: 'رسیده به محل', in_progress: 'در حال انجام سرویس', working: 'در حال انجام سرویس', in_service: 'در حال انجام سرویس', completed: 'تکمیل شده', cancelled: 'لغو شده',
 };
 
 export function getNextDriverAction(status?: string | null): DriverJobStatus | null {
   const normalized = normalizeStatus(status);
-  if (!normalized || normalized === 'confirmed' || normalized === 'assigned') return 'en_route';
+  if (!normalized || normalized === 'confirmed') return 'accepted';
+  if (normalized === 'assigned') return 'accepted';
+  if (normalized === 'accepted') return 'en_route';
   if (normalized === 'en_route') return 'arrived';
   if (normalized === 'arrived') return 'in_progress';
   return null;
@@ -209,6 +215,7 @@ export function getNextDriverAction(status?: string | null): DriverJobStatus | n
 
 export function getDriverActionLabel(status?: string | null) {
   const next = getNextDriverAction(status);
+  if (next === 'accepted') return 'قبول ماموریت';
   if (next === 'en_route') return 'شروع حرکت';
   if (next === 'arrived') return 'رسیدم به محل';
   if (next === 'in_progress') return 'شروع سرویس';
