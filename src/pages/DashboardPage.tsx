@@ -30,7 +30,7 @@ import { getOrderItems, getOrdersByPhone, type Order } from '../admin/services/o
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import { useAuth } from '../auth/AuthProvider';
 import { deleteCurrentCustomerAccount, setCustomerCredentials } from '../auth/authApi';
-import { requestOtp, verifyOtp } from '../services/smsOtpApi';
+import { friendlyOtpRequestError, requestOtpWithRetry, verifyOtp } from '../services/smsOtpApi';
 import {
   buildReminders,
   deleteCustomerVehicle,
@@ -178,7 +178,7 @@ export default function DashboardPage() {
   const [credentialConfirm, setCredentialConfirm] = useState('');
   const [credentialBusy, setCredentialBusy] = useState(false);
   const [credentialNotice, setCredentialNotice] = useState('');
-  const [deleteStep, setDeleteStep] = useState<'idle' | 'otp'>('idle');
+  const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm' | 'otp'>('idle');
   const [deleteOtp, setDeleteOtp] = useState('');
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteNotice, setDeleteNotice] = useState('');
@@ -206,14 +206,16 @@ export default function DashboardPage() {
 
   async function requestAccountDeleteOtp() {
     if (!form.phone) return setDeleteNotice('شماره موبایل حساب پیدا نشد.');
-    if (!window.confirm('حذف حساب دائمی است. برای ادامه کد تأیید پیامکی ارسال شود؟')) return;
     setDeleteBusy(true); setDeleteNotice('');
     try {
-      await requestOtp(form.phone);
+      await requestOtpWithRetry(form.phone);
       setDeleteStep('otp');
-      setDeleteNotice('کد تأیید به شماره حساب ارسال شد.');
-    } catch (error) { setDeleteNotice(error instanceof Error ? error.message : 'ارسال کد انجام نشد.'); }
-    finally { setDeleteBusy(false); }
+      setDeleteOtp('');
+      setDeleteNotice('کد تأیید ارسال شد. کد را وارد کنید تا حذف نهایی انجام شود.');
+    } catch (error) {
+      setDeleteStep('confirm');
+      setDeleteNotice(friendlyOtpRequestError(error));
+    } finally { setDeleteBusy(false); }
   }
 
   async function confirmAccountDeletion() {
@@ -590,12 +592,19 @@ export default function DashboardPage() {
 
           <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">
             <div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" /><div><h2 className="font-black text-rose-900">حذف حساب کاربری</h2><p className="mt-1 text-sm leading-6 text-rose-700">اطلاعات شخصی و دسترسی حساب حذف می‌شود. سوابق مالی لازم فقط به‌صورت ناشناس نگهداری می‌شود.</p></div></div>
-            {deleteStep === 'idle' ? (
-              <button type="button" onClick={() => void requestAccountDeleteOtp()} disabled={deleteBusy} className="mt-4 rounded-2xl border border-rose-300 bg-white px-5 py-3 text-sm font-black text-rose-700 disabled:opacity-50">{deleteBusy ? 'در حال ارسال کد...' : 'حذف حساب با تأیید پیامکی'}</button>
-            ) : (
+            {deleteStep === 'idle' && (
+              <button type="button" onClick={() => { setDeleteStep('confirm'); setDeleteNotice(''); }} disabled={deleteBusy} className="mt-4 rounded-2xl border border-rose-300 bg-white px-5 py-3 text-sm font-black text-rose-700 disabled:opacity-50">حذف حساب کاربری</button>
+            )}
+            {deleteStep === 'confirm' && (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-white/80 p-4">
+                <p className="text-sm font-bold leading-7 text-rose-800">این کار دائمی است. برای ادامه، یک کد تأیید به شماره حساب شما ارسال می‌شود.</p>
+                <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void requestAccountDeleteOtp()} disabled={deleteBusy} className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{deleteBusy ? 'در حال ارسال...' : 'ارسال کد و ادامه'}</button><button type="button" onClick={() => { setDeleteStep('idle'); setDeleteNotice(''); }} disabled={deleteBusy} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">انصراف</button></div>
+              </div>
+            )}
+            {deleteStep === 'otp' && (
               <div className="mt-4 space-y-3">
                 <input inputMode="numeric" autoComplete="one-time-code" value={deleteOtp} onChange={(e) => setDeleteOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="کد ۶ رقمی تأیید" className={fieldClass} />
-                <div className="flex gap-2"><button type="button" onClick={() => void confirmAccountDeletion()} disabled={deleteBusy || deleteOtp.length < 4} className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{deleteBusy ? 'در حال حذف...' : 'تأیید و حذف دائمی'}</button><button type="button" onClick={() => { setDeleteStep('idle'); setDeleteOtp(''); setDeleteNotice(''); }} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">انصراف</button></div>
+                <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void confirmAccountDeletion()} disabled={deleteBusy || deleteOtp.length < 6} className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{deleteBusy ? 'در حال حذف...' : 'تأیید و حذف دائمی'}</button><button type="button" onClick={() => void requestAccountDeleteOtp()} disabled={deleteBusy} className="rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm font-bold text-rose-700">ارسال مجدد کد</button><button type="button" onClick={() => { setDeleteStep('idle'); setDeleteOtp(''); setDeleteNotice(''); }} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">انصراف</button></div>
               </div>
             )}
             {deleteNotice && <p className="mt-3 text-sm font-bold text-rose-700">{deleteNotice}</p>}

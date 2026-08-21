@@ -66,6 +66,7 @@ if ($Mode -eq "PERSONAS") {
   Run-Step "PRODUCTION BROWSER + SERVICE WORKER" "npx playwright test -c playwright.production.config.ts"
   Run-Step "PERSONA QA - CUSTOMER + ADMIN + TECHNICIAN" "npx playwright test -c playwright.persona.config.ts"
   Run-Step "BOOKING PRE-PAYMENT OTP REGRESSION" "npx playwright test tests/e2e/critical-user-journeys-v23.spec.ts -g 'service -> vehicle -> compatible product/package -> time -> address -> payment works' --project=desktop-chrome --workers=1"
+  Run-Step "AUTH + SUPPORT + ACCOUNT DELETE REGRESSION" "npx playwright test tests/e2e/auth-account-regression-v2319.spec.ts --project=android-chrome --workers=1"
   Write-Host "Report: reports\carrtell-agent\latest.md" -ForegroundColor Yellow
   exit 0
 }

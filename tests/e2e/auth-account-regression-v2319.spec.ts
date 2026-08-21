@@ -119,6 +119,7 @@ test.describe('Carrtell v2.3.19 auth/account regression', () => {
     });
 
     await page.goto('/login-otp');
+    await page.getByPlaceholder('نام و نام خانوادگی').fill('زهرا تست');
     await page.getByPlaceholder('شماره موبایل؛ 09xxxxxxxxx').fill('09121234567');
     const sendButton = page.getByRole('button', { name: 'دریافت کد ورود' });
     await sendButton.evaluate((button: HTMLButtonElement) => {
@@ -129,6 +130,50 @@ test.describe('Carrtell v2.3.19 auth/account regression', () => {
     await expect(page.getByLabel('کد تأیید شش رقمی')).toBeVisible();
     expect(otpRequests).toBe(1);
     await expect(page.getByRole('button', { name: /ارسال مجدد/ })).toBeDisabled();
+  });
+
+  test('OTP retries one transient send failure and still opens the code box', async ({ page }) => {
+    let otpRequests = 0;
+    await page.route('**/auth/v1/otp*', async (route) => {
+      otpRequests += 1;
+      if (otpRequests === 1) {
+        return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'temporary sms provider failure' }) });
+      }
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    });
+    await page.goto('/login-otp');
+    await page.getByPlaceholder('نام و نام خانوادگی').fill('زهرا تست');
+    await page.getByPlaceholder('شماره موبایل؛ 09xxxxxxxxx').fill('09121234567');
+    await page.getByRole('button', { name: 'دریافت کد ورود' }).click();
+    await expect(page.getByLabel('کد تأیید شش رقمی')).toBeVisible({ timeout: 5000 });
+    expect(otpRequests).toBe(2);
+  });
+
+  test('authenticated mobile nav greets the customer by first name', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'desktop-chrome', 'mobile navigation greeting');
+    await authenticateCustomer(page);
+    await page.goto('/');
+    await expect(page.getByText('سلام کاربر', { exact: true })).toBeVisible();
+  });
+
+  test('support button uses support identity and does not cover standalone booking', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'desktop-chrome', 'mobile support placement');
+    await page.goto('/shop');
+    const support = page.getByRole('link', { name: 'پشتیبانی' });
+    await expect(support).toBeVisible();
+    await expect(support).toHaveAttribute('href', '/profile/support');
+    await page.goto('/book');
+    await expect(page.locator('.ct-support-button')).toBeHidden();
+  });
+
+  test('account deletion uses an inline confirmation step before sending OTP', async ({ page }) => {
+    await authenticateCustomer(page);
+    await page.goto('/dashboard#profile');
+    const deleteButton = page.getByRole('button', { name: 'حذف حساب کاربری' });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
+    await expect(page.getByText('این کار دائمی است. برای ادامه، یک کد تأیید به شماره حساب شما ارسال می‌شود.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ارسال کد و ادامه' })).toBeVisible();
   });
 
   test('booking OTP uses a real OTP request and exposes resend after accepted request', async ({ page }) => {

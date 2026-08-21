@@ -88,6 +88,8 @@ export default function Header() {
   const navigate = useNavigate();
   const { role, user, loading: authLoading, signOut } = useAuth();
   const showGlobalSearch = location.pathname === '/' || location.pathname === '/shop';
+  const loginReturnTo = `${location.pathname}${location.search}${location.hash}`;
+  const loginTo = `/login-otp?returnTo=${encodeURIComponent(loginReturnTo)}`;
   const showStorefrontBars = false; // Category/vehicle rail is owned by storefront pages; never render it on checkout/account/product flows.
 
   const keepDrawerMegaOpen = () => {
@@ -482,7 +484,7 @@ export default function Header() {
 
           <div className="ct-new-actions">
             {!authLoading && !user && (
-              <Link to="/login-otp" className="ct-new-action-button ct-new-login-button" title="ورود یا ثبت‌نام" data-testid="header-login-button">
+              <Link to={loginTo} className="ct-new-action-button ct-new-login-button" title="ورود یا ثبت‌نام" data-testid="header-login-button">
                 <CircleUserRound className="h-5 w-5" />
                 <span>ورود</span>
               </Link>

@@ -78,6 +78,22 @@ export async function getCurrentCarrtellUser(): Promise<CarrtellAuthUser | null>
   return { id: user.id, phone: profile?.phone || user.phone || null, email: user.email || null, role: normalizeRole(profile?.role), fullName: profile?.full_name || null, username: profile?.username || null };
 }
 
+export async function saveCustomerDisplayName(fullName: string) {
+  const clean = String(fullName || '').replace(/\s+/g, ' ').trim();
+  if (clean.length < 2) throw new Error('نام و نام خانوادگی را وارد کنید.');
+  const { data: sessionData } = await supabase.auth.getSession();
+  const authUser = sessionData.session?.user;
+  if (!authUser) throw new Error('برای ذخیره نام ابتدا ورود را تکمیل کنید.');
+  const { data: existing } = await supabase.from('profiles').select('id').eq('id', authUser.id).maybeSingle();
+  const payload = { full_name: clean, phone: authUser.phone || null };
+  const result = existing?.id
+    ? await supabase.from('profiles').update(payload).eq('id', authUser.id)
+    : await supabase.from('profiles').upsert({ id: authUser.id, role: 'customer', ...payload }, { onConflict: 'id' });
+  if (result.error) throw result.error;
+  emitAuthChanged();
+  return clean;
+}
+
 
 export async function setCustomerCredentials(username: string, password: string) {
   const cleanUsername = String(username || '').trim().toLowerCase();

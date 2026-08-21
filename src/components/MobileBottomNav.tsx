@@ -37,6 +37,12 @@ export default function MobileBottomNav() {
     [location.hash, location.pathname, location.search, user],
   );
 
+  const accountLabel = useMemo(() => {
+    if (!user) return 'حساب';
+    const firstName = String(user.fullName || '').trim().split(/\s+/).filter(Boolean)[0];
+    return firstName ? `سلام ${firstName}` : 'حساب من';
+  }, [user]);
+
   const hidden = location.pathname.startsWith('/admin')
     || location.pathname.startsWith('/driver')
     || location.pathname === '/login-otp'
@@ -58,7 +64,7 @@ export default function MobileBottomNav() {
       })}
       <NavLink to={accountTo} className={location.pathname === '/dashboard' && location.hash !== '#orders' ? 'is-active' : ''} aria-current={location.pathname === '/dashboard' && location.hash !== '#orders' ? 'page' : undefined}>
         <span className="ct-mobile-nav-icon"><UserRound aria-hidden="true" /></span>
-        <span className="ct-mobile-nav-label">حساب</span>
+        <span className="ct-mobile-nav-label">{accountLabel}</span>
       </NavLink>
     </nav>
   );

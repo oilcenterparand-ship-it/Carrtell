@@ -270,6 +270,7 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     const review = page.locator('[data-booking-step="review"]');
     await expect(review).toBeVisible();
     await expect(review.getByText('توضیحات برای سرویس‌کار')).toBeVisible();
+    await expect(review.getByPlaceholder(/توضیحات لازم برای آدرس‌دهی بهتر/)).toBeVisible();
     await expect(review.getByText('تأیید شماره برای پرداخت')).toBeVisible();
     await expect(page.getByRole('button', { name: 'ابتدا شماره را تأیید کنید' })).toBeDisabled();
     await review.getByPlaceholder('09xxxxxxxxx').fill('09121234567');

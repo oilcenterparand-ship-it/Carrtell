@@ -30,8 +30,8 @@ import { createServiceRequest } from '../customer/services/serviceRequestsApi';
 import { getApprovedPackagesForVehicle } from '../customer/services/packageRecommendationApi';
 import type { CarPackage } from '../admin/services/packagesApi';
 import { useAuth } from '../auth/AuthProvider';
-import { verifyMobileOtp } from '../auth/authApi';
-import { requestOtp } from '../services/smsOtpApi';
+import { saveCustomerDisplayName, verifyMobileOtp } from '../auth/authApi';
+import { friendlyOtpRequestError, requestOtpWithRetry } from '../services/smsOtpApi';
 import MapLocationPicker from '../components/MapLocationPicker';
 import { saveSelectedCustomerCar } from '../customer/services/selectedCar';
 import {
@@ -492,7 +492,7 @@ export default function BookPage() {
     }
     setOtpBusy(true);
     try {
-      await requestOtp(customerPhone.trim());
+      await requestOtpWithRetry(customerPhone.trim());
       setOtpSent(true);
       setOtpSkipped(false);
       setOtpSkipAvailable(false);
@@ -500,9 +500,11 @@ export default function BookPage() {
       setOtpResendIn(60);
       setOtpMessage('درخواست پیامک با موفقیت پذیرفته شد. کد تأیید را پس از دریافت وارد کنید.');
     } catch (e) {
-      setOtpSkipAvailable(true);
-      setOtpMessage('پیامک در دسترس نیست؛ برای جلوگیری از توقف رزرو می‌توانید بدون کد ادامه دهید.');
-      setError(e instanceof Error ? e.message : 'ارسال کد تأیید انجام نشد.');
+      setOtpSent(false);
+      setOtpSkipAvailable(false);
+      setOtpResendIn(0);
+      setOtpMessage('ارسال کد انجام نشد. دوباره روی «ارسال کد» بزنید.');
+      setError(friendlyOtpRequestError(e));
     } finally {
       setOtpBusy(false);
     }
@@ -514,6 +516,7 @@ export default function BookPage() {
     setOtpBusy(true);
     try {
       await verifyMobileOtp(customerPhone.trim(), otpCode.trim());
+      if (customerName.trim()) await saveCustomerDisplayName(customerName.trim());
       setPhoneVerified(true); setOtpSkipped(false); setOtpSkipAvailable(false); setOtpMessage('شماره موبایل با موفقیت تأیید شد.');
     } catch (e) { setError(e instanceof Error ? e.message : 'کد تأیید صحیح نیست.'); }
     finally { setOtpBusy(false); }
@@ -696,7 +699,7 @@ export default function BookPage() {
                     <p><span className="text-slate-500">انتخاب‌ها:</span> <b className="text-slate-900">{selectedServices.length.toLocaleString('fa-IR')} خدمت{selectedProducts.length ? ` + ${selectedProducts.length.toLocaleString('fa-IR')} کالا` : ''}</b></p>
                   </div>
                 </div>
-                <label className="block space-y-2"><span className="text-sm font-bold">توضیحات برای سرویس‌کار <span className="font-normal text-slate-400">(اختیاری)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} placeholder="مثلاً پلاک، واحد یا نکته ضروری" className="w-full rounded-2xl border border-slate-300 bg-white p-4 outline-none focus:border-amber-400" /></label>
+                <label className="block space-y-2"><span className="text-sm font-bold">توضیحات برای سرویس‌کار <span className="font-normal text-slate-400">(اختیاری)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} placeholder="توضیحات لازم برای آدرس‌دهی بهتر و یا مورد خاص در ارائه سرویس (مثلاً پیچ کارتل ماشینم خرابه)" className="w-full rounded-2xl border border-slate-300 bg-white p-4 outline-none focus:border-amber-400" /></label>
                 <section className="rounded-2xl border border-slate-200 bg-white p-4" aria-label="تأیید موبایل پیش از پرداخت">
                   <div className="mb-3 flex items-center gap-2"><Phone className="h-5 w-5 text-amber-500" /><b>تأیید شماره برای پرداخت</b></div>
                   <div className="flex gap-2">

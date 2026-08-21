@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Eye, EyeOff, KeyRound, Loader2, LockKeyhole, Phone, RefreshCw, UserRound } from 'lucide-react';
-import { requestOtp, verifyOtp } from '../services/smsOtpApi';
-import { getCurrentCarrtellUser, normalizeDigits, setCustomerCredentials, signInWithUsername } from '../auth/authApi';
+import { requestOtpWithRetry, verifyOtp } from '../services/smsOtpApi';
+import { getCurrentCarrtellUser, normalizeDigits, saveCustomerDisplayName, setCustomerCredentials, signInWithUsername } from '../auth/authApi';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
@@ -45,6 +45,7 @@ export default function OtpLoginPage() {
   const recoveryMode = params.get('recovery') === '1';
   const [mode, setMode] = useState<LoginMode>('sms');
   const [phone, setPhone] = useState(toLocalIranPhone(params.get('phone') || ''));
+  const [displayName, setDisplayName] = useState('');
   const [digits, setDigits] = useState<string[]>(() => Array(OTP_LENGTH).fill(''));
   const [sent, setSent] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -104,13 +105,17 @@ export default function OtpLoginPage() {
 
   async function sendOtp(isResend = false) {
     const safePhone = toLocalIranPhone(phone).replace(/\s/g, '');
+    if (!recoveryMode && displayName.trim().length < 2) {
+      setNotice({ tone: 'error', text: 'نام و نام خانوادگی را وارد کن تا بعد از ورود با نام خودت نمایش داده شوی.' });
+      return;
+    }
     if (!/^09\d{9}$/.test(safePhone)) {
       setNotice({ tone: 'error', text: 'شماره موبایل معتبر وارد کن؛ اعداد فارسی و انگلیسی هر دو قابل قبول‌اند.' });
       return;
     }
     setLoading(true); setNotice(null);
     try {
-      const result = await requestOtp(safePhone);
+      const result = await requestOtpWithRetry(safePhone);
       setSent(true);
       setPhone(toLocalIranPhone(result.phone || safePhone));
       setResendIn(result.expires_in || RESEND_SECONDS);
@@ -127,6 +132,7 @@ export default function OtpLoginPage() {
     try {
       const result = await verifyOtp(localPhone, code);
       if (!result.ok) throw new Error('کد نامعتبر یا منقضی است.');
+      if (!recoveryMode && displayName.trim()) await saveCustomerDisplayName(displayName.trim());
       const current = await getCurrentCarrtellUser().catch(() => null);
       if (recoveryMode || !current?.username) {
         setUsername(current?.username || toLocalIranPhone(current?.phone || localPhone));
@@ -233,7 +239,10 @@ export default function OtpLoginPage() {
             </>
           ) : (
             <>
-              {!sent && <input inputMode="tel" autoComplete="tel" placeholder="شماره موبایل؛ 09xxxxxxxxx" value={phone} disabled={loading} onChange={(event) => setPhone(toLocalIranPhone(event.target.value))} onKeyDown={(event) => { if (event.key === 'Enter') void sendOtp(false); }} className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-left text-white outline-none placeholder:text-right placeholder:text-slate-500 focus:border-amber-400 disabled:opacity-70" />}
+              {!sent && <>
+                {!recoveryMode && <input autoComplete="name" placeholder="نام و نام خانوادگی" value={displayName} disabled={loading} onChange={(event) => setDisplayName(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-right text-white outline-none placeholder:text-slate-500 focus:border-amber-400 disabled:opacity-70" />}
+                <input inputMode="tel" autoComplete="tel" placeholder="شماره موبایل؛ 09xxxxxxxxx" value={phone} disabled={loading} onChange={(event) => setPhone(toLocalIranPhone(event.target.value))} onKeyDown={(event) => { if (event.key === 'Enter') void sendOtp(false); }} className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-left text-white outline-none placeholder:text-right placeholder:text-slate-500 focus:border-amber-400 disabled:opacity-70" />
+              </>}
 
               {sent && <>
                 <div dir="ltr" className="mx-auto grid max-w-sm grid-cols-6 gap-2" aria-label="کد تأیید شش رقمی">

@@ -4,6 +4,26 @@ export async function requestOtp(phone: string) {
   const normalized = await sendMobileOtp(phone);
   return { ok: true, phone: normalized, expires_in: 120 };
 }
+
+export function friendlyOtpRequestError(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error || '');
+  const clean = raw.trim();
+  if (!clean || clean === '{}' || clean === '[object Object]') return 'ارسال پیامک انجام نشد. چند لحظه بعد دوباره تلاش کنید.';
+  return clean;
+}
+
+export async function requestOtpWithRetry(phone: string, attempts = 2) {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < Math.max(1, attempts); attempt += 1) {
+    try {
+      return await requestOtp(phone);
+    } catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await new Promise((resolve) => window.setTimeout(resolve, 1100));
+    }
+  }
+  throw new Error(friendlyOtpRequestError(lastError));
+}
 export async function verifyOtp(phone: string, code: string) {
   const data = await verifyMobileOtp(phone, code);
   return { ok: Boolean(data.session), session: data.session, user: data.user };

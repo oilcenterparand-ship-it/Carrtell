@@ -1,15 +1,15 @@
-import { MessageCircle } from 'lucide-react';
+import { Headphones } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function WhatsAppButton() {
   return (
-    <a
-      href="https://wa.me/98219130"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="fixed bottom-6 left-6 z-40 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:bg-green-400 hover:scale-110 transition-all duration-300 animate-pulse-gold"
-      aria-label="واتساپ"
+    <Link
+      to="/profile/support"
+      className="ct-support-button fixed bottom-[calc(6.4rem+env(safe-area-inset-bottom))] left-3 z-40 grid h-12 w-12 place-items-center rounded-full border border-amber-300/40 bg-slate-950/95 text-amber-300 shadow-xl shadow-black/30 backdrop-blur transition hover:scale-105 hover:bg-slate-900 md:bottom-6 md:left-6 md:h-14 md:w-14"
+      aria-label="پشتیبانی"
+      title="پشتیبانی Carrtell"
     >
-      <MessageCircle className="w-7 h-7 text-white" />
-    </a>
+      <Headphones className="h-6 w-6 md:h-7 md:w-7" aria-hidden="true" />
+    </Link>
   );
 }

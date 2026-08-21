@@ -150,7 +150,7 @@
 @media (max-width: 767px) {
   .ct-mobile-standalone-route .ct-new-site-header,
   .ct-mobile-standalone-route > footer,
-  .ct-mobile-standalone-route .ct-whatsapp-button { display: none !important; }
+  .ct-mobile-standalone-route .ct-support-button { display: none !important; }
   .ct-mobile-standalone-route .ct-site-content { padding-top: 0 !important; }
   .ct-mobile-standalone-route .ct-site-content > main { padding-top: 14px !important; }
 
