@@ -47,6 +47,8 @@ import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import StoreCollectionPage from './pages/StoreCollectionPage';
 import ProductDetailPage from './pages/ProductDetailPage';
+import IndustrialProductsPage from './pages/IndustrialProductsPage';
+import CategoryJourneyPage from './pages/CategoryJourneyPage';
 import BookPage from './pages/BookPage';
 import DashboardPage from './pages/DashboardPage';
 import InvestorPage from './pages/InvestorPage';
@@ -144,6 +146,9 @@ function App() {
                 <Route path="/home" element={<Navigate to="/" replace />} />
                 <Route path="/shop" element={<ShopPage />} />
                 <Route path="/shop/product/:id" element={<ProductDetailPage />} />
+                <Route path="/industrial" element={<IndustrialProductsPage />} />
+                <Route path="/categories" element={<CategoryJourneyPage />} />
+                <Route path="/category/:slug" element={<CategoryJourneyPage />} />
                 <Route path="/shop/all-products" element={<StoreCollectionPage kind="all" />} />
                 <Route path="/shop/special-offers" element={<StoreCollectionPage kind="special" />} />
                 <Route path="/shop/featured" element={<StoreCollectionPage kind="featured" />} />

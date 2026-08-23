@@ -1,6 +1,6 @@
 param(
   [Parameter(Position=0)]
-  [ValidateSet("CRITICAL","BOOKING","SHOP","UX","CUSTOMER","CUSTOMER3","VISUAL","ADMIN","TECHNICIAN","PERSONAS","PRODUCTION","SMS","SMSLOGIN","FINAL","FULL")]
+  [ValidateSet("CRITICAL","BOOKING","SHOP","INDUSTRIAL","UX","CUSTOMER","CUSTOMER3","VISUAL","ADMIN","TECHNICIAN","PERSONAS","PRODUCTION","SMS","SMSLOGIN","FINAL","FULL")]
   [string]$Mode = "FULL"
 )
 
@@ -99,6 +99,14 @@ if ($Mode -eq "BOOKING") {
 if ($Mode -eq "SHOP") {
   Fresh-Build
   Run-Step "SHOP + CART + HEADER CART" "npx playwright test tests/e2e/shop-cart-v22.spec.ts tests/e2e/critical-user-journeys-v23.spec.ts -g 'shop|cart|MiniCart'"
+  exit 0
+}
+if ($Mode -eq "INDUSTRIAL") {
+  Fresh-Build
+  Run-Step "INDUSTRIAL + DIESEL CUSTOMER UX" "npx playwright test tests/e2e/industrial-diesel-catalog.spec.ts --workers=1"
+  Run-Step "ADMIN CATEGORY + PRODUCT PERSONA" "npx playwright test tests/e2e/persona-admin.spec.ts -c playwright.persona.config.ts --project=desktop-chrome --workers=1"
+  Run-Step "SHOP + AUTH REGRESSION" "npx playwright test tests/e2e/shop-cart-v22.spec.ts tests/e2e/auth-account-regression-v2319.spec.ts --project=android-chrome --workers=1"
+  Write-Host "اگر هر مرحله شکست خورد، گزارش HTML و Screenshot را برای ChatGPT بفرست تا Patch اصلاحی بعدی ساخته شود." -ForegroundColor Yellow
   exit 0
 }
 if ($Mode -eq "UX") {

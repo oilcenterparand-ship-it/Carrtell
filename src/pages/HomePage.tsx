@@ -115,6 +115,13 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-[1240px] px-4 pb-7">
+        <Link to="/industrial" className="flex min-h-[150px] items-center justify-between overflow-hidden rounded-[24px] bg-gradient-to-l from-slate-950 via-slate-900 to-amber-950 p-6 text-white shadow-lg transition hover:-translate-y-0.5">
+          <div><span className="rounded-full bg-amber-400/15 px-3 py-1 text-[11px] font-black text-amber-300">بخش تخصصی جدید</span><h2 className="mt-3 text-xl font-black">روغن و فیلتر دیزلی و صنعتی</h2><p className="mt-1 text-xs leading-6 text-slate-300">خودرو سنگین، ماشین‌آلات، کارخانه، گالن ۲۰ لیتری و بشکه</p></div>
+          <Truck className="h-16 w-16 shrink-0 text-amber-400/80" />
+        </Link>
+      </section>
+
       <section className="mx-auto max-w-[1240px] px-4 py-7">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-black">دسته‌بندی‌های محبوب</h2>
@@ -122,7 +129,7 @@ export default function HomePage() {
         </div>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
           {categories.slice(0, 8).map((category) => (
-            <Link key={category.id || category.slug} to={`/shop?category=${encodeURIComponent(category.slug)}`} className="rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <Link key={category.id || category.slug} to={`/category/${encodeURIComponent(category.slug)}`} className="rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl">{category.icon_emoji || '🚘'}</div>
               <div className="truncate text-[11px] font-black">{category.title}</div>
             </Link>

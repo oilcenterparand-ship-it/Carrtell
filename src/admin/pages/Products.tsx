@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getProducts, createProduct, updateProduct, deleteProduct, Product } from '../services/productsApi';
 import { getCars, getCarTitle, type Car } from '../services/carsApi';
-import { PRODUCT_CATEGORIES, getCategoryLabel } from '../../config/productCategories';
+import { PRODUCT_CATEGORIES, getCategoryLabel as getFallbackCategoryLabel } from '../../config/productCategories';
+import { getCategoryLabelPath, getProductCategories, type ProductCategory } from '../services/categoriesApi';
 import { getOilSpecs, type OilSpec } from '../services/oilSpecsApi';
 import { getBrands, type Brand } from '../services/brandsApi';
 import { getWarehouses, type Warehouse } from '../services/warehousesApi';
@@ -103,6 +104,7 @@ const emptyProduct: Product = {
   compatible_all_cars: false,
   suitable_cars: [],
   compatible_car_ids: [],
+  category_ids: [],
   compatible_transmissions: [],
   description: '',
   card_features: '',
@@ -189,6 +191,7 @@ function Products() {
   const [oilSpecs, setOilSpecs] = useState<OilSpec[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [form, setForm] = useState<Product>(emptyProduct);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [carSearch, setCarSearch] = useState('');
@@ -213,12 +216,13 @@ function Products() {
   });
 
   async function loadData() {
-    const [productsData, carsData, oilSpecsData, brandsData, warehousesData] = await Promise.all([getProducts(), getCars(), getOilSpecs(), getBrands(), getWarehouses()]);
+    const [productsData, carsData, oilSpecsData, brandsData, warehousesData, categoriesData] = await Promise.all([getProducts(), getCars(), getOilSpecs(), getBrands(), getWarehouses(), getProductCategories()]);
     setProducts(productsData);
     setCars(carsData.filter((car) => car.is_active !== false));
     setOilSpecs(oilSpecsData.filter((item) => item.is_active !== false));
     setBrands(brandsData.filter((item) => item.is_active !== false));
     setWarehouses(warehousesData.filter((item) => item.is_active !== false));
+    setCategories(categoriesData.filter((item) => item.is_active !== false));
   }
 
   useEffect(() => {
@@ -229,6 +233,9 @@ function Products() {
   const qualityLevels = useMemo(() => oilSpecs.filter((item) => item.type === 'quality'), [oilSpecs]);
   const oilBases = useMemo(() => oilSpecs.filter((item) => item.type === 'base'), [oilSpecs]);
   const amazingJalali = parseAmazingJalali(form.amazing_ends_at);
+  const categoryOptions = useMemo(() => categories.length ? categories.map((item) => ({ value: item.slug, label: item.title, id: item.id, parentId: item.parent_id })) : PRODUCT_CATEGORIES.map((item) => ({ ...item, id: undefined, parentId: null })), [categories]);
+  const categoryLeafOptions = useMemo(() => categories.filter((item) => item.id && !categories.some((child) => child.parent_id === item.id)).sort((a, b) => getCategoryLabelPath(categories, a.id).localeCompare(getCategoryLabelPath(categories, b.id), 'fa')), [categories]);
+  const getCategoryLabel = (slug?: string) => categoryOptions.find((item) => item.value === slug)?.label || getFallbackCategoryLabel(slug);
 
   const filteredProducts = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
@@ -359,6 +366,7 @@ function Products() {
       ...emptyProduct,
       ...item,
       category: normalizedCategory,
+      category_ids: item.category_ids || [],
       compatible_car_ids: item.compatible_car_ids || [],
       compatible_transmissions: item.compatible_transmissions || [],
       compatible_all_cars: !!item.compatible_all_cars,
@@ -379,6 +387,10 @@ function Products() {
   async function saveProduct() {
     if (!form.name.trim()) {
       alert('نام محصول الزامی است');
+      return;
+    }
+    if (categories.length && !(form.category_ids || []).length) {
+      alert('حداقل یک شاخه نهایی برای محصول انتخاب کن');
       return;
     }
 
@@ -502,10 +514,24 @@ function Products() {
 
         <Field label="دسته‌بندی محصول" hint="محصول در همین دسته داخل فروشگاه و فیلترها نمایش داده می‌شود.">
           <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full rounded bg-slate-800 p-3 text-white">
-            {PRODUCT_CATEGORIES.map((category) => (
+            {categoryOptions.map((category) => (
               <option key={category.value} value={category.value}>{category.label}</option>
             ))}
           </select>
+        </Field>
+
+        <Field label="شاخه‌های داینامیک محصول" hint="یک یا چند شاخه را انتخاب کن. اولین شاخه انتخاب‌شده، شاخه اصلی محصول است.">
+          <div className="max-h-52 space-y-2 overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-3">
+            {categoryLeafOptions.map((category) => <label key={category.id || category.slug} className="flex items-center gap-2 rounded-lg bg-slate-900/60 p-2 text-sm text-slate-200">
+              <input type="checkbox" checked={!!category.id && (form.category_ids || []).includes(category.id)} onChange={() => {
+                if (!category.id) return;
+                const current = form.category_ids || [];
+                const selected = current.includes(category.id);
+                setForm({ ...form, category_ids: selected ? current.filter((id) => id !== category.id) : [...current, category.id], category: selected ? form.category : category.slug });
+              }} />
+              <span>{getCategoryLabelPath(categories, category.id)}</span>
+            </label>)}
+          </div>
         </Field>
 
         <Field label="تصویر محصول" hint="عکس قبل از آپلود به WebP تبدیل و کم‌حجم می‌شود؛ واترمارک تنظیم‌شده سایت هم اعمال می‌شود.">
@@ -752,7 +778,7 @@ function Products() {
             >
               همه ({products.filter((item) => item.id && item.id !== editingProductId).length.toLocaleString('fa-IR')})
             </button>
-            {PRODUCT_CATEGORIES.map((category) => {
+            {categoryOptions.map((category) => {
               const count = products.filter((item) => item.id && item.id !== editingProductId && item.category === category.value).length;
               if (!count) return null;
               return (
@@ -925,7 +951,7 @@ function Products() {
           />
           <select value={productCategoryFilter} onChange={(event) => setProductCategoryFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white">
             <option value="all">همه دسته‌ها</option>
-            {PRODUCT_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+            {categoryOptions.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
           </select>
           <select value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white">
             <option value="all">همه وضعیت‌ها</option>

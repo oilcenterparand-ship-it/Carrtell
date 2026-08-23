@@ -38,8 +38,6 @@ async function mockBookingBackend(page: Page, options: { failOtpRequest?: boolea
     restUrls: [] as string[],
   };
 
-
-
   await page.route('**/auth/v1/otp**', async route => {
     trace.otpRequests += 1;
     if (options.failOtpRequest) {
@@ -51,16 +49,28 @@ async function mockBookingBackend(page: Page, options: { failOtpRequest?: boolea
     }
     return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
+
   await page.route('**/auth/v1/verify**', async route => {
     trace.otpVerifications += 1;
     return route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ access_token: 'qa-token', refresh_token: 'qa-refresh', token_type: 'bearer', expires_in: 3600, user: { id: 'qa-user', phone: '+989121234567' } }),
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        access_token: 'qa-token',
+        refresh_token: 'qa-refresh',
+        token_type: 'bearer',
+        expires_in: 3600,
+        user: { id: 'qa-user', phone: '+989121234567' },
+      }),
     });
   });
 
   await page.route('**/functions/v1/neshan-reverse-geocode**', async route => {
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, address: 'پرند، میدان استقلال، تست خودکار Carrtell' }) });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, address: 'پرند، میدان استقلال، تست خودکار Carrtell' }),
+    });
   });
 
   await page.route('**/rest/v1/**', async route => {
@@ -85,7 +95,16 @@ async function mockBookingBackend(page: Page, options: { failOtpRequest?: boolea
     if (table === 'booking_services') { trace.services += 1; return json([service]); }
     if (table === 'service_pricing_settings') {
       trace.pricing += 1;
-      return json({ id: 'default', travel_fee: 150000, night_fee: 0, holiday_fee: 0, out_of_area_fee: 0, night_start_hour: 18, club_discount_percent: 0, service_area_cities: ['پرند'] });
+      return json({
+        id: 'default',
+        travel_fee: 150000,
+        night_fee: 0,
+        holiday_fee: 0,
+        out_of_area_fee: 0,
+        night_start_hour: 18,
+        club_discount_percent: 0,
+        service_area_cities: ['پرند'],
+      });
     }
     if (table === 'customer_addresses') return json([]);
     if (table === 'car_packages') {
@@ -116,7 +135,6 @@ async function mockBookingBackend(page: Page, options: { failOtpRequest?: boolea
       return json([], 201);
     }
     if (path.endsWith('/service_requests') && method === 'GET') return json(requestRow || {});
-
     return json([]);
   });
 
@@ -125,7 +143,9 @@ async function mockBookingBackend(page: Page, options: { failOtpRequest?: boolea
     const json = (value: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
     if (path.endsWith('/get_booking_slots_for_date')) return json([slot]);
     if (path.endsWith('/reserve_booking_slot')) return json([{ success: true, message: 'ok' }]);
-    if (path.endsWith('/pay_service_request_test')) return json([{ ...(requestRow || {}), payment_status: 'paid', payment_reference: 'QA-PAY-123', paid_at: new Date().toISOString() }]);
+    if (path.endsWith('/pay_service_request_test')) {
+      return json([{ ...(requestRow || {}), payment_status: 'paid', payment_reference: 'QA-PAY-123', paid_at: new Date().toISOString() }]);
+    }
     if (path.endsWith('/get_service_request_guest')) return json([requestRow || {}]);
     return json([]);
   });
@@ -198,7 +218,7 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     await modal.getByRole('button', { name: 'تأیید خودرو' }).click();
     await page.getByRole('button', { name: /ادامه/ }).click();
 
-    // 3) recommendations must actually exist after vehicle selection
+    // 3) recommendations
     const recommendations = page.locator('[data-booking-step="recommendations"]');
     await expect(recommendations).toBeVisible();
 
@@ -241,11 +261,17 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
       recommendations.getByText(product.name),
       `Compatible product missing after backend completed: ${JSON.stringify(await diagnostic())}`,
     ).toBeVisible();
+
     await recommendations.getByRole('button', { name: /پکیج سرویس روغن پراید/ }).click();
     await page.getByRole('button', { name: 'مشاهده انتخاب‌های رزرو' }).click();
     await expect(page.getByTestId('booking-selection-backdrop')).toBeVisible();
-    await expect(page.getByTestId('booking-selection-current-total')).toContainText('مبلغ فعلی انتخاب‌ها');
-    await expect(page.getByTestId('booking-selection-current-total')).toContainText(new Intl.NumberFormat('fa-IR').format(1220000));
+
+    const currentTotal = page.getByTestId('booking-selection-current-total');
+    await expect(currentTotal).toContainText('خدمات');
+    await expect(currentTotal).toContainText(new Intl.NumberFormat('fa-IR').format(180000));
+    await expect(currentTotal).toContainText('محصولات');
+    await expect(currentTotal).toContainText(new Intl.NumberFormat('fa-IR').format(890000));
+
     await selectionCart.getByRole('button', { name: 'بستن انتخاب‌ها' }).click();
     await page.getByRole('button', { name: /ادامه/ }).click();
 
@@ -255,7 +281,7 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     await page.getByRole('button', { name: /۹ تا ۱۱/ }).click();
     await page.getByRole('button', { name: /ادامه/ }).click();
 
-    // 5) customer + location only; OTP must not clutter this step
+    // 5) customer + location only
     await expect(page.locator('[data-booking-step="address"]')).toBeVisible();
     await page.getByPlaceholder(/نام و نام خانوادگی/).fill('کاربر تست کارتل');
     await expect(page.locator('[data-booking-step="address"] input[autocomplete="tel"]')).toHaveCount(0);
@@ -286,6 +312,13 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     await page.getByRole('button', { name: /پرداخت آزمایشی و ادامه/ }).click();
     await expect(page.getByRole('heading', { name: 'پرداخت سرویس با موفقیت ثبت شد' })).toBeVisible();
     await expect(page.getByText('مایل هستید حساب کاربری شما فعال شود؟')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'بله، حسابم را فعال کن' })).toBeVisible();
+
+    const activateAccount = page.getByRole('button', { name: 'بله، حسابم را فعال کن' });
+    await expect(activateAccount).toBeVisible();
+    await activateAccount.click();
+    await expect(page.getByLabel('نام کاربری')).toHaveValue('09121234567');
+    await expect(page.getByLabel('رمز عبور', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('تکرار رمز عبور', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ساخت حساب و ورود' })).toBeVisible();
   });
 });

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { clearCart } from '../lib/cart';
+import { withAuthTimeout } from './authRequest';
 
 export type UserRole = 'admin' | 'technician' | 'driver' | 'customer';
 export type CarrtellAuthUser = { id: string; phone: string | null; email: string | null; role: UserRole; fullName: string | null; username?: string | null };
@@ -115,9 +116,24 @@ export async function setCustomerCredentials(username: string, password: string)
 export async function signInWithUsername(username: string, password: string) {
   const cleanUsername = String(username || '').trim().toLowerCase();
   if (!cleanUsername || !password) throw new Error('نام کاربری و رمز عبور را وارد کن.');
-  const { data, error } = await supabase.functions.invoke('customer-credentials', {
+
+  // Most Carrtell usernames are the customer's mobile number. Authenticate
+  // those directly so login is not held hostage by a mapping Edge Function.
+  let normalizedPhone = '';
+  try { normalizedPhone = normalizeIranPhone(cleanUsername); } catch { /* custom username */ }
+  if (normalizedPhone) {
+    const { data: directData, error: directError } = await withAuthTimeout(
+      supabase.auth.signInWithPassword({ phone: normalizedPhone, password }),
+    );
+    if (!directError && directData.session) {
+      emitAuthChanged();
+      return directData;
+    }
+  }
+
+  const { data, error } = await withAuthTimeout(supabase.functions.invoke('customer-credentials', {
     body: { action: 'login', username: cleanUsername, password },
-  });
+  }));
   if (error) throw new Error((data as any)?.error || error.message || 'ورود با نام کاربری انجام نشد.');
   if (!data?.access_token || !data?.refresh_token) throw new Error(data?.error || 'نام کاربری یا رمز عبور صحیح نیست.');
   const { error: sessionError } = await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });

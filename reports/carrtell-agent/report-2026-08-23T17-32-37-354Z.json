@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-08-23T17:32:37.354Z",
+  "startedAt": "2026-08-23T17:31:50.020Z",
+  "status": "failed",
+  "counts": {
+    "passed": 1,
+    "failed": 2,
+    "skipped": 0
+  },
+  "feedbackCounts": {
+    "error": 2,
+    "warning": 0,
+    "info": 0
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 1844,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "failed",
+      "durationMs": 21097,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "failed",
+      "durationMs": 21620,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).not.\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: not \u001b[32m/\\/admin\\/login(?:\\?|$)/\u001b[39m\nReceived string: \u001b[31m\"http://127.0.0.1:4173\u001b[7m/admin/login\u001b[27m\"\u001b[39m\nTimeout: 20000ms\n\nCall log:\n\u001b[2m  - Expect \"not toHaveURL\" with timeout 20000ms\u001b[22m\n\u001b[2m    43 × locator resolved to <html lang=\"fa\" dir=\"rtl\" class=\"ct-theme-ready\" data-ct-theme-base=\"dark\" data-ct-user-mode=\"system\" data-ct-resolved-mode=\"dark\" data-ct-theme-preset=\"premium-dark\">…</html>\u001b[22m\n\u001b[2m       - unexpected value \"http://127.0.0.1:4173/admin/login\"\u001b[22m\n",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).not.\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: not \u001b[32m/\\/admin\\/login(?:\\?|$)/\u001b[39m\nReceived string: \u001b[31m\"http://127.0.0.1:4173\u001b[7m/admin/login\u001b[27m\"\u001b[39m\nTimeout: 20000ms\n\nCall log:\n\u001b[2m  - Expect \"not toHaveURL\" with timeout 20000ms\u001b[22m\n\u001b[2m    43 × locator resolved to <html lang=\"fa\" dir=\"rtl\" class=\"ct-theme-ready\" data-ct-theme-base=\"dark\" data-ct-user-mode=\"system\" data-ct-resolved-mode=\"dark\" data-ct-theme-preset=\"premium-dark\">…</html>\u001b[22m\n\u001b[2m       - unexpected value \"http://127.0.0.1:4173/admin/login\"\u001b[22m\n",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    }
+  ]
+}

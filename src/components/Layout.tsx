@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { brandConfig } from '../config/brand';
-import { getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
+import { buildCategoryTree, getCategoryDescendantIds, getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
 import { getProducts, getStorefrontSearchProducts, type Product } from '../admin/services/productsApi';
 import { getActiveCarsForCustomer, getCarTitle, type Car as AdminCar } from '../admin/services/carsApi';
 import {
@@ -60,7 +60,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [drawerCategoriesOpen, setDrawerCategoriesOpen] = useState(false);
-  const [drawerActiveCategorySlug, setDrawerActiveCategorySlug] = useState('');
+  const [drawerCategoryPath, setDrawerCategoryPath] = useState<string[]>([]);
   const [accountOpen, setAccountOpen] = useState(false);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -90,7 +90,9 @@ export default function Header() {
   const showGlobalSearch = location.pathname === '/' || location.pathname === '/shop';
   const loginReturnTo = `${location.pathname}${location.search}${location.hash}`;
   const loginTo = `/login-otp?returnTo=${encodeURIComponent(loginReturnTo)}`;
-  const showStorefrontBars = false; // Category/vehicle rail is owned by storefront pages; never render it on checkout/account/product flows.
+  // The homepage keeps its compact category rail. Shop owns the richer cascade,
+  // while checkout, account and product-detail routes stay uncluttered.
+  const showStorefrontBars = location.pathname === '/';
 
   const keepDrawerMegaOpen = () => {
     if (drawerMegaCloseTimer.current !== null) {
@@ -98,7 +100,7 @@ export default function Header() {
       drawerMegaCloseTimer.current = null;
     }
     setDrawerCategoriesOpen(true);
-    if (!drawerActiveCategorySlug && categories[0]) setDrawerActiveCategorySlug(categories[0].slug);
+    if (!drawerCategoryPath.length && categoryRoots[0]?.id) setDrawerCategoryPath([categoryRoots[0].id]);
   };
 
   const scheduleDrawerMegaClose = () => {
@@ -267,8 +269,25 @@ export default function Header() {
     navigate('/shop?view=categories');
   }
 
-  const accessLinks = categories.length > 0
-    ? categories.slice(0, 10).map((item) => ({ label: item.title, to: `/shop?category=${item.slug}`, emoji: item.icon_emoji || '🔧' }))
+  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const categoryRoots = categoryTree;
+  const categoryById = useMemo(() => new Map(categories.filter((item) => item.id).map((item) => [item.id as string, item])), [categories]);
+  const drawerCategoryColumns = useMemo(() => {
+    const columns = [categoryRoots];
+    for (const id of drawerCategoryPath) {
+      const selected = columns[columns.length - 1]?.find((item) => item.id === id);
+      if (!selected?.children.length) break;
+      columns.push(selected.children);
+    }
+    return columns;
+  }, [categoryRoots, drawerCategoryPath]);
+
+  function selectDrawerCategory(id: string, depth: number) {
+    setDrawerCategoryPath((current) => [...current.slice(0, depth), id]);
+  }
+
+  const accessLinks = categoryRoots.length > 0
+    ? categoryRoots.slice(0, 10).map((item) => ({ label: item.title, to: `/shop?category=${item.slug}`, emoji: item.icon_emoji || '🔧' }))
     : fallbackAccessLinks;
   const normalizedSearch = normalizeLiveSearch(searchText);
   const searchedProducts = useMemo(() => {
@@ -308,9 +327,12 @@ export default function Header() {
     return Array.from(groups.entries());
   }, [categories, searchedProducts]);
 
-  const drawerActiveCategory = categories.find((item) => item.slug === drawerActiveCategorySlug) || categories[0] || null;
-  const drawerActiveProducts = drawerActiveCategory
-    ? products.filter((product) => product.category === drawerActiveCategory.slug).slice(0, 24)
+  const drawerActiveCategory = categoryById.get(drawerCategoryPath[drawerCategoryPath.length - 1] || '') || categoryRoots[0] || null;
+  const drawerActiveProducts = drawerActiveCategory?.id
+    ? (() => {
+        const ids = new Set(getCategoryDescendantIds(categories, drawerActiveCategory.id as string));
+        return products.filter((product) => product.category === drawerActiveCategory.slug || product.category_ids?.some((id) => ids.has(id))).slice(0, 24);
+      })()
     : [];
 
   const roleShortcut = role === 'admin'
@@ -640,6 +662,7 @@ export default function Header() {
                   <button
                     type="button"
                     className="ct-new-drawer-category-trigger"
+                    data-testid="drawer-category-trigger"
                     onClick={handleDrawerCategories}
                     aria-expanded={drawerCategoriesOpen}
                   >
@@ -693,20 +716,33 @@ export default function Header() {
                   </div>
                 </div>
 
-                <div className="ct-new-drawer-mega-categories">
-                  <div className="ct-new-drawer-mega-heading">دسته‌بندی محصولات</div>
-                  {categories.map((category) => (
-                    <Link
-                      key={category.id || category.slug}
-                      to={`/shop?category=${category.slug}`}
-                      className={drawerActiveCategory?.slug === category.slug ? 'is-active' : ''}
-                      onMouseEnter={() => setDrawerActiveCategorySlug(category.slug)}
-                      onFocus={() => setDrawerActiveCategorySlug(category.slug)}
-                    >
-                      <span>{category.icon_emoji || '🔧'}</span>
-                      <span>{category.title}</span>
-                      <ChevronDown className="mr-auto h-3.5 w-3.5 -rotate-90" />
-                    </Link>
+                <div className="ct-new-drawer-mega-cascade" data-testid="dynamic-category-mega-menu">
+                  {drawerCategoryColumns.map((column, depth) => (
+                    <div className="ct-new-drawer-mega-categories" key={`category-column-${depth}`} data-testid={`category-column-${depth}`}>
+                      <div className="ct-new-drawer-mega-heading">{depth === 0 ? 'دسته‌بندی محصولات' : categoryById.get(drawerCategoryPath[depth - 1] || '')?.title}</div>
+                      {column.map((category) => {
+                        const hasChildren = category.children.length > 0;
+                        const selected = drawerCategoryPath[depth] === category.id;
+                        return (
+                          <Link
+                            key={category.id || category.slug}
+                            data-has-children={hasChildren ? 'true' : 'false'}
+                            to={hasChildren ? '#' : `/shop?category=${category.slug}`}
+                            className={selected ? 'is-active' : ''}
+                            onClick={(event) => {
+                              if (hasChildren && category.id) { event.preventDefault(); selectDrawerCategory(category.id, depth); }
+                              else closeDrawer();
+                            }}
+                            onMouseEnter={() => category.id && selectDrawerCategory(category.id, depth)}
+                            onFocus={() => category.id && selectDrawerCategory(category.id, depth)}
+                          >
+                            <span>{category.icon_emoji || '🔧'}</span>
+                            <span>{category.title}</span>
+                            {hasChildren && <ChevronDown className="mr-auto h-3.5 w-3.5 -rotate-90" />}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   ))}
                 </div>
 

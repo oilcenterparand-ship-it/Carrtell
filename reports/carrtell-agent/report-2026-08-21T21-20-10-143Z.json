@@ -1,0 +1,177 @@
+{
+  "generatedAt": "2026-08-21T21:20:10.144Z",
+  "startedAt": "2026-08-21T21:19:27.207Z",
+  "status": "passed",
+  "counts": {
+    "passed": 14,
+    "failed": 0,
+    "skipped": 2
+  },
+  "feedbackCounts": {
+    "error": 4,
+    "warning": 1,
+    "info": 2
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 1959,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "passed",
+      "durationMs": 6554,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2507,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 2156,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "skipped",
+      "durationMs": 253,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
+      "status": "passed",
+      "durationMs": 1812,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 1685,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "passed",
+      "durationMs": 4632,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2020,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 313,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 2920,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 1803,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 2106,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
+      "status": "passed",
+      "durationMs": 1910,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 1874,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "passed",
+      "durationMs": 5230,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "error",
+      "area": "admin/routes",
+      "route": "/admin/dashboard",
+      "message": "Console error: Failed to load resource: the server responded with a status of 400 ()",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    },
+    {
+      "severity": "error",
+      "area": "admin/routes",
+      "route": "/admin/dashboard",
+      "message": "Console error: Failed to load resource: the server responded with a status of 400 ()",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    },
+    {
+      "severity": "error",
+      "area": "admin/routes",
+      "route": "/admin/dashboard",
+      "message": "Console error: Failed to load resource: the server responded with a status of 400 ()",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    },
+    {
+      "severity": "error",
+      "area": "admin/routes",
+      "route": "/admin/dashboard",
+      "message": "Console error: Failed to load resource: the server responded with a status of 400 ()",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    },
+    {
+      "severity": "warning",
+      "area": "customer/hamburger",
+      "route": "/shop",
+      "message": "پنل 100٪ ارتفاع صفحه را گرفته؛ برای یک باکس جمع‌وجور بیش از حد بزرگ است.",
+      "details": {
+        "box": {
+          "x": -0.04199182614684105,
+          "y": 0,
+          "width": 389.99999963864684,
+          "height": 720
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "hRatio": 1
+      },
+      "test": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    }
+  ]
+}

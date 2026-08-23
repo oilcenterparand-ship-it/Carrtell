@@ -1,0 +1,970 @@
+From 7da92da880a7743f93983f13a4cf874e77564172 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Sun, 23 Aug 2026 00:27:51 +0400
+Subject: [PATCH] Add dynamic industrial and diesel catalog
+
+---
+ CARRTELL_PROJECT_CONTEXT.md                   |  10 +
+ INSTALL-INDUSTRIAL-V1.ps1                     |  25 +++
+ ...-MANIFEST-CARRTELL-INDUSTRIAL-DIESEL-V1.md |  32 +++
+ README-CARRTELL-INDUSTRIAL-DIESEL-V1-FA.md    |  44 ++++
+ agent.ps1                                     |  10 +-
+ src/App.tsx                                   |   2 +
+ src/admin/pages/Categories.tsx                | 192 +++++-------------
+ src/admin/pages/Products.tsx                  |  31 ++-
+ src/admin/services/categoriesApi.ts           |  44 ++++
+ src/admin/services/productsApi.ts             |  56 +++--
+ src/pages/HomePage.tsx                        |   7 +
+ src/pages/IndustrialProductsPage.tsx          |  61 ++++++
+ ...08230001_dynamic_product_category_tree.sql |  83 ++++++++
+ tests/e2e/industrial-diesel-catalog.spec.ts   |  34 ++++
+ 14 files changed, 468 insertions(+), 163 deletions(-)
+ create mode 100644 INSTALL-INDUSTRIAL-V1.ps1
+ create mode 100644 PATCH-MANIFEST-CARRTELL-INDUSTRIAL-DIESEL-V1.md
+ create mode 100644 README-CARRTELL-INDUSTRIAL-DIESEL-V1-FA.md
+ create mode 100644 src/pages/IndustrialProductsPage.tsx
+ create mode 100644 supabase/migrations/202608230001_dynamic_product_category_tree.sql
+ create mode 100644 tests/e2e/industrial-diesel-catalog.spec.ts
+
+diff --git a/CARRTELL_PROJECT_CONTEXT.md b/CARRTELL_PROJECT_CONTEXT.md
+index 4344d28..2293062 100644
+--- a/CARRTELL_PROJECT_CONTEXT.md
++++ b/CARRTELL_PROJECT_CONTEXT.md
+@@ -76,3 +76,13 @@ Next recommended task: install v2.3.30 on Windows, run `.\agent.ps1 CRITICAL`, a
+ - v2.3.31 includes the v2.3.30 booking selection-cart focus and concise current-total changes.
+ 
+ Next recommended task: install v2.3.31 on Windows, run `.\agent.ps1 CRITICAL`, and verify the drawer/vehicle picker plus booking cart on the physical phone.
++
++### 2026-08-23 — Industrial and diesel catalog V1
++- Added an independent public `/industrial` catalog while preserving the passenger `/shop` flow.
++- Product categories now support parent/child hierarchy, images, ordering, active state and unlimited future branches.
++- Products can be assigned to multiple dynamic categories through `product_category_assignments`; legacy `products.category` remains for backward compatibility.
++- Seeded diesel engine oil, industrial hydraulic/gear oil and diesel/industrial filter branches.
++- Added Carrtell Agent `INDUSTRIAL` mode covering desktop/mobile customer UX, admin persona and shop/auth regression.
++- TypeScript and production build passed. Full ESLint remains blocked by 376 pre-existing repository errors; changed-file lint has no errors. Browser E2E is prepared for the Windows Agent because this Linux runner has no Chrome binary.
++
++Next recommended task: apply the SQL migration, assign the first real industrial products, then run `.\agent.ps1 INDUSTRIAL` on Windows and return any failing report for the corrective patch.
+diff --git a/INSTALL-INDUSTRIAL-V1.ps1 b/INSTALL-INDUSTRIAL-V1.ps1
+new file mode 100644
+index 0000000..932b7e5
+--- /dev/null
++++ b/INSTALL-INDUSTRIAL-V1.ps1
+@@ -0,0 +1,25 @@
++$ErrorActionPreference = "Stop"
++
++if (-not (Test-Path ".\package.json")) {
++  Write-Host "خطا: این فایل باید از ریشه پروژه Carrtell اجرا شود." -ForegroundColor Red
++  exit 1
++}
++
++Write-Host "Carrtell Industrial/Diesel V1" -ForegroundColor Cyan
++Write-Host "1) فایل SQL زیر را یک‌بار در Supabase SQL Editor اجرا کن:" -ForegroundColor Yellow
++Write-Host "supabase\migrations\202608230001_dynamic_product_category_tree.sql"
++$answer = Read-Host "SQL اجرا شده است؟ (Y/N)"
++if ($answer -notmatch '^[Yy]$') {
++  Write-Host "نصب متوقف شد؛ ابتدا SQL را اجرا کن و دوباره این فایل را باز کن." -ForegroundColor Yellow
++  exit 2
++}
++
++npm install
++if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
++npm run typecheck
++if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
++npm run build
++if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
++
++Write-Host "نصب و Build موفق بود." -ForegroundColor Green
++Write-Host "حالا تست هوشمند را اجرا کن: .\agent.ps1 INDUSTRIAL" -ForegroundColor Cyan
+diff --git a/PATCH-MANIFEST-CARRTELL-INDUSTRIAL-DIESEL-V1.md b/PATCH-MANIFEST-CARRTELL-INDUSTRIAL-DIESEL-V1.md
+new file mode 100644
+index 0000000..5fe4ac8
+--- /dev/null
++++ b/PATCH-MANIFEST-CARRTELL-INDUSTRIAL-DIESEL-V1.md
+@@ -0,0 +1,32 @@
++# Patch Manifest — Carrtell Industrial/Diesel V1
++
++Branch مبنا: `sprint/guest-checkout-search-car-picker`
++
++## فایل‌های تغییرکرده
++- `src/App.tsx`
++- `src/pages/HomePage.tsx`
++- `src/admin/services/categoriesApi.ts`
++- `src/admin/services/productsApi.ts`
++- `src/admin/pages/Categories.tsx`
++- `src/admin/pages/Products.tsx`
++- `agent.ps1`
++- `CARRTELL_PROJECT_CONTEXT.md`
++
++## فایل‌های جدید
++- `INSTALL-INDUSTRIAL-V1.ps1`
++- `src/pages/IndustrialProductsPage.tsx`
++- `supabase/migrations/202608230001_dynamic_product_category_tree.sql`
++- `tests/e2e/industrial-diesel-catalog.spec.ts`
++- `README-CARRTELL-INDUSTRIAL-DIESEL-V1-FA.md`
++- `PATCH-MANIFEST-CARRTELL-INDUSTRIAL-DIESEL-V1.md`
++
++## دیتابیس
++- تکمیل idempotent جدول `product_categories`
++- افزودن `parent_id`
++- ساخت `product_category_assignments`
++- Seed شاخه دیزلی/صنعتی
++- انتقال اتصال دسته قدیمی محصولات بدون حذف `products.category`
++- RLS و Indexهای لازم
++
++## Secretها
++هیچ Secret یا کلید Supabase، پیامک، پرداخت یا Neshan اضافه نشده است.
+diff --git a/README-CARRTELL-INDUSTRIAL-DIESEL-V1-FA.md b/README-CARRTELL-INDUSTRIAL-DIESEL-V1-FA.md
+new file mode 100644
+index 0000000..7d032aa
+--- /dev/null
++++ b/README-CARRTELL-INDUSTRIAL-DIESEL-V1-FA.md
+@@ -0,0 +1,44 @@
++# پچ Carrtell — فروشگاه دیزلی و صنعتی V1
++
++## امکانات
++- صفحه عمومی و مستقل `/industrial` بدون ورود اجباری
++- دسته‌بندی درختی و نامحدود در پنل مدیریت
++- انتخاب والد، تصویر، ایموجی، ترتیب و فعال/غیرفعال
++- اتصال هر محصول به یک یا چند دسته داینامیک
++- حفظ فیلد قدیمی `products.category` برای جلوگیری از خرابی محصولات سواری
++- Seed دسته‌های دیزلی و صنعتی و انتقال امن اتصال دسته‌های فعلی
++- حالت تست جدید `INDUSTRIAL` در Carrtell Agent
++
++## نصب
++1. ZIP را در ریشه پروژه، کنار `package.json`، استخراج کن و Replace را تأیید کن.
++2. فایل `supabase/migrations/202608230001_dynamic_product_category_tree.sql` را در SQL Editor پروژه Supabase اجرا کن.
++3. فایل `INSTALL-INDUSTRIAL-V1.ps1` را با PowerShell اجرا کن؛ یا دستورات زیر را دستی اجرا کن:
++
++```powershell
++npm install
++npm run typecheck
++npm run build
++.\agent.ps1 INDUSTRIAL
++```
++
++4. در پنل ادمین، بخش «دسته‌بندی‌ها» را باز کن و ساختار والد/زیرشاخه را بررسی کن.
++5. در «محصولات»، محصول صنعتی را به یک یا چند شاخه صنعتی متصل کن.
++6. آدرس `/industrial` را در موبایل و دسکتاپ باز کن.
++
++## گزارش تست به ChatGPT
++اگر Agent خطا داد، این موارد را بفرست:
++- متن کامل PowerShell از اولین `FAILED`
++- فایل `playwright-report/index.html` یا Screenshot خطا
++- مسیر و مرحله‌ای که Agent اعلام کرده
++
++Agent نباید برای عبور از تست قابلیت سالمی را حذف کند. خطا باید تحلیل شود و Patch اصلاحی بعدی روی همین Sprint ساخته شود.
++
++## بازگشت دیتابیس
++حذف جدول واسط اتصال‌ها اطلاعات اصلی محصول را پاک نمی‌کند، چون `products.category` حفظ شده است:
++
++```sql
++drop table if exists public.product_category_assignments;
++alter table public.product_categories drop column if exists parent_id;
++```
++
++قبل از Rollback از دیتابیس Backup بگیر. دسته‌های Seed شده عمداً خودکار حذف نمی‌شوند.
+diff --git a/agent.ps1 b/agent.ps1
+index 4f052d3..cd33b96 100644
+--- a/agent.ps1
++++ b/agent.ps1
+@@ -1,6 +1,6 @@
+ param(
+   [Parameter(Position=0)]
+-  [ValidateSet("CRITICAL","BOOKING","SHOP","UX","CUSTOMER","CUSTOMER3","VISUAL","ADMIN","TECHNICIAN","PERSONAS","PRODUCTION","SMS","SMSLOGIN","FINAL","FULL")]
++  [ValidateSet("CRITICAL","BOOKING","SHOP","INDUSTRIAL","UX","CUSTOMER","CUSTOMER3","VISUAL","ADMIN","TECHNICIAN","PERSONAS","PRODUCTION","SMS","SMSLOGIN","FINAL","FULL")]
+   [string]$Mode = "FULL"
+ )
+ 
+@@ -101,6 +101,14 @@ if ($Mode -eq "SHOP") {
+   Run-Step "SHOP + CART + HEADER CART" "npx playwright test tests/e2e/shop-cart-v22.spec.ts tests/e2e/critical-user-journeys-v23.spec.ts -g 'shop|cart|MiniCart'"
+   exit 0
+ }
++if ($Mode -eq "INDUSTRIAL") {
++  Fresh-Build
++  Run-Step "INDUSTRIAL + DIESEL CUSTOMER UX" "npx playwright test tests/e2e/industrial-diesel-catalog.spec.ts --workers=1"
++  Run-Step "ADMIN CATEGORY + PRODUCT PERSONA" "npx playwright test tests/e2e/persona-admin.spec.ts -c playwright.persona.config.ts --project=desktop-chrome --workers=1"
++  Run-Step "SHOP + AUTH REGRESSION" "npx playwright test tests/e2e/shop-cart-v22.spec.ts tests/e2e/auth-account-regression-v2319.spec.ts --project=android-chrome --workers=1"
++  Write-Host "اگر هر مرحله شکست خورد، گزارش HTML و Screenshot را برای ChatGPT بفرست تا Patch اصلاحی بعدی ساخته شود." -ForegroundColor Yellow
++  exit 0
++}
+ if ($Mode -eq "UX") {
+   Fresh-Build
+   Run-Step "UX SIGNALS" "npx playwright test tests/e2e/ux-v22.spec.ts tests/e2e/critical-user-journeys-v23.spec.ts -g 'menu|mobile|public flow'"
+diff --git a/src/App.tsx b/src/App.tsx
+index 506fdb3..037b62e 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -47,6 +47,7 @@ import HomePage from './pages/HomePage';
+ import ShopPage from './pages/ShopPage';
+ import StoreCollectionPage from './pages/StoreCollectionPage';
+ import ProductDetailPage from './pages/ProductDetailPage';
++import IndustrialProductsPage from './pages/IndustrialProductsPage';
+ import BookPage from './pages/BookPage';
+ import DashboardPage from './pages/DashboardPage';
+ import InvestorPage from './pages/InvestorPage';
+@@ -144,6 +145,7 @@ function App() {
+                 <Route path="/home" element={<Navigate to="/" replace />} />
+                 <Route path="/shop" element={<ShopPage />} />
+                 <Route path="/shop/product/:id" element={<ProductDetailPage />} />
++                <Route path="/industrial" element={<IndustrialProductsPage />} />
+                 <Route path="/shop/all-products" element={<StoreCollectionPage kind="all" />} />
+                 <Route path="/shop/special-offers" element={<StoreCollectionPage kind="special" />} />
+                 <Route path="/shop/featured" element={<StoreCollectionPage kind="featured" />} />
+diff --git a/src/admin/pages/Categories.tsx b/src/admin/pages/Categories.tsx
+index 41079fa..ec2a3cb 100644
+--- a/src/admin/pages/Categories.tsx
++++ b/src/admin/pages/Categories.tsx
+@@ -1,156 +1,60 @@
+-import { useEffect, useState } from 'react';
+-import {
+-  createProductCategory,
+-  deleteProductCategory,
+-  getProductCategories,
+-  ProductCategory,
+-  updateProductCategory,
+-} from '../services/categoriesApi';
+-
+-const emptyCategory: ProductCategory = {
+-  title: '',
+-  slug: '',
+-  description: '',
+-  icon_emoji: '🔧',
+-  sort_order: 0,
+-  is_active: true,
+-};
+-
+-function makeSlug(title: string) {
+-  return title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-آ-ی]/gi, '');
++import { useEffect, useMemo, useState } from 'react';
++import ImageUploader from '../components/ImageUploader';
++import { buildCategoryTree, createProductCategory, deleteProductCategory, getProductCategories, ProductCategory, ProductCategoryNode, updateProductCategory } from '../services/categoriesApi';
++
++const emptyCategory: ProductCategory = { title: '', slug: '', description: '', parent_id: null, image_url: '', icon_emoji: '🔧', sort_order: 0, is_active: true };
++const field = 'w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-yellow-400';
++const makeSlug = (title: string) => title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-آ-ی]/gi, '');
++
++function CategoryRow({ node, depth, onEdit, onRemove }: { node: ProductCategoryNode; depth: number; onEdit: (item: ProductCategory) => void; onRemove: (id?: string) => void }) {
++  return <div>
++    <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-white md:flex-row md:items-center md:justify-between" style={{ marginRight: Math.min(depth * 24, 72) }}>
++      <div className="flex min-w-0 items-center gap-3">
++        <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-800 text-xl">{node.image_url ? <img src={node.image_url} alt="" className="h-full w-full object-contain p-1" /> : node.icon_emoji || '🔧'}</div>
++        <div className="min-w-0"><b className="block truncate">{depth ? '↳ ' : ''}{node.title}</b><p className="text-xs text-slate-400">{node.slug} · ترتیب {node.sort_order}{node.children.length ? ` · ${node.children.length.toLocaleString('fa-IR')} زیرشاخه` : ''}</p>{!node.is_active && <span className="mt-1 inline-block rounded-full bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-200">غیرفعال</span>}</div>
++      </div>
++      <div className="flex gap-2"><button onClick={() => onEdit(node)} className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-bold">ویرایش</button><button onClick={() => onRemove(node.id)} className="rounded-lg px-3 py-2 text-xs font-bold text-red-400">حذف</button></div>
++    </div>
++    <div className="mt-2 space-y-2">{node.children.map((child) => <CategoryRow key={child.id} node={child} depth={depth + 1} onEdit={onEdit} onRemove={onRemove} />)}</div>
++  </div>;
+ }
+ 
+-function Categories() {
++export default function Categories() {
+   const [categories, setCategories] = useState<ProductCategory[]>([]);
+   const [form, setForm] = useState<ProductCategory>(emptyCategory);
+   const [editingId, setEditingId] = useState<string | null>(null);
+-
+-  async function loadData() {
+-    const data = await getProductCategories();
+-    setCategories(data);
+-  }
+-
+-  useEffect(() => {
+-    loadData();
+-  }, []);
+-
+-  function resetForm() {
+-    setForm(emptyCategory);
+-    setEditingId(null);
+-  }
+-
+-  function editCategory(category: ProductCategory) {
+-    setForm({ ...emptyCategory, ...category });
+-    setEditingId(category.id || null);
+-    window.scrollTo({ top: 0, behavior: 'smooth' });
+-  }
+-
++  const tree = useMemo(() => buildCategoryTree(categories), [categories]);
++  async function loadData() { setCategories(await getProductCategories()); }
++  useEffect(() => { void loadData(); }, []);
++  function resetForm() { setForm(emptyCategory); setEditingId(null); }
++  function editCategory(category: ProductCategory) { setForm({ ...emptyCategory, ...category }); setEditingId(category.id || null); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+   async function saveCategory() {
+-    if (!form.title.trim()) {
+-      alert('نام دسته‌بندی الزامی است');
+-      return;
+-    }
+-
+-    const payload = {
+-      ...form,
+-      slug: form.slug.trim() || makeSlug(form.title),
+-    };
+-
+-    try {
+-      if (editingId) {
+-        await updateProductCategory(editingId, payload);
+-        alert('دسته‌بندی ویرایش شد ✅');
+-      } else {
+-        await createProductCategory(payload);
+-        alert('دسته‌بندی ساخته شد ✅');
+-      }
+-      resetForm();
+-      await loadData();
+-    } catch (error) {
+-      console.error(error);
+-      alert('ذخیره دسته‌بندی انجام نشد. Console را بررسی کن.');
+-    }
++    if (!form.title.trim()) return alert('نام دسته‌بندی الزامی است');
++    if (editingId && form.parent_id === editingId) return alert('یک دسته نمی‌تواند والد خودش باشد');
++    try { const payload = { ...form, slug: form.slug.trim() || makeSlug(form.title) }; if (editingId) await updateProductCategory(editingId, payload); else await createProductCategory(payload); alert(editingId ? 'دسته‌بندی ویرایش شد ✅' : 'دسته‌بندی ساخته شد ✅'); resetForm(); await loadData(); }
++    catch (error) { console.error(error); alert('ذخیره انجام نشد. ابتدا Migration این Sprint را اجرا کن.'); }
+   }
+-
+   async function remove(id?: string) {
+     if (!id) return;
+-    if (!confirm('دسته‌بندی حذف شود؟ محصولات قبلی فقط مقدار دسته‌شان را نگه می‌دارند.')) return;
+-    await deleteProductCategory(id);
+-    loadData();
++    if (categories.some((item) => item.parent_id === id)) return alert('این دسته زیرشاخه دارد؛ ابتدا زیرشاخه‌ها را حذف یا منتقل کن.');
++    if (!confirm('دسته‌بندی حذف شود؟')) return;
++    try { await deleteProductCategory(id); await loadData(); } catch (error) { console.error(error); alert('این دسته به محصول متصل است یا اجازه حذف وجود ندارد.'); }
+   }
+-
+-  return (
+-    <div className="space-y-6">
+-      <div>
+-        <h1 className="text-2xl font-bold text-white">مدیریت دسته‌بندی محصولات</h1>
+-        <p className="mt-2 text-sm text-slate-400">
+-          هر دسته‌ای اینجا بسازی، در پنل محصولات، منوی دسته‌بندی و فیلتر فروشگاه به صورت خودکار نمایش داده می‌شود.
+-        </p>
+-      </div>
+-
+-      <div className="grid gap-3 rounded-2xl bg-slate-900 p-5 md:grid-cols-2">
+-        <input
+-          placeholder="نام دسته‌بندی؛ مثال: روغن موتور"
+-          value={form.title}
+-          onChange={(e) => setForm({ ...form, title: e.target.value, slug: form.slug || makeSlug(e.target.value) })}
+-          className="rounded bg-slate-800 p-3 text-white"
+-        />
+-        <input
+-          placeholder="شناسه انگلیسی/اسلاگ؛ مثال: engine-oil"
+-          value={form.slug}
+-          onChange={(e) => setForm({ ...form, slug: e.target.value })}
+-          className="rounded bg-slate-800 p-3 text-white"
+-        />
+-        <input
+-          placeholder="ترتیب نمایش"
+-          type="number"
+-          value={form.sort_order}
+-          onChange={(e) => setForm({ ...form, sort_order: +e.target.value })}
+-          className="rounded bg-slate-800 p-3 text-white"
+-        />
+-        <input
+-          placeholder="ایموجی دسته‌بندی؛ مثال: 🛢️"
+-          value={form.icon_emoji || ''}
+-          onChange={(e) => setForm({ ...form, icon_emoji: e.target.value })}
+-          className="rounded bg-slate-800 p-3 text-white"
+-          maxLength={8}
+-        />
+-        <label className="flex items-center gap-2 rounded bg-slate-800 p-3 text-white">
+-          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
+-          فعال باشد
+-        </label>
+-        <textarea
+-          placeholder="توضیحات کوتاه"
+-          value={form.description}
+-          onChange={(e) => setForm({ ...form, description: e.target.value })}
+-          className="rounded bg-slate-800 p-3 text-white md:col-span-2"
+-          rows={3}
+-        />
+-        <div className="flex flex-col gap-2 md:col-span-2 md:flex-row">
+-          <button onClick={saveCategory} className="flex-1 rounded bg-yellow-400 p-3 font-bold text-slate-950">
+-            {editingId ? 'ذخیره تغییرات دسته' : 'افزودن دسته‌بندی'}
+-          </button>
+-          {editingId && <button onClick={resetForm} className="rounded bg-slate-700 px-6 py-3 font-bold text-white">لغو ویرایش</button>}
+-        </div>
+-      </div>
+-
+-      <div className="space-y-3">
+-        {categories.map((category) => (
+-          <div key={category.id || category.slug} className="flex flex-col gap-3 rounded-xl bg-slate-900 p-4 text-white md:flex-row md:items-center md:justify-between">
+-            <div>
+-              <b className="flex items-center gap-2"><span className="text-lg">{category.icon_emoji || '🔧'}</span>{category.title}</b>
+-              <p className="text-sm text-slate-400">{category.slug} | ترتیب: {category.sort_order}</p>
+-              {!category.is_active && <span className="mt-2 inline-block rounded-full bg-red-500/10 px-2 py-1 text-xs font-bold text-red-200">غیرفعال</span>}
+-            </div>
+-            <div className="flex gap-2">
+-              <button onClick={() => editCategory(category)} className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-bold text-white">ویرایش</button>
+-              {category.id && <button onClick={() => remove(category.id)} className="px-3 py-2 text-sm text-red-400">حذف</button>}
+-            </div>
+-          </div>
+-        ))}
+-      </div>
++  const parentOptions = categories.filter((item) => item.id && item.id !== editingId);
++  return <div className="space-y-6" dir="rtl">
++    <div><h1 className="text-2xl font-bold text-white">دسته‌بندی درختی محصولات</h1><p className="mt-2 text-sm text-slate-400">دسته اصلی و زیرشاخه‌ها را بدون تغییر کد مدیریت کن.</p></div>
++    <div className="grid gap-3 rounded-2xl bg-slate-900 p-5 md:grid-cols-2">
++      <input placeholder="نام دسته‌بندی" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value, slug: form.slug || makeSlug(e.target.value) })} className={field} />
++      <input placeholder="اسلاگ انگلیسی" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className={field} />
++      <select value={form.parent_id || ''} onChange={(e) => setForm({ ...form, parent_id: e.target.value || null })} className={field}><option value="">بدون والد (دسته اصلی)</option>{parentOptions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>
++      <input placeholder="ترتیب نمایش" type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} className={field} />
++      <input placeholder="آیکون یا ایموجی" value={form.icon_emoji || ''} onChange={(e) => setForm({ ...form, icon_emoji: e.target.value })} className={field} maxLength={8} />
++      <label className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 p-3 text-white"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> فعال باشد</label>
++      <div className="md:col-span-2"><ImageUploader label="تصویر یا آیکون دسته‌بندی" folder="categories" value={form.image_url || ''} onChange={(image_url) => setForm({ ...form, image_url })} /></div>
++      <textarea placeholder="توضیحات کوتاه" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} className={`${field} md:col-span-2`} rows={3} />
++      <button onClick={saveCategory} className="rounded-xl bg-yellow-400 p-3 font-bold text-slate-950 md:col-span-2">{editingId ? 'ذخیره تغییرات دسته' : 'افزودن دسته‌بندی'}</button>
++      {editingId && <button onClick={resetForm} className="rounded-xl bg-slate-700 p-3 font-bold text-white md:col-span-2">لغو ویرایش</button>}
+     </div>
+-  );
++    <div className="space-y-2">{tree.map((node) => <CategoryRow key={node.id} node={node} depth={0} onEdit={editCategory} onRemove={remove} />)}</div>
++  </div>;
+ }
+-
+-export default Categories;
+diff --git a/src/admin/pages/Products.tsx b/src/admin/pages/Products.tsx
+index 290a3e2..7895b23 100644
+--- a/src/admin/pages/Products.tsx
++++ b/src/admin/pages/Products.tsx
+@@ -1,7 +1,8 @@
+ import { useEffect, useMemo, useState, type ReactNode } from 'react';
+ import { getProducts, createProduct, updateProduct, deleteProduct, Product } from '../services/productsApi';
+ import { getCars, getCarTitle, type Car } from '../services/carsApi';
+-import { PRODUCT_CATEGORIES, getCategoryLabel } from '../../config/productCategories';
++import { PRODUCT_CATEGORIES, getCategoryLabel as getFallbackCategoryLabel } from '../../config/productCategories';
++import { getProductCategories, type ProductCategory } from '../services/categoriesApi';
+ import { getOilSpecs, type OilSpec } from '../services/oilSpecsApi';
+ import { getBrands, type Brand } from '../services/brandsApi';
+ import { getWarehouses, type Warehouse } from '../services/warehousesApi';
+@@ -103,6 +104,7 @@ const emptyProduct: Product = {
+   compatible_all_cars: false,
+   suitable_cars: [],
+   compatible_car_ids: [],
++  category_ids: [],
+   compatible_transmissions: [],
+   description: '',
+   card_features: '',
+@@ -189,6 +191,7 @@ function Products() {
+   const [oilSpecs, setOilSpecs] = useState<OilSpec[]>([]);
+   const [brands, setBrands] = useState<Brand[]>([]);
+   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
++  const [categories, setCategories] = useState<ProductCategory[]>([]);
+   const [form, setForm] = useState<Product>(emptyProduct);
+   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+   const [carSearch, setCarSearch] = useState('');
+@@ -213,12 +216,13 @@ function Products() {
+   });
+ 
+   async function loadData() {
+-    const [productsData, carsData, oilSpecsData, brandsData, warehousesData] = await Promise.all([getProducts(), getCars(), getOilSpecs(), getBrands(), getWarehouses()]);
++    const [productsData, carsData, oilSpecsData, brandsData, warehousesData, categoriesData] = await Promise.all([getProducts(), getCars(), getOilSpecs(), getBrands(), getWarehouses(), getProductCategories()]);
+     setProducts(productsData);
+     setCars(carsData.filter((car) => car.is_active !== false));
+     setOilSpecs(oilSpecsData.filter((item) => item.is_active !== false));
+     setBrands(brandsData.filter((item) => item.is_active !== false));
+     setWarehouses(warehousesData.filter((item) => item.is_active !== false));
++    setCategories(categoriesData.filter((item) => item.is_active !== false));
+   }
+ 
+   useEffect(() => {
+@@ -229,6 +233,8 @@ function Products() {
+   const qualityLevels = useMemo(() => oilSpecs.filter((item) => item.type === 'quality'), [oilSpecs]);
+   const oilBases = useMemo(() => oilSpecs.filter((item) => item.type === 'base'), [oilSpecs]);
+   const amazingJalali = parseAmazingJalali(form.amazing_ends_at);
++  const categoryOptions = useMemo(() => categories.length ? categories.map((item) => ({ value: item.slug, label: item.title, id: item.id, parentId: item.parent_id })) : PRODUCT_CATEGORIES.map((item) => ({ ...item, id: undefined, parentId: null })), [categories]);
++  const getCategoryLabel = (slug?: string) => categoryOptions.find((item) => item.value === slug)?.label || getFallbackCategoryLabel(slug);
+ 
+   const filteredProducts = useMemo(() => {
+     const query = productSearch.trim().toLowerCase();
+@@ -359,6 +365,7 @@ function Products() {
+       ...emptyProduct,
+       ...item,
+       category: normalizedCategory,
++      category_ids: item.category_ids || [],
+       compatible_car_ids: item.compatible_car_ids || [],
+       compatible_transmissions: item.compatible_transmissions || [],
+       compatible_all_cars: !!item.compatible_all_cars,
+@@ -502,12 +509,26 @@ function Products() {
+ 
+         <Field label="دسته‌بندی محصول" hint="محصول در همین دسته داخل فروشگاه و فیلترها نمایش داده می‌شود.">
+           <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full rounded bg-slate-800 p-3 text-white">
+-            {PRODUCT_CATEGORIES.map((category) => (
++            {categoryOptions.map((category) => (
+               <option key={category.value} value={category.value}>{category.label}</option>
+             ))}
+           </select>
+         </Field>
+ 
++        <Field label="شاخه‌های داینامیک محصول" hint="یک یا چند شاخه را انتخاب کن. اولین شاخه انتخاب‌شده، شاخه اصلی محصول است.">
++          <div className="max-h-52 space-y-2 overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-3">
++            {categories.map((category) => <label key={category.id || category.slug} className="flex items-center gap-2 text-sm text-slate-200">
++              <input type="checkbox" checked={!!category.id && (form.category_ids || []).includes(category.id)} onChange={() => {
++                if (!category.id) return;
++                const current = form.category_ids || [];
++                const selected = current.includes(category.id);
++                setForm({ ...form, category_ids: selected ? current.filter((id) => id !== category.id) : [...current, category.id], category: selected ? form.category : category.slug });
++              }} />
++              <span>{category.parent_id ? '↳ ' : ''}{category.title}</span>
++            </label>)}
++          </div>
++        </Field>
++
+         <Field label="تصویر محصول" hint="عکس قبل از آپلود به WebP تبدیل و کم‌حجم می‌شود؛ واترمارک تنظیم‌شده سایت هم اعمال می‌شود.">
+           <ImageUploader
+             label="آپلود تصویر محصول"
+@@ -752,7 +773,7 @@ function Products() {
+             >
+               همه ({products.filter((item) => item.id && item.id !== editingProductId).length.toLocaleString('fa-IR')})
+             </button>
+-            {PRODUCT_CATEGORIES.map((category) => {
++            {categoryOptions.map((category) => {
+               const count = products.filter((item) => item.id && item.id !== editingProductId && item.category === category.value).length;
+               if (!count) return null;
+               return (
+@@ -925,7 +946,7 @@ function Products() {
+           />
+           <select value={productCategoryFilter} onChange={(event) => setProductCategoryFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white">
+             <option value="all">همه دسته‌ها</option>
+-            {PRODUCT_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
++            {categoryOptions.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+           </select>
+           <select value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white">
+             <option value="all">همه وضعیت‌ها</option>
+diff --git a/src/admin/services/categoriesApi.ts b/src/admin/services/categoriesApi.ts
+index 116bf74..068b0a1 100644
+--- a/src/admin/services/categoriesApi.ts
++++ b/src/admin/services/categoriesApi.ts
+@@ -3,6 +3,7 @@ import { PRODUCT_CATEGORIES } from '../../config/productCategories';
+ 
+ export type ProductCategory = {
+   id?: string;
++  parent_id?: string | null;
+   title: string;
+   slug: string;
+   description?: string;
+@@ -13,6 +14,8 @@ export type ProductCategory = {
+   created_at?: string;
+ };
+ 
++export type ProductCategoryNode = ProductCategory & { children: ProductCategoryNode[] };
++
+ function makeSlug(title: string) {
+   return title
+     .trim()
+@@ -26,6 +29,7 @@ function fallbackCategories(): ProductCategory[] {
+     title: item.label,
+     slug: item.value,
+     description: '',
++    parent_id: null,
+     sort_order: index + 1,
+     is_active: true,
+   }));
+@@ -52,6 +56,8 @@ export async function createProductCategory(category: ProductCategory) {
+     title: category.title.trim(),
+     slug: category.slug?.trim() || makeSlug(category.title),
+     description: category.description || '',
++    parent_id: category.parent_id || null,
++    image_url: category.image_url?.trim() || null,
+     sort_order: Number(category.sort_order || 0),
+     icon_emoji: category.icon_emoji?.trim() || null,
+     is_active: category.is_active !== false,
+@@ -67,6 +73,8 @@ export async function updateProductCategory(id: string, category: Partial<Produc
+     ...(category.title !== undefined ? { title: category.title.trim() } : {}),
+     ...(category.slug !== undefined ? { slug: category.slug.trim() || makeSlug(category.title || 'category') } : {}),
+     ...(category.description !== undefined ? { description: category.description || '' } : {}),
++    ...(category.parent_id !== undefined ? { parent_id: category.parent_id || null } : {}),
++    ...(category.image_url !== undefined ? { image_url: category.image_url?.trim() || null } : {}),
+     ...(category.sort_order !== undefined ? { sort_order: Number(category.sort_order || 0) } : {}),
+     ...(category.icon_emoji !== undefined ? { icon_emoji: category.icon_emoji?.trim() || null } : {}),
+     ...(category.is_active !== undefined ? { is_active: category.is_active !== false } : {}),
+@@ -77,6 +85,42 @@ export async function updateProductCategory(id: string, category: Partial<Produc
+   return data;
+ }
+ 
++export function buildCategoryTree(categories: ProductCategory[]): ProductCategoryNode[] {
++  const nodes = new Map<string, ProductCategoryNode>();
++  categories.forEach((category) => {
++    if (category.id) nodes.set(category.id, { ...category, children: [] });
++  });
++
++  const roots: ProductCategoryNode[] = [];
++  nodes.forEach((node) => {
++    const parent = node.parent_id ? nodes.get(node.parent_id) : undefined;
++    if (parent && parent.id !== node.id) parent.children.push(node);
++    else roots.push(node);
++  });
++
++  const sort = (items: ProductCategoryNode[]) => {
++    items.sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title, 'fa'));
++    items.forEach((item) => sort(item.children));
++  };
++  sort(roots);
++  return roots;
++}
++
++export function getCategoryDescendantIds(categories: ProductCategory[], rootId: string) {
++  const result = new Set<string>([rootId]);
++  let changed = true;
++  while (changed) {
++    changed = false;
++    categories.forEach((category) => {
++      if (category.id && category.parent_id && result.has(category.parent_id) && !result.has(category.id)) {
++        result.add(category.id);
++        changed = true;
++      }
++    });
++  }
++  return [...result];
++}
++
+ export async function deleteProductCategory(id: string) {
+   const { error } = await supabase.from('product_categories').delete().eq('id', id);
+   if (error) throw error;
+diff --git a/src/admin/services/productsApi.ts b/src/admin/services/productsApi.ts
+index d6a1ae5..57100aa 100644
+--- a/src/admin/services/productsApi.ts
++++ b/src/admin/services/productsApi.ts
+@@ -8,6 +8,7 @@ export type Product = {
+   warehouse_id?: string | null;
+   oil_base?: string;
+   category?: string;
++  category_ids?: string[];
+   oil_grade?: string;
+   quality_level?: string;
+   transmission_type?: string;
+@@ -42,6 +43,8 @@ type ProductCompatibleCarRow = {
+ 
+ type ProductPayload = Omit<Product, 'id' | 'compatible_car_ids'>;
+ 
++type ProductCategoryAssignmentRow = { product_id: string; category_id: string; is_primary?: boolean };
++
+ const OPTIONAL_PRODUCT_COLUMNS = new Set([
+   'recommendation_reason',
+   'recommendation_priority',
+@@ -75,8 +78,9 @@ async function saveProductRow(
+     const missingColumn = getMissingSchemaColumn(error);
+     if (!missingColumn || !OPTIONAL_PRODUCT_COLUMNS.has(missingColumn)) throw error;
+ 
+-    const { [missingColumn as keyof ProductPayload]: _removed, ...nextPayload } = safePayload;
+-    safePayload = nextPayload;
++    const nextPayload = { ...safePayload } as Record<string, unknown>;
++    delete nextPayload[missingColumn];
++    safePayload = nextPayload as Partial<ProductPayload>;
+     console.warn(`ستون اختیاری ${missingColumn} هنوز در Supabase ساخته نشده و موقتاً از ذخیره حذف شد.`);
+   }
+ 
+@@ -84,13 +88,12 @@ async function saveProductRow(
+ }
+ 
+ function cleanProductPayload(product: Partial<Product>): Partial<ProductPayload> {
+-  const {
+-    id,
+-    compatible_car_ids,
+-    product_compatible_cars,
+-    brands,
+-    ...payload
+-  } = product as Partial<Product> & { product_compatible_cars?: unknown; brands?: unknown };
++  const payload = { ...product } as Partial<ProductPayload> & Record<string, unknown>;
++  delete payload.id;
++  delete payload.compatible_car_ids;
++  delete payload.category_ids;
++  delete payload.product_compatible_cars;
++  delete payload.brands;
+ 
+   return {
+     ...payload,
+@@ -101,6 +104,17 @@ function cleanProductPayload(product: Partial<Product>): Partial<ProductPayload>
+   };
+ }
+ 
++async function syncProductCategories(productId: string, categoryIds: string[] = []) {
++  const { error: deleteError } = await supabase.from('product_category_assignments').delete().eq('product_id', productId);
++  if (deleteError) throw deleteError;
++  const uniqueIds = Array.from(new Set(categoryIds.filter(Boolean)));
++  if (!uniqueIds.length) return;
++  const { error } = await supabase.from('product_category_assignments').insert(
++    uniqueIds.map((categoryId, index) => ({ product_id: productId, category_id: categoryId, is_primary: index === 0 })),
++  );
++  if (error) throw error;
++}
++
+ function mergeCompatibleCars(products: Product[], relations: ProductCompatibleCarRow[]) {
+   const map = new Map<string, string[]>();
+ 
+@@ -149,7 +163,7 @@ export async function getProducts() {
+   const products = (productsData || []).filter((item): item is Product => Boolean(item && typeof item === 'object' && typeof (item as Product).name === 'string')) as Product[];
+   const productIds = products.map((product) => product.id).filter(Boolean) as string[];
+ 
+-  if (!productIds.length) return products.map((product) => ({ ...product, compatible_car_ids: [] }));
++  if (!productIds.length) return products.map((product) => ({ ...product, compatible_car_ids: [], category_ids: [] }));
+ 
+   const { data: relationsData, error: relationsError } = await supabase
+     .from('product_compatible_cars')
+@@ -158,7 +172,21 @@ export async function getProducts() {
+ 
+   if (relationsError) throw relationsError;
+ 
+-  return mergeCompatibleCars(products, (relationsData || []) as ProductCompatibleCarRow[]);
++  const { data: categoryRelations, error: categoryError } = await supabase
++    .from('product_category_assignments')
++    .select('product_id, category_id, is_primary')
++    .in('product_id', productIds);
++
++  const withCars = mergeCompatibleCars(products, (relationsData || []) as ProductCompatibleCarRow[]);
++  if (categoryError) {
++    console.warn('product_category_assignments not ready; legacy category field remains active', categoryError);
++    return withCars.map((product) => ({ ...product, category_ids: [] }));
++  }
++  const categoryMap = new Map<string, string[]>();
++  (categoryRelations || []).forEach((row: ProductCategoryAssignmentRow) => {
++    categoryMap.set(row.product_id, [...(categoryMap.get(row.product_id) || []), row.category_id]);
++  });
++  return withCars.map((product) => ({ ...product, category_ids: product.id ? categoryMap.get(product.id) || [] : [] }));
+ }
+ 
+ 
+@@ -177,19 +205,20 @@ export async function getStorefrontSearchProducts(limit = 600): Promise<Product[
+ }
+ 
+ export async function createProduct(product: Product) {
+-  const { compatible_car_ids = [] } = product;
++  const { compatible_car_ids = [], category_ids = [] } = product;
+ 
+   const data = await saveProductRow('insert', cleanProductPayload(product));
+ 
+   if (!product.compatible_all_cars) {
+     await syncProductCars(data.id, compatible_car_ids);
+   }
++  await syncProductCategories(data.id, category_ids);
+ 
+   return data;
+ }
+ 
+ export async function updateProduct(id: string, product: Partial<Product>) {
+-  const { compatible_car_ids } = product;
++  const { compatible_car_ids, category_ids } = product;
+ 
+   const data = await saveProductRow('update', cleanProductPayload(product), id);
+ 
+@@ -198,6 +227,7 @@ export async function updateProduct(id: string, product: Partial<Product>) {
+   } else if (Array.isArray(compatible_car_ids)) {
+     await syncProductCars(id, compatible_car_ids);
+   }
++  if (Array.isArray(category_ids)) await syncProductCategories(id, category_ids);
+ 
+   return data;
+ }
+diff --git a/src/pages/HomePage.tsx b/src/pages/HomePage.tsx
+index 3033f3d..6b0a612 100644
+--- a/src/pages/HomePage.tsx
++++ b/src/pages/HomePage.tsx
+@@ -115,6 +115,13 @@ export default function HomePage() {
+         </div>
+       </section>
+ 
++      <section className="mx-auto max-w-[1240px] px-4 pb-7">
++        <Link to="/industrial" className="flex min-h-[150px] items-center justify-between overflow-hidden rounded-[24px] bg-gradient-to-l from-slate-950 via-slate-900 to-amber-950 p-6 text-white shadow-lg transition hover:-translate-y-0.5">
++          <div><span className="rounded-full bg-amber-400/15 px-3 py-1 text-[11px] font-black text-amber-300">بخش تخصصی جدید</span><h2 className="mt-3 text-xl font-black">روغن و فیلتر دیزلی و صنعتی</h2><p className="mt-1 text-xs leading-6 text-slate-300">خودرو سنگین، ماشین‌آلات، کارخانه، گالن ۲۰ لیتری و بشکه</p></div>
++          <Truck className="h-16 w-16 shrink-0 text-amber-400/80" />
++        </Link>
++      </section>
++
+       <section className="mx-auto max-w-[1240px] px-4 py-7">
+         <div className="mb-4 flex items-center justify-between">
+           <h2 className="text-lg font-black">دسته‌بندی‌های محبوب</h2>
+diff --git a/src/pages/IndustrialProductsPage.tsx b/src/pages/IndustrialProductsPage.tsx
+new file mode 100644
+index 0000000..25ab2fd
+--- /dev/null
++++ b/src/pages/IndustrialProductsPage.tsx
+@@ -0,0 +1,61 @@
++import { useEffect, useMemo, useState } from 'react';
++import { Factory, Filter, Search, Truck, Wrench } from 'lucide-react';
++import { Link } from 'react-router-dom';
++import { getProducts, type Product } from '../admin/services/productsApi';
++import { buildCategoryTree, getCategoryDescendantIds, getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
++import { ProductCard } from './ShopPage';
++import { addProductToCart, readCart, type CartItem } from '../lib/cart';
++
++const ROOT_SLUG = 'industrial-diesel';
++
++export default function IndustrialProductsPage() {
++  const [products, setProducts] = useState<Product[]>([]);
++  const [categories, setCategories] = useState<ProductCategory[]>([]);
++  const [selectedCategoryId, setSelectedCategoryId] = useState('');
++  const [query, setQuery] = useState('');
++  const [brand, setBrand] = useState('all');
++  const [cart, setCart] = useState<Record<string, CartItem>>(() => readCart());
++  const [loading, setLoading] = useState(true);
++
++  useEffect(() => { (async () => { try { const [productRows, categoryRows] = await Promise.all([getProducts(), getProductCategories()]); setProducts(productRows.filter((item) => item.is_active !== false)); setCategories(categoryRows.filter((item) => item.is_active !== false)); } finally { setLoading(false); } })(); }, []);
++  useEffect(() => { const sync = () => setCart(readCart()); window.addEventListener('carrtell-cart-updated', sync); return () => window.removeEventListener('carrtell-cart-updated', sync); }, []);
++
++  const root = categories.find((item) => item.slug === ROOT_SLUG);
++  const industrialIds = useMemo(() => root?.id ? getCategoryDescendantIds(categories, root.id) : [], [categories, root?.id]);
++  const categoryTree = useMemo(() => buildCategoryTree(categories).find((item) => item.slug === ROOT_SLUG), [categories]);
++  const industrialProducts = useMemo(() => products.filter((item) => (item.category_ids || []).some((id) => industrialIds.includes(id))), [products, industrialIds]);
++  const brands = useMemo(() => Array.from(new Set(industrialProducts.map((item) => item.brand).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'fa')), [industrialProducts]);
++  const selectedIds = useMemo(() => selectedCategoryId ? getCategoryDescendantIds(categories, selectedCategoryId) : industrialIds, [categories, selectedCategoryId, industrialIds]);
++  const filtered = useMemo(() => industrialProducts.filter((item) => {
++    const categoryOk = (item.category_ids || []).some((id) => selectedIds.includes(id));
++    const brandOk = brand === 'all' || item.brand === brand;
++    const text = `${item.name} ${item.brand || ''} ${item.description || ''} ${item.oil_grade || ''} ${Object.values(item.specifications || {}).join(' ')}`.toLowerCase();
++    return categoryOk && brandOk && (!query.trim() || text.includes(query.trim().toLowerCase()));
++  }), [industrialProducts, selectedIds, brand, query]);
++  const reserved = useMemo(() => Object.fromEntries(Object.entries(cart).map(([id, item]) => [id, item.quantity])), [cart]);
++  function add(product: Product) { addProductToCart(product, 1); setCart(readCart()); }
++
++  return <main dir="rtl" className="min-h-screen bg-slate-50 pb-28 pt-24 text-slate-900">
++    <section className="mx-auto max-w-[1240px] px-4">
++      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-l from-slate-950 via-slate-900 to-amber-950 p-6 text-white shadow-xl md:p-10">
++        <Factory className="absolute -left-4 -bottom-5 h-40 w-40 text-white/5" />
++        <div className="relative max-w-2xl"><span className="inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-3 py-1.5 text-xs font-black text-amber-300"><Truck className="h-4 w-4" /> مرکز دیزلی و صنعتی Carrtell</span><h1 className="mt-4 text-2xl font-black leading-10 md:text-4xl">روغن و فیلتر ماشین‌آلات دیزلی و صنعتی</h1><p className="mt-2 text-sm leading-7 text-slate-300">محصولات خودرو سنگین، راه‌سازی، کشاورزی، کارخانه و مصرف‌های حجیم؛ از گالن ۲۰ لیتری تا بشکه صنعتی.</p></div>
++      </div>
++
++      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
++        {(categoryTree?.children || []).map((category) => <button key={category.id} onClick={() => setSelectedCategoryId(category.id || '')} className={`rounded-2xl border p-4 text-right shadow-sm transition ${selectedCategoryId === category.id ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300'}`}>
++          <span className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-amber-100 text-xl">{category.image_url ? <img src={category.image_url} alt="" className="h-full w-full object-contain p-1" /> : category.icon_emoji || <Wrench />}</span><b className="mt-3 block text-sm leading-6">{category.title}</b><span className="text-[11px] text-slate-500">مشاهده محصولات</span>
++        </button>)}
++      </div>
++
++      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:grid-cols-[1fr_220px_auto]">
++        <label className="flex items-center gap-2 rounded-xl bg-slate-100 px-3"><Search className="h-4 w-4 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="جستجو در محصولات صنعتی و دیزلی" className="w-full bg-transparent py-3 text-sm outline-none" /></label>
++        <select value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-3 text-sm"><option value="all">همه برندها</option>{brands.map((item) => <option key={item}>{item}</option>)}</select>
++        <button onClick={() => { setSelectedCategoryId(''); setBrand('all'); setQuery(''); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-xs font-black text-white"><Filter className="h-4 w-4" /> پاک‌کردن فیلتر</button>
++      </div>
++
++      <div className="mt-6 flex items-end justify-between gap-3"><div><h2 className="text-xl font-black">محصولات صنعتی و دیزلی</h2><p className="mt-1 text-xs text-slate-500">{filtered.length.toLocaleString('fa-IR')} محصول</p></div><Link to="/shop" className="text-xs font-black text-amber-700">فروشگاه محصولات سواری</Link></div>
++      {loading ? <div className="mt-6 text-center text-sm text-slate-500">در حال دریافت محصولات...</div> : filtered.length ? <div className="mt-4 grid grid-cols-2 justify-items-center gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">{filtered.map((product) => <ProductCard key={product.id} product={product} reservedQuantity={reserved[product.id || ''] || 0} onAddToCart={add} compact />)}</div> : <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><Factory className="mx-auto h-10 w-10 text-slate-300" /><b className="mt-3 block">محصولی در این شاخه ثبت نشده است</b><p className="mt-1 text-xs text-slate-500">محصول را از پنل مدیریت به یکی از زیرشاخه‌های صنعتی متصل کن.</p></div>}
++    </section>
++  </main>;
++}
+diff --git a/supabase/migrations/202608230001_dynamic_product_category_tree.sql b/supabase/migrations/202608230001_dynamic_product_category_tree.sql
+new file mode 100644
+index 0000000..a0d43ff
+--- /dev/null
++++ b/supabase/migrations/202608230001_dynamic_product_category_tree.sql
+@@ -0,0 +1,83 @@
++-- Carrtell Industrial/Diesel Catalog V1
++-- Idempotent category tree + many-to-many product assignment.
++
++create extension if not exists pgcrypto;
++
++create table if not exists public.product_categories (
++  id uuid primary key default gen_random_uuid(),
++  parent_id uuid references public.product_categories(id) on delete restrict,
++  title text not null,
++  slug text not null unique,
++  description text not null default '',
++  image_url text,
++  icon_emoji text,
++  sort_order integer not null default 0,
++  is_active boolean not null default true,
++  created_at timestamptz not null default now(),
++  updated_at timestamptz not null default now(),
++  constraint product_categories_not_self_parent check (parent_id is null or parent_id <> id)
++);
++
++alter table public.product_categories add column if not exists parent_id uuid references public.product_categories(id) on delete restrict;
++alter table public.product_categories add column if not exists image_url text;
++alter table public.product_categories add column if not exists icon_emoji text;
++alter table public.product_categories add column if not exists updated_at timestamptz not null default now();
++create unique index if not exists product_categories_slug_uq on public.product_categories(slug);
++create index if not exists product_categories_parent_sort_idx on public.product_categories(parent_id, sort_order, title);
++
++create table if not exists public.product_category_assignments (
++  product_id uuid not null references public.products(id) on delete cascade,
++  category_id uuid not null references public.product_categories(id) on delete cascade,
++  is_primary boolean not null default false,
++  created_at timestamptz not null default now(),
++  primary key(product_id, category_id)
++);
++create index if not exists product_category_assignments_category_idx on public.product_category_assignments(category_id, product_id);
++create unique index if not exists product_category_one_primary_uq on public.product_category_assignments(product_id) where is_primary;
++
++insert into public.product_categories(title, slug, icon_emoji, sort_order, is_active) values
++('روغن موتور','engine-oil','🛢️',10,true),
++('فیلتر روغن','oil-filter','⚙️',20,true),
++('فیلتر هوا','air-filter','🌬️',30,true),
++('فیلتر کابین','cabin-filter','🌀',40,true),
++('واسکازین / روغن گیربکس','gear-oil','⚙️',50,true),
++('روغن هیدرولیک','hydraulic-oil','💧',60,true),
++('ضدیخ','antifreeze','❄️',70,true),
++('مکمل','additive','🧪',80,true),
++('دیزلی و صنعتی','industrial-diesel','🏭',200,true),
++('روغن موتور دیزلی','diesel-engine-oil','🚛',210,true),
++('روغن هیدرولیک صنعتی','industrial-hydraulic-oil','💧',220,true),
++('واسکازین و روغن گیربکس صنعتی','industrial-gear-oil','⚙️',230,true),
++('فیلترهای صنعتی و دیزلی','industrial-filters','🧰',240,true),
++('فیلتر روغن صنعتی و دیزلی','industrial-oil-filter','⚙️',241,true),
++('فیلتر هوای صنعتی و دیزلی','industrial-air-filter','🌬️',242,true),
++('فیلتر گازوئیل','diesel-fuel-filter','⛽',243,true),
++('فیلتر آب‌گیر گازوئیل','diesel-water-separator','💧',244,true),
++('فیلتر هیدرولیک فرمان','steering-hydraulic-filter','🔩',245,true)
++on conflict(slug) do update set title=excluded.title, icon_emoji=coalesce(public.product_categories.icon_emoji, excluded.icon_emoji);
++
++update public.product_categories set parent_id=(select id from public.product_categories where slug='industrial-diesel')
++where slug in ('diesel-engine-oil','industrial-hydraulic-oil','industrial-gear-oil','industrial-filters');
++update public.product_categories set parent_id=(select id from public.product_categories where slug='industrial-filters')
++where slug in ('industrial-oil-filter','industrial-air-filter','diesel-fuel-filter','diesel-water-separator','steering-hydraulic-filter');
++
++insert into public.product_category_assignments(product_id, category_id, is_primary)
++select p.id, c.id, true from public.products p join public.product_categories c on c.slug=p.category
++where nullif(trim(p.category),'') is not null
++on conflict(product_id, category_id) do nothing;
++
++alter table public.product_categories enable row level security;
++alter table public.product_category_assignments enable row level security;
++drop policy if exists product_categories_public_read on public.product_categories;
++create policy product_categories_public_read on public.product_categories for select to anon, authenticated using (is_active);
++drop policy if exists product_categories_admin_manage on public.product_categories;
++create policy product_categories_admin_manage on public.product_categories for all to authenticated using (public.is_admin()) with check (public.is_admin());
++drop policy if exists product_category_assignments_public_read on public.product_category_assignments;
++create policy product_category_assignments_public_read on public.product_category_assignments for select to anon, authenticated using (true);
++drop policy if exists product_category_assignments_admin_manage on public.product_category_assignments;
++create policy product_category_assignments_admin_manage on public.product_category_assignments for all to authenticated using (public.is_admin()) with check (public.is_admin());
++
++grant select on public.product_categories, public.product_category_assignments to anon, authenticated;
++grant insert, update, delete on public.product_categories, public.product_category_assignments to authenticated;
++
++-- Rollback (data-preserving): drop table public.product_category_assignments; alter table public.product_categories drop column parent_id;
+diff --git a/tests/e2e/industrial-diesel-catalog.spec.ts b/tests/e2e/industrial-diesel-catalog.spec.ts
+new file mode 100644
+index 0000000..9cb69d9
+--- /dev/null
++++ b/tests/e2e/industrial-diesel-catalog.spec.ts
+@@ -0,0 +1,34 @@
++import { expect, test } from '@playwright/test';
++
++test.describe('Carrtell industrial and diesel catalog', () => {
++  test('public industrial route is independent and does not require login', async ({ page }) => {
++    await page.goto('/industrial', { waitUntil: 'domcontentloaded' });
++    await expect(page.getByRole('heading', { name: /روغن و فیلتر ماشین‌آلات دیزلی و صنعتی/ })).toBeVisible();
++    await expect(page).not.toHaveURL(/login|auth|otp/i);
++    await expect(page.getByRole('link', { name: /فروشگاه محصولات سواری/ })).toHaveAttribute('href', '/shop');
++  });
++
++  test('industrial search and brand filter remain usable', async ({ page }) => {
++    await page.goto('/industrial', { waitUntil: 'domcontentloaded' });
++    const search = page.getByPlaceholder('جستجو در محصولات صنعتی و دیزلی');
++    await expect(search).toBeVisible();
++    await search.fill('فیلتر گازوئیل');
++    await expect(search).toHaveValue('فیلتر گازوئیل');
++    await page.getByRole('button', { name: /پاک‌کردن فیلتر/ }).click();
++    await expect(search).toHaveValue('');
++  });
++
++  test('mobile industrial page has no major horizontal overflow', async ({ page }) => {
++    await page.setViewportSize({ width: 390, height: 844 });
++    await page.goto('/industrial', { waitUntil: 'domcontentloaded' });
++    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
++    expect(overflow).toBeLessThanOrEqual(4);
++    await expect(page.getByRole('heading', { name: /محصولات صنعتی و دیزلی/ })).toBeVisible();
++  });
++
++  test('main passenger shop still opens independently', async ({ page }) => {
++    await page.goto('/shop', { waitUntil: 'domcontentloaded' });
++    await expect(page.locator('body')).toBeVisible();
++    expect(page.url()).not.toContain('/industrial');
++  });
++});
+-- 
+2.51.1
+

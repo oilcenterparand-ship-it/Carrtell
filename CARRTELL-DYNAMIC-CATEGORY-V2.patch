@@ -1,0 +1,398 @@
+From 91a3e50336d353bde7492ccf3b6553bf2f99c01b Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Sun, 23 Aug 2026 01:10:43 +0400
+Subject: [PATCH] Add unlimited dynamic category journey
+
+---
+ CARRTELL_PROJECT_CONTEXT.md                   | 10 ++++
+ ...ST-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2.md | 24 +++++++++
+ ...CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2-FA.md | 37 ++++++++++++++
+ agent-category.ps1                            | 20 ++++++++
+ src/App.tsx                                   |  3 ++
+ src/admin/pages/Categories.tsx                | 15 +++---
+ src/admin/pages/Products.tsx                  | 11 ++--
+ src/admin/services/categoriesApi.ts           | 18 +++++++
+ src/pages/CategoryJourneyPage.tsx             | 50 +++++++++++++++++++
+ src/pages/HomePage.tsx                        |  2 +-
+ tests/e2e/dynamic-category-journey.spec.ts    | 24 +++++++++
+ 11 files changed, 203 insertions(+), 11 deletions(-)
+ create mode 100644 PATCH-MANIFEST-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2.md
+ create mode 100644 README-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2-FA.md
+ create mode 100644 agent-category.ps1
+ create mode 100644 src/pages/CategoryJourneyPage.tsx
+ create mode 100644 tests/e2e/dynamic-category-journey.spec.ts
+
+diff --git a/CARRTELL_PROJECT_CONTEXT.md b/CARRTELL_PROJECT_CONTEXT.md
+index 2293062..c3cd091 100644
+--- a/CARRTELL_PROJECT_CONTEXT.md
++++ b/CARRTELL_PROJECT_CONTEXT.md
+@@ -86,3 +86,13 @@ Next recommended task: install v2.3.31 on Windows, run `.\agent.ps1 CRITICAL`, a
+ - TypeScript and production build passed. Full ESLint remains blocked by 376 pre-existing repository errors; changed-file lint has no errors. Browser E2E is prepared for the Windows Agent because this Linux runner has no Chrome binary.
+ 
+ Next recommended task: apply the SQL migration, assign the first real industrial products, then run `.\agent.ps1 INDUSTRIAL` on Windows and return any failing report for the corrective patch.
++
++### 2026-08-23 — Unlimited dynamic category journey V2
++- Added public guided routes `/categories` and `/category/:slug` that walk customers through unlimited admin-defined branches until direct products are reached.
++- Category admin now shows full ancestry and has a direct `add child` action on every node.
++- Product admin lists full paths for leaf categories only and requires at least one final category assignment.
++- Homepage category cards now enter the guided hierarchy instead of applying a flat shop query.
++- Added standalone ASCII-safe `agent-category.ps1` plus desktop/mobile route tests.
++- TypeScript, production build and changed-file ESLint passed (two pre-existing hook dependency warnings remain in Products).
++
++Next recommended task: install V2, create one real 15W-40 path and one Serkan filter path, run `agent-category.ps1`, then visually verify the hierarchy on a physical phone.
+diff --git a/PATCH-MANIFEST-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2.md b/PATCH-MANIFEST-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2.md
+new file mode 100644
+index 0000000..8c8be87
+--- /dev/null
++++ b/PATCH-MANIFEST-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2.md
+@@ -0,0 +1,24 @@
++# Patch Manifest — Dynamic Category Journey V2
++
++مبنای نصب: Carrtell Industrial/Diesel V1
++
++## فایل‌های تغییرکرده
++- `src/App.tsx`
++- `src/pages/HomePage.tsx`
++- `src/admin/services/categoriesApi.ts`
++- `src/admin/pages/Categories.tsx`
++- `src/admin/pages/Products.tsx`
++- `CARRTELL_PROJECT_CONTEXT.md`
++
++## فایل‌های جدید
++- `src/pages/CategoryJourneyPage.tsx`
++- `tests/e2e/dynamic-category-journey.spec.ts`
++- `agent-category.ps1`
++- `README-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2-FA.md`
++- `PATCH-MANIFEST-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2.md`
++
++## دیتابیس
++SQL جدید لازم نیست. این Sprint از `parent_id` و `product_category_assignments` پچ V1 استفاده می‌کند.
++
++## امنیت
++هیچ Secret یا کلید جدیدی به Frontend اضافه نشده است.
+diff --git a/README-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2-FA.md b/README-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2-FA.md
+new file mode 100644
+index 0000000..f7c8e13
+--- /dev/null
++++ b/README-CARRTELL-DYNAMIC-CATEGORY-JOURNEY-V2-FA.md
+@@ -0,0 +1,37 @@
++# پچ مسیر داینامیک دسته‌بندی Carrtell V2
++
++## نتیجه
++- ساخت شاخه و زیرشاخه نامحدود از پنل مدیریت
++- دکمه «+ زیرشاخه» کنار هر دسته
++- نمایش مسیر کامل هر شاخه در پنل
++- انتخاب شاخه والد با مسیر کامل
++- نمایش فقط شاخه‌های نهایی در فرم محصول
++- الزام انتخاب حداقل یک شاخه نهایی برای محصول جدید
++- صفحه عمومی `/categories`
++- مسیر داینامیک `/category/:slug`
++- نمایش مرحله بعد تا رسیدن به محصول نهایی
++- Breadcrumb کامل برای برگشت به مراحل قبل
++
++## نمونه ساخت روغن 15W-40
++1. دسته `روغن‌ها` بساز.
++2. کنار آن `+ زیرشاخه` بزن و `روغن موتور` را بساز.
++3. زیر `روغن موتور` شاخه `گرید روغن` را بساز.
++4. زیر `گرید روغن` شاخه `15W-40` را بساز.
++5. در پنل محصولات، محصول را به مسیر نهایی `روغن‌ها ← روغن موتور ← گرید روغن ← 15W-40` وصل کن.
++
++## نمونه فیلتر سرکان
++`فیلترها ← فیلتر روغن ← برند ← سرکان`
++
++تمام محصولات فیلتر روغن سرکان را به شاخه نهایی `سرکان` متصل کن.
++
++## نصب
++ZIP را در ریشه پروژه استخراج و Replace کن. SQL جدیدی لازم نیست؛ Migration پچ V1 باید قبلاً اجرا شده باشد.
++
++```powershell
++npm install
++npm run typecheck
++npm run build
++.\agent-category.ps1
++```
++
++اگر Agent شکست خورد، اولین بخش `FAILED` و گزارش Playwright را برای ساخت پچ اصلاحی بفرست.
+diff --git a/agent-category.ps1 b/agent-category.ps1
+new file mode 100644
+index 0000000..16234d3
+--- /dev/null
++++ b/agent-category.ps1
+@@ -0,0 +1,20 @@
++$ErrorActionPreference = "Stop"
++
++function Run-Step($Title, $Command) {
++  Write-Host "" 
++  Write-Host "CARRTELL CATEGORY AGENT - $Title" -ForegroundColor Cyan
++  powershell -NoProfile -ExecutionPolicy Bypass -Command $Command
++  if ($LASTEXITCODE -ne 0) {
++    Write-Host "FAILED: $Title" -ForegroundColor Red
++    Write-Host "Send the first FAILED output and Playwright report to ChatGPT." -ForegroundColor Yellow
++    exit $LASTEXITCODE
++  }
++  Write-Host "PASSED: $Title" -ForegroundColor Green
++}
++
++Run-Step "TYPECHECK" "npm run typecheck"
++Run-Step "PRODUCTION BUILD" "npm run build"
++Run-Step "DYNAMIC CATEGORY CUSTOMER JOURNEY" "npx playwright test tests/e2e/dynamic-category-journey.spec.ts --workers=1"
++Run-Step "INDUSTRIAL REGRESSION" "npx playwright test tests/e2e/industrial-diesel-catalog.spec.ts --workers=1"
++Run-Step "ADMIN CATEGORY AND PRODUCT PERSONA" "npx playwright test tests/e2e/persona-admin.spec.ts -c playwright.persona.config.ts --project=desktop-chrome --workers=1"
++Write-Host "CATEGORY SPRINT PASSED" -ForegroundColor Green
+diff --git a/src/App.tsx b/src/App.tsx
+index 037b62e..33ee7f8 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -48,6 +48,7 @@ import ShopPage from './pages/ShopPage';
+ import StoreCollectionPage from './pages/StoreCollectionPage';
+ import ProductDetailPage from './pages/ProductDetailPage';
+ import IndustrialProductsPage from './pages/IndustrialProductsPage';
++import CategoryJourneyPage from './pages/CategoryJourneyPage';
+ import BookPage from './pages/BookPage';
+ import DashboardPage from './pages/DashboardPage';
+ import InvestorPage from './pages/InvestorPage';
+@@ -146,6 +147,8 @@ function App() {
+                 <Route path="/shop" element={<ShopPage />} />
+                 <Route path="/shop/product/:id" element={<ProductDetailPage />} />
+                 <Route path="/industrial" element={<IndustrialProductsPage />} />
++                <Route path="/categories" element={<CategoryJourneyPage />} />
++                <Route path="/category/:slug" element={<CategoryJourneyPage />} />
+                 <Route path="/shop/all-products" element={<StoreCollectionPage kind="all" />} />
+                 <Route path="/shop/special-offers" element={<StoreCollectionPage kind="special" />} />
+                 <Route path="/shop/featured" element={<StoreCollectionPage kind="featured" />} />
+diff --git a/src/admin/pages/Categories.tsx b/src/admin/pages/Categories.tsx
+index ec2a3cb..5a667ee 100644
+--- a/src/admin/pages/Categories.tsx
++++ b/src/admin/pages/Categories.tsx
+@@ -1,21 +1,21 @@
+ import { useEffect, useMemo, useState } from 'react';
+ import ImageUploader from '../components/ImageUploader';
+-import { buildCategoryTree, createProductCategory, deleteProductCategory, getProductCategories, ProductCategory, ProductCategoryNode, updateProductCategory } from '../services/categoriesApi';
++import { buildCategoryTree, createProductCategory, deleteProductCategory, getCategoryLabelPath, getProductCategories, ProductCategory, ProductCategoryNode, updateProductCategory } from '../services/categoriesApi';
+ 
+ const emptyCategory: ProductCategory = { title: '', slug: '', description: '', parent_id: null, image_url: '', icon_emoji: '🔧', sort_order: 0, is_active: true };
+ const field = 'w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-yellow-400';
+ const makeSlug = (title: string) => title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-آ-ی]/gi, '');
+ 
+-function CategoryRow({ node, depth, onEdit, onRemove }: { node: ProductCategoryNode; depth: number; onEdit: (item: ProductCategory) => void; onRemove: (id?: string) => void }) {
++function CategoryRow({ node, depth, categories, onAddChild, onEdit, onRemove }: { node: ProductCategoryNode; depth: number; categories: ProductCategory[]; onAddChild: (item: ProductCategory) => void; onEdit: (item: ProductCategory) => void; onRemove: (id?: string) => void }) {
+   return <div>
+     <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-white md:flex-row md:items-center md:justify-between" style={{ marginRight: Math.min(depth * 24, 72) }}>
+       <div className="flex min-w-0 items-center gap-3">
+         <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-800 text-xl">{node.image_url ? <img src={node.image_url} alt="" className="h-full w-full object-contain p-1" /> : node.icon_emoji || '🔧'}</div>
+-        <div className="min-w-0"><b className="block truncate">{depth ? '↳ ' : ''}{node.title}</b><p className="text-xs text-slate-400">{node.slug} · ترتیب {node.sort_order}{node.children.length ? ` · ${node.children.length.toLocaleString('fa-IR')} زیرشاخه` : ''}</p>{!node.is_active && <span className="mt-1 inline-block rounded-full bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-200">غیرفعال</span>}</div>
++        <div className="min-w-0"><b className="block truncate">{depth ? '↳ ' : ''}{node.title}</b><p className="text-xs leading-5 text-slate-400">{getCategoryLabelPath(categories, node.id)}<br />{node.slug} · ترتیب {node.sort_order}{node.children.length ? ` · ${node.children.length.toLocaleString('fa-IR')} زیرشاخه` : ''}</p>{!node.is_active && <span className="mt-1 inline-block rounded-full bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-200">غیرفعال</span>}</div>
+       </div>
+-      <div className="flex gap-2"><button onClick={() => onEdit(node)} className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-bold">ویرایش</button><button onClick={() => onRemove(node.id)} className="rounded-lg px-3 py-2 text-xs font-bold text-red-400">حذف</button></div>
++      <div className="flex flex-wrap gap-2"><button onClick={() => onAddChild(node)} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-slate-950">+ زیرشاخه</button><button onClick={() => onEdit(node)} className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-bold">ویرایش</button><button onClick={() => onRemove(node.id)} className="rounded-lg px-3 py-2 text-xs font-bold text-red-400">حذف</button></div>
+     </div>
+-    <div className="mt-2 space-y-2">{node.children.map((child) => <CategoryRow key={child.id} node={child} depth={depth + 1} onEdit={onEdit} onRemove={onRemove} />)}</div>
++    <div className="mt-2 space-y-2">{node.children.map((child) => <CategoryRow key={child.id} node={child} depth={depth + 1} categories={categories} onAddChild={onAddChild} onEdit={onEdit} onRemove={onRemove} />)}</div>
+   </div>;
+ }
+ 
+@@ -28,6 +28,7 @@ export default function Categories() {
+   useEffect(() => { void loadData(); }, []);
+   function resetForm() { setForm(emptyCategory); setEditingId(null); }
+   function editCategory(category: ProductCategory) { setForm({ ...emptyCategory, ...category }); setEditingId(category.id || null); window.scrollTo({ top: 0, behavior: 'smooth' }); }
++  function addChild(category: ProductCategory) { setForm({ ...emptyCategory, parent_id: category.id || null }); setEditingId(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+   async function saveCategory() {
+     if (!form.title.trim()) return alert('نام دسته‌بندی الزامی است');
+     if (editingId && form.parent_id === editingId) return alert('یک دسته نمی‌تواند والد خودش باشد');
+@@ -46,7 +47,7 @@ export default function Categories() {
+     <div className="grid gap-3 rounded-2xl bg-slate-900 p-5 md:grid-cols-2">
+       <input placeholder="نام دسته‌بندی" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value, slug: form.slug || makeSlug(e.target.value) })} className={field} />
+       <input placeholder="اسلاگ انگلیسی" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className={field} />
+-      <select value={form.parent_id || ''} onChange={(e) => setForm({ ...form, parent_id: e.target.value || null })} className={field}><option value="">بدون والد (دسته اصلی)</option>{parentOptions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>
++      <select value={form.parent_id || ''} onChange={(e) => setForm({ ...form, parent_id: e.target.value || null })} className={field}><option value="">بدون والد (دسته اصلی)</option>{parentOptions.map((item) => <option key={item.id} value={item.id}>{getCategoryLabelPath(categories, item.id)}</option>)}</select>
+       <input placeholder="ترتیب نمایش" type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} className={field} />
+       <input placeholder="آیکون یا ایموجی" value={form.icon_emoji || ''} onChange={(e) => setForm({ ...form, icon_emoji: e.target.value })} className={field} maxLength={8} />
+       <label className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 p-3 text-white"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> فعال باشد</label>
+@@ -55,6 +56,6 @@ export default function Categories() {
+       <button onClick={saveCategory} className="rounded-xl bg-yellow-400 p-3 font-bold text-slate-950 md:col-span-2">{editingId ? 'ذخیره تغییرات دسته' : 'افزودن دسته‌بندی'}</button>
+       {editingId && <button onClick={resetForm} className="rounded-xl bg-slate-700 p-3 font-bold text-white md:col-span-2">لغو ویرایش</button>}
+     </div>
+-    <div className="space-y-2">{tree.map((node) => <CategoryRow key={node.id} node={node} depth={0} onEdit={editCategory} onRemove={remove} />)}</div>
++    <div className="space-y-2">{tree.map((node) => <CategoryRow key={node.id} node={node} depth={0} categories={categories} onAddChild={addChild} onEdit={editCategory} onRemove={remove} />)}</div>
+   </div>;
+ }
+diff --git a/src/admin/pages/Products.tsx b/src/admin/pages/Products.tsx
+index 7895b23..d385a0b 100644
+--- a/src/admin/pages/Products.tsx
++++ b/src/admin/pages/Products.tsx
+@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
+ import { getProducts, createProduct, updateProduct, deleteProduct, Product } from '../services/productsApi';
+ import { getCars, getCarTitle, type Car } from '../services/carsApi';
+ import { PRODUCT_CATEGORIES, getCategoryLabel as getFallbackCategoryLabel } from '../../config/productCategories';
+-import { getProductCategories, type ProductCategory } from '../services/categoriesApi';
++import { getCategoryLabelPath, getProductCategories, type ProductCategory } from '../services/categoriesApi';
+ import { getOilSpecs, type OilSpec } from '../services/oilSpecsApi';
+ import { getBrands, type Brand } from '../services/brandsApi';
+ import { getWarehouses, type Warehouse } from '../services/warehousesApi';
+@@ -234,6 +234,7 @@ function Products() {
+   const oilBases = useMemo(() => oilSpecs.filter((item) => item.type === 'base'), [oilSpecs]);
+   const amazingJalali = parseAmazingJalali(form.amazing_ends_at);
+   const categoryOptions = useMemo(() => categories.length ? categories.map((item) => ({ value: item.slug, label: item.title, id: item.id, parentId: item.parent_id })) : PRODUCT_CATEGORIES.map((item) => ({ ...item, id: undefined, parentId: null })), [categories]);
++  const categoryLeafOptions = useMemo(() => categories.filter((item) => item.id && !categories.some((child) => child.parent_id === item.id)).sort((a, b) => getCategoryLabelPath(categories, a.id).localeCompare(getCategoryLabelPath(categories, b.id), 'fa')), [categories]);
+   const getCategoryLabel = (slug?: string) => categoryOptions.find((item) => item.value === slug)?.label || getFallbackCategoryLabel(slug);
+ 
+   const filteredProducts = useMemo(() => {
+@@ -388,6 +389,10 @@ function Products() {
+       alert('نام محصول الزامی است');
+       return;
+     }
++    if (categories.length && !(form.category_ids || []).length) {
++      alert('حداقل یک شاخه نهایی برای محصول انتخاب کن');
++      return;
++    }
+ 
+     try {
+       if (editingProductId) {
+@@ -517,14 +522,14 @@ function Products() {
+ 
+         <Field label="شاخه‌های داینامیک محصول" hint="یک یا چند شاخه را انتخاب کن. اولین شاخه انتخاب‌شده، شاخه اصلی محصول است.">
+           <div className="max-h-52 space-y-2 overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-3">
+-            {categories.map((category) => <label key={category.id || category.slug} className="flex items-center gap-2 text-sm text-slate-200">
++            {categoryLeafOptions.map((category) => <label key={category.id || category.slug} className="flex items-center gap-2 rounded-lg bg-slate-900/60 p-2 text-sm text-slate-200">
+               <input type="checkbox" checked={!!category.id && (form.category_ids || []).includes(category.id)} onChange={() => {
+                 if (!category.id) return;
+                 const current = form.category_ids || [];
+                 const selected = current.includes(category.id);
+                 setForm({ ...form, category_ids: selected ? current.filter((id) => id !== category.id) : [...current, category.id], category: selected ? form.category : category.slug });
+               }} />
+-              <span>{category.parent_id ? '↳ ' : ''}{category.title}</span>
++              <span>{getCategoryLabelPath(categories, category.id)}</span>
+             </label>)}
+           </div>
+         </Field>
+diff --git a/src/admin/services/categoriesApi.ts b/src/admin/services/categoriesApi.ts
+index 068b0a1..b4a5ebe 100644
+--- a/src/admin/services/categoriesApi.ts
++++ b/src/admin/services/categoriesApi.ts
+@@ -121,6 +121,24 @@ export function getCategoryDescendantIds(categories: ProductCategory[], rootId:
+   return [...result];
+ }
+ 
++export function getCategoryPath(categories: ProductCategory[], categoryId?: string | null) {
++  if (!categoryId) return [];
++  const byId = new Map(categories.filter((item) => item.id).map((item) => [item.id as string, item]));
++  const path: ProductCategory[] = [];
++  const visited = new Set<string>();
++  let current = byId.get(categoryId);
++  while (current?.id && !visited.has(current.id)) {
++    visited.add(current.id);
++    path.unshift(current);
++    current = current.parent_id ? byId.get(current.parent_id) : undefined;
++  }
++  return path;
++}
++
++export function getCategoryLabelPath(categories: ProductCategory[], categoryId?: string | null) {
++  return getCategoryPath(categories, categoryId).map((item) => item.title).join(' ← ');
++}
++
+ export async function deleteProductCategory(id: string) {
+   const { error } = await supabase.from('product_categories').delete().eq('id', id);
+   if (error) throw error;
+diff --git a/src/pages/CategoryJourneyPage.tsx b/src/pages/CategoryJourneyPage.tsx
+new file mode 100644
+index 0000000..11f7b9c
+--- /dev/null
++++ b/src/pages/CategoryJourneyPage.tsx
+@@ -0,0 +1,50 @@
++import { useEffect, useMemo, useState } from 'react';
++import { ChevronLeft, FolderTree, PackageSearch } from 'lucide-react';
++import { Link, useParams } from 'react-router-dom';
++import { buildCategoryTree, getCategoryPath, getProductCategories, type ProductCategory, type ProductCategoryNode } from '../admin/services/categoriesApi';
++import { getProducts, type Product } from '../admin/services/productsApi';
++import { ProductCard } from './ShopPage';
++import { addProductToCart, readCart, type CartItem } from '../lib/cart';
++
++function CategoryIcon({ category }: { category: ProductCategory }) {
++  return <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-amber-50 text-3xl">{category.image_url ? <img src={category.image_url} alt="" className="h-full w-full object-contain p-2" /> : category.icon_emoji || '📁'}</span>;
++}
++
++export default function CategoryJourneyPage() {
++  const { slug } = useParams();
++  const [categories, setCategories] = useState<ProductCategory[]>([]);
++  const [products, setProducts] = useState<Product[]>([]);
++  const [cart, setCart] = useState<Record<string, CartItem>>(() => readCart());
++  const [loading, setLoading] = useState(true);
++
++  useEffect(() => { (async () => { try { const [categoryRows, productRows] = await Promise.all([getProductCategories(), getProducts()]); setCategories(categoryRows.filter((item) => item.is_active !== false)); setProducts(productRows.filter((item) => item.is_active !== false)); } finally { setLoading(false); } })(); }, []);
++  useEffect(() => { const sync = () => setCart(readCart()); window.addEventListener('carrtell-cart-updated', sync); return () => window.removeEventListener('carrtell-cart-updated', sync); }, []);
++
++  const tree = useMemo(() => buildCategoryTree(categories), [categories]);
++  const current = slug ? categories.find((item) => item.slug === slug) : undefined;
++  const children = useMemo(() => {
++    if (!current?.id) return tree;
++    const find = (nodes: ProductCategoryNode[]): ProductCategoryNode | undefined => { for (const node of nodes) { if (node.id === current.id) return node; const child = find(node.children); if (child) return child; } };
++    return find(tree)?.children || [];
++  }, [tree, current?.id]);
++  const path = useMemo(() => current?.id ? getCategoryPath(categories, current.id) : [], [categories, current?.id]);
++  const directProducts = useMemo(() => current?.id ? products.filter((item) => (item.category_ids || []).includes(current.id as string)) : [], [products, current?.id]);
++  const reserved = useMemo(() => Object.fromEntries(Object.entries(cart).map(([id, item]) => [id, item.quantity])), [cart]);
++  function add(product: Product) { addProductToCart(product, 1); setCart(readCart()); }
++
++  return <main dir="rtl" className="min-h-screen bg-slate-50 pb-28 pt-24 text-slate-900">
++    <div className="mx-auto max-w-[1240px] px-4">
++      <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-slate-500"><Link to="/">خانه</Link><ChevronLeft className="h-3.5 w-3.5" /><Link to="/categories">دسته‌بندی‌ها</Link>{path.map((item) => <span key={item.id} className="flex items-center gap-1.5"><ChevronLeft className="h-3.5 w-3.5" /><Link to={`/category/${item.slug}`} className={item.id === current?.id ? 'font-black text-slate-900' : ''}>{item.title}</Link></span>)}</nav>
++
++      <section className="rounded-[26px] bg-gradient-to-l from-slate-950 to-slate-800 p-6 text-white shadow-lg">
++        <span className="inline-flex items-center gap-2 text-xs font-black text-amber-300"><FolderTree className="h-4 w-4" /> انتخاب مرحله‌به‌مرحله محصول</span>
++        <h1 className="mt-3 text-2xl font-black">{current?.title || 'دسته‌بندی محصولات'}</h1>
++        <p className="mt-2 text-sm leading-7 text-slate-300">{current?.description || 'شاخه موردنظر را انتخاب کن تا به محصول نهایی برسی.'}</p>
++      </section>
++
++      {children.length > 0 && <section className="mt-6"><h2 className="mb-3 text-lg font-black">{current ? 'مرحله بعد را انتخاب کن' : 'یک دسته را انتخاب کن'}</h2><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">{children.map((child) => <Link key={child.id} to={`/category/${child.slug}`} className="group flex min-h-[145px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm transition hover:-translate-y-1 hover:border-amber-400 hover:shadow-lg"><CategoryIcon category={child} /><b className="mt-3 text-sm leading-6">{child.title}</b><span className="mt-1 text-[10px] text-slate-400">{child.children.length ? `${child.children.length.toLocaleString('fa-IR')} زیرشاخه` : 'مشاهده محصولات'}</span></Link>)}</div></section>}
++
++      {current && <section className="mt-7"><div className="mb-3"><h2 className="text-lg font-black">محصولات {current.title}</h2><p className="mt-1 text-xs text-slate-500">محصولاتی که مستقیماً به این شاخه متصل شده‌اند</p></div>{loading ? <div className="p-8 text-center text-sm text-slate-500">در حال بارگذاری...</div> : directProducts.length ? <div className="grid grid-cols-2 justify-items-center gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">{directProducts.map((product) => <ProductCard key={product.id} product={product} reservedQuantity={reserved[product.id || ''] || 0} onAddToCart={add} compact />)}</div> : !children.length && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-9 text-center"><PackageSearch className="mx-auto h-10 w-10 text-slate-300" /><b className="mt-3 block">هنوز محصولی به این شاخه متصل نشده است</b><p className="mt-1 text-xs text-slate-500">از پنل مدیریت محصول را به همین شاخه نهایی وصل کن.</p></div>}</section>}
++    </div>
++  </main>;
++}
+diff --git a/src/pages/HomePage.tsx b/src/pages/HomePage.tsx
+index 6b0a612..9feb0da 100644
+--- a/src/pages/HomePage.tsx
++++ b/src/pages/HomePage.tsx
+@@ -129,7 +129,7 @@ export default function HomePage() {
+         </div>
+         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+           {categories.slice(0, 8).map((category) => (
+-            <Link key={category.id || category.slug} to={`/shop?category=${encodeURIComponent(category.slug)}`} className="rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
++            <Link key={category.id || category.slug} to={`/category/${encodeURIComponent(category.slug)}`} className="rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+               <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl">{category.icon_emoji || '🚘'}</div>
+               <div className="truncate text-[11px] font-black">{category.title}</div>
+             </Link>
+diff --git a/tests/e2e/dynamic-category-journey.spec.ts b/tests/e2e/dynamic-category-journey.spec.ts
+new file mode 100644
+index 0000000..8e73093
+--- /dev/null
++++ b/tests/e2e/dynamic-category-journey.spec.ts
+@@ -0,0 +1,24 @@
++import { expect, test } from '@playwright/test';
++
++test.describe('Dynamic category journey', () => {
++  test('category browser is public and starts with a guided heading', async ({ page }) => {
++    await page.goto('/categories', { waitUntil: 'domcontentloaded' });
++    await expect(page.getByRole('heading', { name: 'دسته‌بندی محصولات' })).toBeVisible();
++    await expect(page.getByText('انتخاب مرحله‌به‌مرحله محصول')).toBeVisible();
++    await expect(page).not.toHaveURL(/login|auth|otp/i);
++  });
++
++  test('category route supports deep dynamic slugs without a fatal page', async ({ page }) => {
++    const response = await page.goto('/category/15w40', { waitUntil: 'domcontentloaded' });
++    expect(response?.status() || 200).toBeLessThan(500);
++    await expect(page.locator('body')).toBeVisible();
++    await expect(page.locator('body')).not.toHaveText(/^\s*$/);
++  });
++
++  test('guided category UI has no major mobile overflow', async ({ page }) => {
++    await page.setViewportSize({ width: 390, height: 844 });
++    await page.goto('/categories', { waitUntil: 'domcontentloaded' });
++    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
++    expect(overflow).toBeLessThanOrEqual(4);
++  });
++});
+-- 
+2.51.1
+

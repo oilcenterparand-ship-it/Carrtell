@@ -161,6 +161,7 @@ export default function OtpLoginPage() {
   }
 
   async function passwordLogin() {
+    if (loading) return;
     setLoading(true); setNotice(null);
     try {
       await signInWithUsername(loginUsername, loginPassword);

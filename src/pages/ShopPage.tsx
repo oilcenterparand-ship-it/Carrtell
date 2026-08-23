@@ -13,6 +13,7 @@ import {
   Search,
   SlidersHorizontal,
   ShoppingCart,
+  Truck,
   Star,
   RotateCcw,
   Wrench,
@@ -20,9 +21,9 @@ import {
 } from 'lucide-react';
 import { getProducts, type Product } from '../admin/services/productsApi';
 import { getCars, getCarTitle, type Car } from '../admin/services/carsApi';
-import { getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
+import { buildCategoryTree, getCategoryDescendantIds, getProductCategories, type ProductCategory, type ProductCategoryNode } from '../admin/services/categoriesApi';
 import { getCarPackages, type CarPackage } from '../admin/services/packagesApi';
-import { getHomeBanners, getHomeSections, getTodayShoppingSettings, type HomeBanner, type HomeSection, type TodayShoppingSettings, defaultTodayShoppingSettings } from '../admin/services/homeContentApi';
+import { getHomeBanners, getHomeSections, getMegaMenuPromotion, getTodayShoppingSettings, type HomeBanner, type HomeSection, type MegaMenuPromotion, type TodayShoppingSettings, defaultMegaMenuPromotion, defaultTodayShoppingSettings } from '../admin/services/homeContentApi';
 import { defaultThemeSettings, getThemeSettings, type ThemeSettings } from '../admin/services/settingsApi';
 import { CARRTELL_APPEARANCE_EVENT, loadCarrtellAppearance, type CarrtellThemePresetId } from '../lib/appearanceThemes';
 import { applyHomepagePreset } from '../lib/homepageThemePresets';
@@ -349,6 +350,7 @@ export default function ShopPage() {
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [mobileCategoryPath, setMobileCategoryPath] = useState<string[]>([]);
   const [showCarFilter, setShowCarFilter] = useState(false);
   const [carFilterSearch, setCarFilterSearch] = useState('');
   const [carFilterBrand, setCarFilterBrand] = useState('');
@@ -356,13 +358,14 @@ export default function ShopPage() {
   const [nowTick, setNowTick] = useState(0);
   const [theme, setTheme] = useState<ThemeSettings>(defaultThemeSettings);
   const [todayShoppingSettings, setTodayShoppingSettings] = useState<TodayShoppingSettings>(defaultTodayShoppingSettings);
+  const [megaPromotion, setMegaPromotion] = useState<MegaMenuPromotion>(defaultMegaMenuPromotion);
   const [reviewSummaries, setReviewSummaries] = useState<Record<string, ProductReviewSummary>>({});
   const [visibleProductCount, setVisibleProductCount] = useState(12);
 
   useEffect(() => {
     async function load() {
       try {
-        const [productsData, carsData, packagesData, categoriesData, bannerData, sectionData, themeData, todayShoppingData, reviewSummaryData] = await Promise.all([
+        const [productsData, carsData, packagesData, categoriesData, bannerData, sectionData, themeData, todayShoppingData, reviewSummaryData, megaPromotionData] = await Promise.all([
           getProducts(),
           getCars(),
           getCarPackages(),
@@ -372,6 +375,7 @@ export default function ShopPage() {
           getThemeSettings(),
           getTodayShoppingSettings(),
           getApprovedProductReviewSummaries().catch(() => ({})),
+          getMegaMenuPromotion(),
         ]);
         setProducts((productsData || []).filter((p) => Boolean(p && typeof p === 'object' && p.is_active)));
         setCars(carsData.filter((car) => car.is_active !== false));
@@ -384,6 +388,7 @@ export default function ShopPage() {
         setTheme(applyHomepagePreset({ ...defaultThemeSettings, ...(themeData || {}) }, loadCarrtellAppearance().presetId));
         setTodayShoppingSettings({ ...defaultTodayShoppingSettings, ...(todayShoppingData || {}) });
         setReviewSummaries(reviewSummaryData || {});
+        setMegaPromotion({ ...defaultMegaMenuPromotion, ...(megaPromotionData || {}) });
       } catch (error) {
         console.error('Shop data load error:', error);
       }
@@ -421,6 +426,7 @@ export default function ShopPage() {
 
   function closeCategoryMenu() {
     setShowCategoryMenu(false);
+    setMobileCategoryPath([]);
     if (searchParams.get('view') === 'categories') {
       const next = new URLSearchParams(searchParams);
       next.delete('view');
@@ -436,6 +442,7 @@ export default function ShopPage() {
     else next.set('category', category);
     setSearchParams(next, { replace: true });
     setShowCategoryMenu(false);
+    setMobileCategoryPath([]);
     window.requestAnimationFrame(() => document.querySelector('.ct-shop-compact-categories')?.scrollIntoView({ block: 'start' }));
   }
 
@@ -466,6 +473,62 @@ export default function ShopPage() {
     return products.filter((product) => isProductAvailable(product, reservedQuantityByProductId[product.id || ''] || 0));
   }, [products, reservedQuantityByProductId]);
   const categoryOptions = categories.length ? categories : [];
+  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const categoryById = useMemo(() => new Map(categories.filter((item) => item.id).map((item) => [item.id as string, item])), [categories]);
+  const mobileCategoryParent = categoryById.get(mobileCategoryPath[mobileCategoryPath.length - 1] || '');
+  const mobileCategoryChoices = useMemo(() => {
+    if (!mobileCategoryParent) return categoryTree;
+    const parentId = mobileCategoryParent.id;
+    function find(nodes: ProductCategoryNode[]): ProductCategoryNode[] {
+        for (const node of nodes) {
+          if (node.id === parentId) return node.children;
+          const nested = find(node.children);
+          if (nested.length) return nested;
+        }
+        return [];
+    }
+    return find(categoryTree);
+  }, [categoryTree, mobileCategoryParent]);
+  const categoryMenuColumns = useMemo(() => {
+    const columns: ProductCategoryNode[][] = [categoryTree];
+    for (const id of mobileCategoryPath) {
+      const selected = columns[columns.length - 1]?.find((item) => item.id === id);
+      if (!selected?.children.length) break;
+      columns.push(selected.children);
+    }
+    return columns;
+  }, [categoryTree, mobileCategoryPath]);
+  const categoryMenuPreview = useMemo(() => {
+    const leaves: ProductCategoryNode[] = [];
+    const collect = (nodes: ProductCategoryNode[]) => nodes.forEach((node) => node.children.length ? collect(node.children) : leaves.push(node));
+    collect(categoryTree);
+    return leaves.slice(0, 3).map((item) => item.title).join('، ');
+  }, [categoryTree]);
+  const mobileCategoryLevel = mobileCategoryPath.length;
+  const mobileCategoryBreadcrumb = mobileCategoryPath.map((id) => categoryById.get(id)?.title).filter(Boolean).join(' ← ');
+
+  function getInitialDesktopCategoryPath() {
+    const preferredRoot = categoryTree.find((item) => item.slug === 'industrial-diesel' && item.children.length) || categoryTree.find((item) => item.children.length);
+    const initialPath: string[] = preferredRoot?.id ? [preferredRoot.id] : [];
+    const preferredBranch = preferredRoot?.children.find((item) => item.slug === 'industrial-filters' && item.children.length) || preferredRoot?.children.find((item) => item.children.length);
+    if (preferredBranch?.id) initialPath.push(preferredBranch.id);
+    return initialPath;
+  }
+
+  useEffect(() => {
+    if (!showCategoryMenu || window.innerWidth < 768 || mobileCategoryPath.length || !categoryTree.length) return;
+    const initialPath = getInitialDesktopCategoryPath();
+    if (initialPath.length) setMobileCategoryPath(initialPath);
+  }, [showCategoryMenu, categoryTree, mobileCategoryPath.length]);
+
+  function openCategoryMenu() {
+    if (window.innerWidth >= 768) {
+      setMobileCategoryPath(getInitialDesktopCategoryPath());
+    } else {
+      setMobileCategoryPath([]);
+    }
+    setShowCategoryMenu(true);
+  }
 
   const bestSellerProducts = useMemo(() => availableProducts.filter((product) => product.is_best_seller).slice(0, 12), [availableProducts]);
   const featuredProducts = useMemo(() => availableProducts.filter((product) => product.is_featured && (!product.amazing_ends_at || new Date(product.amazing_ends_at).getTime() > Date.now())).slice(0, 12), [availableProducts, nowTick]);
@@ -528,7 +591,11 @@ export default function ShopPage() {
 
   const filtered = useMemo(() => {
     let result = products;
-    if (activeCategory !== 'all') result = result.filter((p) => p.category === activeCategory);
+    if (activeCategory !== 'all') {
+      const selected = categories.find((category) => category.slug === activeCategory);
+      const descendantIds = selected?.id ? new Set(getCategoryDescendantIds(categories, selected.id)) : new Set<string>();
+      result = result.filter((p) => p.category === activeCategory || p.category_ids?.some((id) => descendantIds.has(id)));
+    }
     if (activeBrand !== 'all') result = result.filter((p) => p.brand === activeBrand);
     if (activeCarId !== 'all') result = result.filter((p) => productMatchesCar(p, activeCarId));
     if (availabilityFilter === 'available') result = result.filter((p) => isProductAvailable(p, reservedQuantityByProductId[p.id || ''] || 0));
@@ -621,12 +688,46 @@ export default function ShopPage() {
   return (
     <main className="ct-shop-page min-h-screen pb-20 pt-0 md:pb-0" style={{ background: theme.backgroundColor, color: theme.textColor, fontFamily: theme.fontFamily }}>
       {showCategoryMenu && (
-        <div className="ct-shop-category-modal fixed inset-0 z-[100100] bg-black/70" onClick={closeCategoryMenu} data-testid="mobile-category-modal">
+        <div className="ct-shop-category-modal fixed inset-0 z-[100100]" onClick={closeCategoryMenu} data-testid="mobile-category-modal">
           <div className="ct-shop-category-sheet h-full w-[82%] max-w-sm overflow-y-auto p-5 shadow-2xl" style={{ background: theme.surfaceColor, color: categoryPanelTextColor }} onClick={(e) => e.stopPropagation()}>
-            <div className="ct-shop-category-sheet-head mb-6 flex items-center justify-between"><div><b>دسته‌بندی محصولات</b><p>دسته موردنظرت را انتخاب کن</p></div><button type="button" onClick={closeCategoryMenu} aria-label="بستن دسته‌بندی‌ها"><X /></button></div>
-            <div className="max-h-[calc(100vh-100px)] space-y-2 overflow-y-auto pl-1">
-              <button onClick={() => chooseCategory('all')} className="ct-shop-category-choice w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.productFilterBackground, color: theme.productFilterTextColor, borderColor: theme.cardBorderColor }}><span className="ct-shop-category-choice-icon"><Grid3X3 /></span><span>همه محصولات</span><ArrowLeft /></button>
-              {categoryOptions.map((category) => <button key={category.slug} onClick={() => chooseCategory(category.slug)} className="ct-shop-category-choice w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.searchBackground, color: searchTextColor }}><span className="ct-shop-category-choice-icon"><CategoryQuickIcon category={category} /></span><span>{category.title}</span><ArrowLeft /></button>)}
+            <div className={`ct-shop-category-sheet-head ct-category-level-${mobileCategoryLevel} mb-6 flex items-center justify-between`}><div>{mobileCategoryLevel > 0 && <small className="ct-category-level-kicker">مرحله {mobileCategoryLevel.toLocaleString('fa-IR')} از مسیر خرید</small>}<b>{mobileCategoryParent?.title || 'دسته‌بندی محصولات'}</b><p>{mobileCategoryBreadcrumb || 'ابتدا یک دسته مادر را انتخاب کن'}</p></div><button type="button" onClick={closeCategoryMenu} aria-label="بستن دسته‌بندی‌ها"><X /></button></div>
+            <div className="ct-shop-category-mobile-list max-h-[calc(100vh-100px)] space-y-2 overflow-y-auto pl-1">
+              {megaPromotion.is_active && !mobileCategoryPath.length && <Link to={megaPromotion.link_url || '/shop'} onClick={closeCategoryMenu} className="ct-mobile-mega-promotion" data-testid="mobile-mega-menu-promotion">{megaPromotion.image_url ? <img src={megaPromotion.image_url} alt={megaPromotion.title} /> : <span><Truck /><Droplets /></span>}<div>{megaPromotion.badge && <small>{megaPromotion.badge}</small>}<b>{megaPromotion.title}</b><em>{megaPromotion.subtitle}</em><strong>{megaPromotion.button_text}<ArrowLeft /></strong></div></Link>}
+              {mobileCategoryPath.length > 0 && <button onClick={() => setMobileCategoryPath((path) => path.slice(0, -1))} className="ct-shop-category-choice ct-category-back w-full rounded-2xl px-4 py-3 text-right font-bold"><span className="ct-shop-category-choice-icon"><ArrowLeft className="rotate-180" /></span><span><b>بازگشت به مرحله قبل</b><small>{mobileCategoryLevel > 1 ? categoryById.get(mobileCategoryPath[mobileCategoryLevel - 2])?.title : 'دسته‌های مادر'}</small></span></button>}
+              {!mobileCategoryPath.length && <button onClick={() => chooseCategory('all')} className="ct-shop-category-choice ct-category-all w-full rounded-2xl px-4 py-3 text-right font-bold"><span className="ct-shop-category-choice-icon"><Grid3X3 /></span><span><b>همه محصولات</b><small>نمایش کل فروشگاه</small></span><ArrowLeft /></button>}
+              {mobileCategoryChoices.map((category) => <button key={category.slug} data-category-level={mobileCategoryLevel} data-has-children={category.children.length > 0 ? 'true' : 'false'} data-testid={`mobile-category-${category.slug}`} onClick={() => category.children.length && category.id ? setMobileCategoryPath((path) => [...path, category.id as string]) : chooseCategory(category.slug)} className={`ct-shop-category-choice ct-category-choice-level-${Math.min(mobileCategoryLevel, 2)} w-full rounded-2xl px-4 py-3 text-right font-bold`}><span className="ct-shop-category-choice-icon"><CategoryQuickIcon category={category} /></span><span className="ct-category-choice-copy"><b>{category.title}</b><small>{mobileCategoryLevel === 0 ? 'دسته مادر' : category.children.length > 0 ? `شاخه سطح ${mobileCategoryLevel + 1}` : 'دسته نهایی محصولات'}</small></span>{category.children.length > 0 ? <><em>{category.children.length.toLocaleString('fa-IR')} زیرشاخه</em><ArrowLeft /></> : <span className="ct-category-leaf-action">نمایش محصولات</span>}</button>)}
+              {mobileCategoryParent && mobileCategoryChoices.length === 0 && <button onClick={() => chooseCategory(mobileCategoryParent.slug)} className="ct-shop-category-choice w-full rounded-2xl px-4 py-3 text-right font-bold" style={{ background: theme.primaryColor, color: getReadableTextColor(theme.primaryColor, '#0f172a') }}><span className="ct-shop-category-choice-icon"><PackageCheck /></span><span>نمایش محصولات {mobileCategoryParent.title}</span><ArrowLeft /></button>}
+            </div>
+            <div className="ct-shop-category-desktop-cascade" data-testid="shop-category-desktop-cascade">
+              <div className="ct-shop-category-cascade-columns">
+              {categoryMenuColumns.map((column, depth) => (
+                <section key={`shop-category-column-${depth}`} data-testid={`shop-category-column-${depth}`}>
+                  <h3>{depth === 0 ? 'دسته‌بندی محصولات' : categoryById.get(mobileCategoryPath[depth - 1] || '')?.title}</h3>
+                  {column.map((category) => (
+                    <button
+                      type="button"
+                      key={category.slug}
+                      data-has-children={category.children.length > 0 ? 'true' : 'false'}
+                      className={mobileCategoryPath[depth] === category.id ? 'is-active' : ''}
+                      onMouseEnter={() => category.id && setMobileCategoryPath((path) => [...path.slice(0, depth), category.id as string])}
+                      onFocus={() => category.id && setMobileCategoryPath((path) => [...path.slice(0, depth), category.id as string])}
+                      onClick={() => category.children.length && category.id ? setMobileCategoryPath((path) => [...path.slice(0, depth), category.id as string]) : chooseCategory(category.slug)}
+                    >
+                      <span><CategoryQuickIcon category={category} /></span>
+                      <b>{category.title}</b>
+                      {category.children.length > 0 ? <ArrowLeft /> : <small>محصولات</small>}
+                    </button>
+                  ))}
+                </section>
+              ))}
+              </div>
+              {megaPromotion.is_active && (
+                <Link to={megaPromotion.link_url || '/shop'} onClick={closeCategoryMenu} className="ct-mega-promotion" data-testid="mega-menu-promotion">
+                  <span className="ct-mega-promotion-grid" aria-hidden="true" />
+                  {megaPromotion.image_url ? <img src={megaPromotion.image_url} alt={megaPromotion.title} /> : <span className="ct-mega-promotion-visual"><Truck /><Droplets /></span>}
+                  <span className="ct-mega-promotion-copy">{megaPromotion.badge && <small>{megaPromotion.badge}</small>}<b>{megaPromotion.title}</b>{megaPromotion.subtitle && <span>{megaPromotion.subtitle}</span>}<strong>{megaPromotion.button_text || 'مشاهده محصولات'} <ArrowLeft /></strong></span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -701,22 +802,17 @@ export default function ShopPage() {
           </div>
         </section>
 
-        <nav className="ct-shop-compact-categories" aria-label="دسته‌بندی سریع محصولات">
-          <Link to="/book" className="ct-shop-compact-service">
-            <span className="ct-shop-category-icon-shell"><Wrench aria-hidden="true" /></span>
-            <span>سرویس در محل</span>
-          </Link>
-          <div className="ct-shop-compact-category-scroll">
-            <button type="button" onClick={() => setActiveCategory('all')} className={activeCategory === 'all' ? 'is-active' : ''}>
-              <span className="ct-shop-category-icon-shell"><Grid3X3 aria-hidden="true" /></span>
-              <span>همه دسته‌بندی‌ها</span>
-            </button>
-            {categoryOptions.slice(0, 9).map((category) => (
-              <button key={category.slug} type="button" onClick={() => setActiveCategory(category.slug)} className={activeCategory === category.slug ? 'is-active' : ''}>
-                <span className="ct-shop-category-icon-shell"><CategoryQuickIcon category={category} /></span>
-                <span>{category.title}</span>
-              </button>
-            ))}
+        <nav className="ct-shop-category-toolbar" aria-label="دسترسی سریع فروشگاه">
+          <button type="button" className="ct-shop-category-toolbar-trigger" onClick={openCategoryMenu} data-testid="shop-category-toolbar-trigger">
+            <span className="ct-shop-category-toolbar-icon"><Grid3X3 aria-hidden="true" /></span>
+            <span><b>دسته‌بندی محصولات</b><small>{categoryMenuPreview || 'انتخاب مرحله‌به‌مرحله محصول'}</small></span>
+            <ChevronDown aria-hidden="true" />
+          </button>
+          <div className="ct-shop-category-toolbar-links">
+            <button type="button" onClick={() => document.querySelector('[data-shop-amazing]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>⚡ پیشنهاد شگفت‌انگیز</button>
+            <button type="button" onClick={() => { setSortBy('best-seller'); document.querySelector('[data-shop-products]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>🔥 پرفروش‌ها</button>
+            <button type="button" onClick={() => document.querySelector('[data-shop-packages]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>📦 پکیج‌های خودرویی</button>
+            <Link to="/book">🔧 سرویس در محل</Link>
           </div>
         </nav>
 
@@ -741,7 +837,7 @@ export default function ShopPage() {
 
 
         {packageGroups.length > 0 && (
-          <section className="mb-4 rounded-3xl border p-4 shadow-sm" style={{ background: theme.packageBackground, color: packageSectionTextColor, borderColor: sectionBorderColor, borderRadius: theme.borderRadius, fontFamily: theme.packageFontFamily || theme.fontFamily }}>
+          <section data-shop-packages className="mb-4 rounded-3xl border p-4 shadow-sm" style={{ background: theme.packageBackground, color: packageSectionTextColor, borderColor: sectionBorderColor, borderRadius: theme.borderRadius, fontFamily: theme.packageFontFamily || theme.fontFamily }}>
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black !text-red-600" style={{ color: '#dc2626' }}>پکیج‌های خودرویی</h2>
@@ -770,7 +866,7 @@ export default function ShopPage() {
         )}
 
         {amazingProducts.length > 0 && (
-          <section className="mb-4 overflow-hidden rounded-3xl border p-3 shadow-sm" style={{ background: theme.amazingBackground, color: amazingSectionTextColor, borderColor: sectionBorderColor, borderRadius: theme.borderRadius, fontFamily: theme.amazingFontFamily || theme.fontFamily }}>
+          <section data-shop-amazing className="mb-4 overflow-hidden rounded-3xl border p-3 shadow-sm" style={{ background: theme.amazingBackground, color: amazingSectionTextColor, borderColor: sectionBorderColor, borderRadius: theme.borderRadius, fontFamily: theme.amazingFontFamily || theme.fontFamily }}>
             <div className="mb-3 flex items-center justify-between px-2">
               <div><h2 className="text-xl font-black !text-red-600" style={{ color: '#dc2626' }}>{amazingSection?.title || 'پیشنهاد شگفت‌انگیز'}</h2><p className="text-xs" style={{ color: amazingSectionTextColor, opacity: 0.72 }}>{amazingSection?.subtitle || 'بزرگ‌ترین حراج امروز'}</p></div>
               <div className="flex items-center gap-1 text-slate-950"><span className="rounded px-2 py-1 text-xs font-black" style={{ background: theme.amazingTimerBackground, color: theme.amazingTimerTextColor }}>{countdown.h}</span><span className="rounded px-2 py-1 text-xs font-black" style={{ background: theme.amazingTimerBackground, color: theme.amazingTimerTextColor }}>{countdown.m}</span><span className="rounded px-2 py-1 text-xs font-black" style={{ background: theme.amazingTimerBackground, color: theme.amazingTimerTextColor }}>{countdown.s}</span></div>
@@ -805,6 +901,7 @@ export default function ShopPage() {
 
         <section
           id="main-store"
+          data-shop-products
           className="mb-0 overflow-hidden rounded-2xl bg-white"
           style={{
             background: theme.productListBackground,

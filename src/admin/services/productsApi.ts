@@ -8,6 +8,7 @@ export type Product = {
   warehouse_id?: string | null;
   oil_base?: string;
   category?: string;
+  category_ids?: string[];
   oil_grade?: string;
   quality_level?: string;
   transmission_type?: string;
@@ -42,6 +43,8 @@ type ProductCompatibleCarRow = {
 
 type ProductPayload = Omit<Product, 'id' | 'compatible_car_ids'>;
 
+type ProductCategoryAssignmentRow = { product_id: string; category_id: string; is_primary?: boolean };
+
 const OPTIONAL_PRODUCT_COLUMNS = new Set([
   'recommendation_reason',
   'recommendation_priority',
@@ -75,8 +78,9 @@ async function saveProductRow(
     const missingColumn = getMissingSchemaColumn(error);
     if (!missingColumn || !OPTIONAL_PRODUCT_COLUMNS.has(missingColumn)) throw error;
 
-    const { [missingColumn as keyof ProductPayload]: _removed, ...nextPayload } = safePayload;
-    safePayload = nextPayload;
+    const nextPayload = { ...safePayload } as Record<string, unknown>;
+    delete nextPayload[missingColumn];
+    safePayload = nextPayload as Partial<ProductPayload>;
     console.warn(`ستون اختیاری ${missingColumn} هنوز در Supabase ساخته نشده و موقتاً از ذخیره حذف شد.`);
   }
 
@@ -84,13 +88,12 @@ async function saveProductRow(
 }
 
 function cleanProductPayload(product: Partial<Product>): Partial<ProductPayload> {
-  const {
-    id,
-    compatible_car_ids,
-    product_compatible_cars,
-    brands,
-    ...payload
-  } = product as Partial<Product> & { product_compatible_cars?: unknown; brands?: unknown };
+  const payload = { ...product } as Partial<ProductPayload> & Record<string, unknown>;
+  delete payload.id;
+  delete payload.compatible_car_ids;
+  delete payload.category_ids;
+  delete payload.product_compatible_cars;
+  delete payload.brands;
 
   return {
     ...payload,
@@ -99,6 +102,17 @@ function cleanProductPayload(product: Partial<Product>): Partial<ProductPayload>
     amazing_price: payload.amazing_price === undefined ? undefined : (payload.amazing_price === null ? null : Number(payload.amazing_price || 0)),
     amazing_ends_at: payload.amazing_ends_at || null,
   };
+}
+
+async function syncProductCategories(productId: string, categoryIds: string[] = []) {
+  const { error: deleteError } = await supabase.from('product_category_assignments').delete().eq('product_id', productId);
+  if (deleteError) throw deleteError;
+  const uniqueIds = Array.from(new Set(categoryIds.filter(Boolean)));
+  if (!uniqueIds.length) return;
+  const { error } = await supabase.from('product_category_assignments').insert(
+    uniqueIds.map((categoryId, index) => ({ product_id: productId, category_id: categoryId, is_primary: index === 0 })),
+  );
+  if (error) throw error;
 }
 
 function mergeCompatibleCars(products: Product[], relations: ProductCompatibleCarRow[]) {
@@ -149,7 +163,7 @@ export async function getProducts() {
   const products = (productsData || []).filter((item): item is Product => Boolean(item && typeof item === 'object' && typeof (item as Product).name === 'string')) as Product[];
   const productIds = products.map((product) => product.id).filter(Boolean) as string[];
 
-  if (!productIds.length) return products.map((product) => ({ ...product, compatible_car_ids: [] }));
+  if (!productIds.length) return products.map((product) => ({ ...product, compatible_car_ids: [], category_ids: [] }));
 
   const { data: relationsData, error: relationsError } = await supabase
     .from('product_compatible_cars')
@@ -158,7 +172,21 @@ export async function getProducts() {
 
   if (relationsError) throw relationsError;
 
-  return mergeCompatibleCars(products, (relationsData || []) as ProductCompatibleCarRow[]);
+  const { data: categoryRelations, error: categoryError } = await supabase
+    .from('product_category_assignments')
+    .select('product_id, category_id, is_primary')
+    .in('product_id', productIds);
+
+  const withCars = mergeCompatibleCars(products, (relationsData || []) as ProductCompatibleCarRow[]);
+  if (categoryError) {
+    console.warn('product_category_assignments not ready; legacy category field remains active', categoryError);
+    return withCars.map((product) => ({ ...product, category_ids: [] }));
+  }
+  const categoryMap = new Map<string, string[]>();
+  (categoryRelations || []).forEach((row: ProductCategoryAssignmentRow) => {
+    categoryMap.set(row.product_id, [...(categoryMap.get(row.product_id) || []), row.category_id]);
+  });
+  return withCars.map((product) => ({ ...product, category_ids: product.id ? categoryMap.get(product.id) || [] : [] }));
 }
 
 
@@ -177,19 +205,20 @@ export async function getStorefrontSearchProducts(limit = 600): Promise<Product[
 }
 
 export async function createProduct(product: Product) {
-  const { compatible_car_ids = [] } = product;
+  const { compatible_car_ids = [], category_ids = [] } = product;
 
   const data = await saveProductRow('insert', cleanProductPayload(product));
 
   if (!product.compatible_all_cars) {
     await syncProductCars(data.id, compatible_car_ids);
   }
+  await syncProductCategories(data.id, category_ids);
 
   return data;
 }
 
 export async function updateProduct(id: string, product: Partial<Product>) {
-  const { compatible_car_ids } = product;
+  const { compatible_car_ids, category_ids } = product;
 
   const data = await saveProductRow('update', cleanProductPayload(product), id);
 
@@ -198,6 +227,7 @@ export async function updateProduct(id: string, product: Partial<Product>) {
   } else if (Array.isArray(compatible_car_ids)) {
     await syncProductCars(id, compatible_car_ids);
   }
+  if (Array.isArray(category_ids)) await syncProductCategories(id, category_ids);
 
   return data;
 }

@@ -76,3 +76,29 @@ Next recommended task: install v2.3.30 on Windows, run `.\agent.ps1 CRITICAL`, a
 - v2.3.31 includes the v2.3.30 booking selection-cart focus and concise current-total changes.
 
 Next recommended task: install v2.3.31 on Windows, run `.\agent.ps1 CRITICAL`, and verify the drawer/vehicle picker plus booking cart on the physical phone.
+
+### 2026-08-23 — Industrial and diesel catalog V1
+- Added an independent public `/industrial` catalog while preserving the passenger `/shop` flow.
+- Product categories now support parent/child hierarchy, images, ordering, active state and unlimited future branches.
+- Products can be assigned to multiple dynamic categories through `product_category_assignments`; legacy `products.category` remains for backward compatibility.
+- Seeded diesel engine oil, industrial hydraulic/gear oil and diesel/industrial filter branches.
+- Added Carrtell Agent `INDUSTRIAL` mode covering desktop/mobile customer UX, admin persona and shop/auth regression.
+- TypeScript and production build passed. Full ESLint remains blocked by 376 pre-existing repository errors; changed-file lint has no errors. Browser E2E is prepared for the Windows Agent because this Linux runner has no Chrome binary.
+
+Next recommended task: apply the SQL migration, assign the first real industrial products, then run `.\agent.ps1 INDUSTRIAL` on Windows and return any failing report for the corrective patch.
+
+### 2026-08-23 — Unlimited dynamic category journey V2
+- Added public guided routes `/categories` and `/category/:slug` that walk customers through unlimited admin-defined branches until direct products are reached.
+- Category admin now shows full ancestry and has a direct `add child` action on every node.
+- Product admin lists full paths for leaf categories only and requires at least one final category assignment.
+- Homepage category cards now enter the guided hierarchy instead of applying a flat shop query.
+- Added standalone ASCII-safe `agent-category.ps1` plus desktop/mobile route tests.
+- TypeScript, production build and changed-file ESLint passed (two pre-existing hook dependency warnings remain in Products).
+
+Next recommended task: install V2, create one real 15W-40 path and one Serkan filter path, run `agent-category.ps1`, then visually verify the hierarchy on a physical phone.
+
+### 2026-08-23 — Category admin usability correction V2.1
+- Replaced the ambiguous unlabeled category form with explicit root/child creation modes.
+- Child creation now requires selecting a clearly labeled full parent path.
+- Every input has a persistent label and help text; each existing node keeps a prominent `add child` action.
+- TypeScript, production build and changed-file ESLint passed.

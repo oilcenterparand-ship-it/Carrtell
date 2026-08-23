@@ -177,6 +177,8 @@ export default function BookPage() {
   const [otpCode, setOtpCode] = useState('');
   const [otpBusy, setOtpBusy] = useState(false);
   const [otpMessage, setOtpMessage] = useState('');
+  const [otpVerifyError, setOtpVerifyError] = useState('');
+  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
   const [otpResendIn, setOtpResendIn] = useState(0);
   const [otpSkipAvailable, setOtpSkipAvailable] = useState(false);
   const [otpSkipped, setOtpSkipped] = useState(false);
@@ -294,6 +296,7 @@ export default function BookPage() {
   const selectedProducts = useMemo(() => recommendationCatalog.filter((product) => product.id && allSelectedProductIds.includes(product.id)), [recommendationCatalog, allSelectedProductIds]);
   const selectedPackages = useMemo(() => recommendedPackages.filter((pkg) => pkg.id && selectedPackageIds.includes(pkg.id)), [recommendedPackages, selectedPackageIds]);
   const productTotal = useMemo(() => selectedProducts.reduce((sum, product) => sum + Number(product.amazing_price || product.price || 0) * selectedProductQuantity(product.id), 0), [selectedProducts, productQuantities, packageProductQuantities]);
+  const serviceLaborTotal = useMemo(() => selectedServices.reduce((sum, service) => sum + Number(service.base_labor_fee || 0), 0), [selectedServices]);
   const servicePrice = useMemo(
     () => calculateServicePricing({ services: selectedServices, pricing, date, slot: selectedSlot, city, isClubMember: true }),
     [selectedServices, pricing, date, selectedSlot, city],
@@ -321,9 +324,6 @@ export default function BookPage() {
 
   useEffect(() => {
     if (authLoading || !user) return;
-
-    // Auth/OTP can refresh `user` while the guest is already filling this step.
-    // Prefill only empty fields so a refresh never erases customer-entered data.
     const accountPhone = localIranPhone(user.phone);
     setCustomerPhone((current) => current.trim() ? current : accountPhone);
     setCustomerName((current) => current.trim() ? current : (user.fullName || ''));
@@ -333,12 +333,11 @@ export default function BookPage() {
     if (authLoading || !user) return;
     const accountPhone = localIranPhone(user.phone);
     const bookingPhone = localIranPhone(customerPhone);
-
-    // A customer already authenticated with the same mobile number must not
-    // receive another OTP just to book a service.
     if (accountPhone && bookingPhone && accountPhone === bookingPhone && !phoneVerified) {
       setPhoneVerified(true);
       setOtpSent(false);
+      setOtpSentAt(null);
+      setOtpVerifyError('');
       setOtpCode('');
       setOtpMessage('شماره موبایل از حساب کاربری شما تأیید شده است.');
     }
@@ -346,61 +345,28 @@ export default function BookPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function loadBookingData() {
       setLoading(true);
       setPackagesLoading(true);
       setError('');
-
-      const [
-        carsResult,
-        productsResult,
-        servicesResult,
-        pricingResult,
-        packagesResult,
-      ] = await Promise.allSettled([
+      const [carsResult, productsResult, servicesResult, pricingResult, packagesResult] = await Promise.allSettled([
         getActiveCarsForCustomer(),
         getProducts(),
         getBookingServices(),
         getServicePricingSettings(),
         getApprovedPackagesForVehicle(null),
       ]);
-
       if (cancelled) return;
-
-      if (carsResult.status === 'fulfilled') {
-        setCars(carsResult.value || []);
-      } else {
-        console.error('Booking cars failed to load', carsResult.reason);
-        setCars([]);
-      }
-
-      if (productsResult.status === 'fulfilled') {
-        setProducts(productsResult.value || []);
-      } else {
-        console.error('Booking products failed to load', productsResult.reason);
-        setProducts([]);
-      }
-
-      if (servicesResult.status === 'fulfilled') {
-        setServices(servicesResult.value || []);
-      } else {
-        console.error('Booking services failed to load', servicesResult.reason);
-        setServices([]);
-      }
-
-      if (pricingResult.status === 'fulfilled') {
-        setPricing(pricingResult.value);
-      } else {
-        console.error('Booking pricing failed to load', pricingResult.reason);
-      }
-
-      if (packagesResult.status === 'fulfilled') {
-        setPackages(packagesResult.value || []);
-      } else {
-        console.error('Booking packages failed to load', packagesResult.reason);
-        setPackages([]);
-      }
+      if (carsResult.status === 'fulfilled') setCars(carsResult.value || []);
+      else { console.error('Booking cars failed to load', carsResult.reason); setCars([]); }
+      if (productsResult.status === 'fulfilled') setProducts(productsResult.value || []);
+      else { console.error('Booking products failed to load', productsResult.reason); setProducts([]); }
+      if (servicesResult.status === 'fulfilled') setServices(servicesResult.value || []);
+      else { console.error('Booking services failed to load', servicesResult.reason); setServices([]); }
+      if (pricingResult.status === 'fulfilled') setPricing(pricingResult.value);
+      else console.error('Booking pricing failed to load', pricingResult.reason);
+      if (packagesResult.status === 'fulfilled') setPackages(packagesResult.value || []);
+      else { console.error('Booking packages failed to load', packagesResult.reason); setPackages([]); }
 
       const failedRecommendationDependencies = [
         carsResult.status === 'rejected' ? 'خودروها' : '',
@@ -413,21 +379,14 @@ export default function BookPage() {
       } else if (failedRecommendationDependencies.length) {
         setError(`بخشی از اطلاعات پیشنهادها (${failedRecommendationDependencies.join('، ')}) بارگذاری نشد. انتخاب خدمت همچنان در دسترس است؛ برای دریافت پیشنهاد کامل صفحه را دوباره باز کنید.`);
       }
-
       setPackagesLoading(false);
       setLoading(false);
     }
-
     void loadBookingData();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    setSelectedPackageIds([]);
-  }, [selectedCarId]);
+  useEffect(() => { setSelectedPackageIds([]); }, [selectedCarId]);
 
   useEffect(() => {
     getBookingSlots(date).then((items) => {
@@ -459,9 +418,6 @@ export default function BookPage() {
 
   function toggleService(id: string) {
     setSelectedServiceIds((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
-    setSelectedProductIds([]);
-    setProductQuantities({});
-    setSelectedPackageIds([]);
   }
 
   function toggleProduct(id?: string) {
@@ -483,7 +439,7 @@ export default function BookPage() {
   }
 
   async function sendBookingOtp() {
-    setError(''); setOtpMessage('');
+    setError(''); setOtpMessage(''); setOtpVerifyError('');
     if (otpBusy) return;
     if (!/^09\d{9}$/.test(customerPhone.trim())) return setError('شماره موبایل معتبر وارد کنید؛ مانند 09123456789.');
     if (otpSent && otpResendIn > 0) {
@@ -494,6 +450,7 @@ export default function BookPage() {
     try {
       await requestOtpWithRetry(customerPhone.trim());
       setOtpSent(true);
+      setOtpSentAt(Date.now());
       setOtpSkipped(false);
       setOtpSkipAvailable(false);
       setOtpCode('');
@@ -501,6 +458,7 @@ export default function BookPage() {
       setOtpMessage('درخواست پیامک با موفقیت پذیرفته شد. کد تأیید را پس از دریافت وارد کنید.');
     } catch (e) {
       setOtpSent(false);
+      setOtpSentAt(null);
       setOtpSkipAvailable(false);
       setOtpResendIn(0);
       setOtpMessage('ارسال کد انجام نشد. دوباره روی «ارسال کد» بزنید.');
@@ -511,15 +469,31 @@ export default function BookPage() {
   }
 
   async function verifyBookingOtp() {
-    setError(''); setOtpMessage('');
-    if (!otpCode.trim()) return setError('کد تأیید پیامک‌شده را وارد کنید.');
+    setError(''); setOtpMessage(''); setOtpVerifyError('');
+    if (!otpCode.trim()) {
+      setOtpVerifyError('کد تأیید را وارد کنید.');
+      return;
+    }
     setOtpBusy(true);
     try {
       await verifyMobileOtp(customerPhone.trim(), otpCode.trim());
       if (customerName.trim()) await saveCustomerDisplayName(customerName.trim());
-      setPhoneVerified(true); setOtpSkipped(false); setOtpSkipAvailable(false); setOtpMessage('شماره موبایل با موفقیت تأیید شد.');
-    } catch (e) { setError(e instanceof Error ? e.message : 'کد تأیید صحیح نیست.'); }
-    finally { setOtpBusy(false); }
+      setPhoneVerified(true);
+      setOtpSkipped(false);
+      setOtpSkipAvailable(false);
+      setOtpVerifyError('');
+      setOtpMessage('شماره موبایل با موفقیت تأیید شد.');
+    } catch (e) {
+      const raw = String(e instanceof Error ? e.message : e || '').toLowerCase();
+      const expiredByTime = Boolean(otpSentAt && Date.now() - otpSentAt >= 120000);
+      if (expiredByTime || raw.includes('expired') || raw.includes('expire')) {
+        setOtpVerifyError('کد منقضی شده، دوباره تلاش کنید.');
+      } else {
+        setOtpVerifyError('کد اشتباه است.');
+      }
+    } finally {
+      setOtpBusy(false);
+    }
   }
 
   function cancelBooking() {
@@ -619,9 +593,9 @@ export default function BookPage() {
                 {selectedProducts.map((product) => <div key={product.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-white">{product.image_url ? <img src={product.image_url} alt="" className="h-full w-full object-contain" /> : <PackageSearch className="h-5 w-5 text-slate-400" />}</div><div className="min-w-0 flex-1"><b className="line-clamp-2 text-xs">{product.name}</b><div className="mt-2 inline-flex items-center overflow-hidden rounded-lg border border-amber-400/40"><button type="button" onClick={() => product.id && changeProductQuantity(product.id, -1)} className="grid h-8 w-8 place-items-center bg-amber-400 text-slate-950" aria-label={`کم کردن ${product.name}`}><Minus className="h-3.5 w-3.5" /></button><span className="min-w-8 text-center text-xs font-black">{selectedProductQuantity(product.id).toLocaleString('fa-IR')}</span><button type="button" onClick={() => product.id && changeProductQuantity(product.id, 1)} className="grid h-8 w-8 place-items-center bg-amber-400 text-slate-950" aria-label={`زیاد کردن ${product.name}`}><Plus className="h-3.5 w-3.5" /></button></div></div><button type="button" onClick={() => product.id && changeProductQuantity(product.id, -selectedProductQuantity(product.id))} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-rose-500/15 text-rose-300" aria-label={`حذف محصول ${product.name}`}><Trash2 className="h-4 w-4" /></button></div>)}
               </div>
               {selectedServices.length > 0 && (selectedProducts.length > 0 || selectedPackages.length > 0) && (
-                <footer className="ct-book-selection-current-total flex items-center justify-between gap-4 border-t border-amber-400/25 bg-amber-400/10 px-4 py-4" data-testid="booking-selection-current-total">
-                  <span className="text-sm font-bold text-slate-200">مبلغ فعلی انتخاب‌ها</span>
-                  <b className="shrink-0 text-base font-black text-amber-300">{money(estimatedTotal)}</b>
+                <footer className="ct-book-selection-current-total grid gap-2 border-t border-amber-400/25 bg-amber-400/10 px-4 py-4" data-testid="booking-selection-current-total">
+                  <div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-slate-200">خدمات</span><b className="shrink-0 text-sm font-black text-amber-300">{money(serviceLaborTotal)}</b></div>
+                  <div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-slate-200">محصولات</span><b className="shrink-0 text-sm font-black text-amber-300">{money(productTotal)}</b></div>
                 </footer>
               )}
             </section>
@@ -703,10 +677,11 @@ export default function BookPage() {
                 <section className="rounded-2xl border border-slate-200 bg-white p-4" aria-label="تأیید موبایل پیش از پرداخت">
                   <div className="mb-3 flex items-center gap-2"><Phone className="h-5 w-5 text-amber-500" /><b>تأیید شماره برای پرداخت</b></div>
                   <div className="flex gap-2">
-                    <div className="relative min-w-0 flex-1"><Phone className="absolute right-4 top-4 h-4 w-4 text-slate-400" /><input inputMode="numeric" autoComplete="tel" maxLength={11} value={customerPhone} onChange={(event) => { const value = event.target.value.replace(/\D/g, '').slice(0, 11); setCustomerPhone(value); const sameAsAccount = Boolean(user?.phone && localIranPhone(user.phone) === localIranPhone(value)); setPhoneVerified(sameAsAccount); setOtpSent(false); setOtpSkipped(false); setOtpSkipAvailable(false); setOtpCode(''); setOtpResendIn(0); setOtpMessage(sameAsAccount ? 'شماره حساب شما قبلاً تأیید شده است.' : ''); }} placeholder="09xxxxxxxxx" className="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-3 pr-11 text-left font-bold outline-none focus:border-amber-400" dir="ltr" /></div>
+                    <div className="relative min-w-0 flex-1"><Phone className="absolute right-4 top-4 h-4 w-4 text-slate-400" /><input inputMode="numeric" autoComplete="tel" maxLength={11} value={customerPhone} onChange={(event) => { const value = event.target.value.replace(/\D/g, '').slice(0, 11); setCustomerPhone(value); const sameAsAccount = Boolean(user?.phone && localIranPhone(user.phone) === localIranPhone(value)); setPhoneVerified(sameAsAccount); setOtpSent(false); setOtpSentAt(null); setOtpVerifyError(''); setOtpSkipped(false); setOtpSkipAvailable(false); setOtpCode(''); setOtpResendIn(0); setOtpMessage(sameAsAccount ? 'شماره حساب شما قبلاً تأیید شده است.' : ''); }} placeholder="09xxxxxxxxx" className="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-3 pr-11 text-left font-bold outline-none focus:border-amber-400" dir="ltr" /></div>
                     <button type="button" onClick={sendBookingOtp} disabled={otpBusy || phoneVerified || (otpSent && otpResendIn > 0)} className={`shrink-0 rounded-2xl px-3 text-xs font-black ${phoneVerified ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'} disabled:opacity-70`}>{phoneVerified ? 'تأیید شد' : otpBusy ? 'در حال ارسال...' : otpSent && otpResendIn > 0 ? `ارسال شد (${otpResendIn})` : otpSent ? 'ارسال مجدد' : 'ارسال کد'}</button>
                   </div>
-                  {otpSent && !phoneVerified && <div className="mt-3 flex gap-2"><input inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="کد تأیید" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-center tracking-[.25em] outline-none focus:border-emerald-500" /><button type="button" onClick={verifyBookingOtp} disabled={otpBusy} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white disabled:opacity-60">تأیید</button></div>}
+                  {otpSent && !phoneVerified && <div className="mt-3 flex gap-2"><input inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={(event) => { setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setOtpVerifyError(''); }} placeholder="کد تأیید" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-center tracking-[.25em] outline-none focus:border-emerald-500" /><button type="button" onClick={verifyBookingOtp} disabled={otpBusy} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white disabled:opacity-60">تأیید</button></div>}
+                  {otpVerifyError && <p className="mt-2 text-xs font-black text-rose-600" data-testid="booking-otp-error">{otpVerifyError}</p>}
                   {otpSent && !phoneVerified && <button type="button" onClick={sendBookingOtp} disabled={otpBusy || otpResendIn > 0} className="mt-2 text-xs font-black text-amber-600 underline underline-offset-4 disabled:opacity-50">{otpResendIn > 0 ? `ارسال مجدد (${otpResendIn} ثانیه)` : 'ارسال مجدد کد'}</button>}
                   {otpMessage && <p className={`mt-2 text-xs font-bold ${phoneVerified ? 'text-emerald-600' : 'text-amber-600'}`}>{otpMessage}</p>}
                 </section>
@@ -719,7 +694,6 @@ export default function BookPage() {
               {step < STEPS.length ? <button type="button" onClick={next} className="ct-book-next flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 font-black text-white sm:flex-none sm:px-8">ادامه <ChevronLeft className="h-4 w-4" /></button> : <button type="button" onClick={submit} disabled={submitting || !phoneVerified} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-black text-slate-950 disabled:opacity-45 sm:flex-none sm:px-6">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {phoneVerified ? 'ثبت رزرو و پرداخت' : 'ابتدا شماره را تأیید کنید'}</button>}
             </div>
           </section>
-
         </div>
 
         {carPickerOpen && (

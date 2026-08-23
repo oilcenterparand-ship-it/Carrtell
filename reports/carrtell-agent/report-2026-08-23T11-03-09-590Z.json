@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-08-23T11:03:09.591Z",
+  "startedAt": "2026-08-23T11:02:59.565Z",
+  "status": "passed",
+  "counts": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0
+  },
+  "feedbackCounts": {
+    "error": 2,
+    "warning": 0,
+    "info": 0
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 1896,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "passed",
+      "durationMs": 5657,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "error",
+      "area": "admin/routes",
+      "route": "/admin/dashboard",
+      "message": "Console error: Failed to load resource: the server responded with a status of 400 ()",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    },
+    {
+      "severity": "error",
+      "area": "admin/routes",
+      "route": "/admin/dashboard",
+      "message": "Console error: Failed to load resource: the server responded with a status of 400 ()",
+      "test": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections"
+    }
+  ]
+}

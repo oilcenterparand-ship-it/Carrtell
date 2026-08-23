@@ -9,13 +9,18 @@ import {
   updateHomeBanner,
   updateHomeSection,
   getTodayShoppingSettings,
+  getMegaMenuPromotion,
+  saveMegaMenuPromotion,
+  defaultMegaMenuPromotion,
   updateTodayShoppingSettings,
   type HomeBanner,
   type HomeSection,
   type HomeSectionSource,
   type TodayShoppingSettings,
+  type MegaMenuPromotion,
 } from '../services/homeContentApi';
 import { getProductCategories, type ProductCategory } from '../services/categoriesApi';
+import ImageUploader from '../components/ImageUploader';
 
 const emptyBanner: HomeBanner = {
   title: '',
@@ -58,15 +63,17 @@ function HomeContent() {
   const [editingBannerId, setEditingBannerId] = useState<string | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [todayShopping, setTodayShopping] = useState<TodayShoppingSettings>(emptyTodayShopping);
+  const [megaPromotion, setMegaPromotion] = useState<MegaMenuPromotion>(defaultMegaMenuPromotion);
 
   const activeCategories = useMemo(() => categories.filter((category) => category.is_active !== false), [categories]);
 
   async function loadData() {
-    const [bannerData, sectionData, categoryData, todayShoppingData] = await Promise.all([getHomeBanners(), getHomeSections(), getProductCategories(), getTodayShoppingSettings()]);
+    const [bannerData, sectionData, categoryData, todayShoppingData, megaPromotionData] = await Promise.all([getHomeBanners(), getHomeSections(), getProductCategories(), getTodayShoppingSettings(), getMegaMenuPromotion()]);
     setBanners(bannerData);
     setSections(sectionData);
     setCategories(categoryData);
     setTodayShopping({ ...emptyTodayShopping, ...todayShoppingData });
+    setMegaPromotion({ ...defaultMegaMenuPromotion, ...megaPromotionData });
   }
 
   useEffect(() => {
@@ -123,6 +130,18 @@ function HomeContent() {
     }
   }
 
+  async function saveMegaPromotion() {
+    if (!megaPromotion.title.trim()) return alert('عنوان تبلیغ منوی دسته‌بندی الزامی است');
+    try {
+      const saved = await saveMegaMenuPromotion(megaPromotion);
+      setMegaPromotion({ ...defaultMegaMenuPromotion, ...saved });
+      alert('تبلیغ منوی دسته‌بندی ذخیره شد ✅');
+    } catch (error) {
+      console.error(error);
+      alert('ذخیره تبلیغ انجام نشد؛ ابتدا Migration این Sprint را اجرا کن.');
+    }
+  }
+
   async function saveSection() {
     if (!sectionForm.title.trim()) {
       alert('عنوان سکشن الزامی است');
@@ -159,6 +178,20 @@ function HomeContent() {
           بنرهای اسلایدی، پیشنهاد شگفت‌انگیز و بخش «امروز چی بخریم؟» را از اینجا مدیریت کن.
         </p>
       </div>
+
+      <section className="rounded-2xl bg-slate-900 p-5">
+        <div className="mb-4"><h2 className="text-lg font-black text-white">تبلیغ داخل منوی دسته‌بندی</h2><p className="mt-1 text-xs leading-6 text-slate-400">کارت تبلیغاتی سمت چپ Mega Menu فروشگاه را از اینجا تغییر بده.</p></div>
+        <div className="grid gap-3 md:grid-cols-2" data-testid="admin-mega-menu-promotion-form">
+          <input placeholder="عنوان تبلیغ" value={megaPromotion.title} onChange={(e) => setMegaPromotion({ ...megaPromotion, title: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input placeholder="نشان؛ مثال: فروش عمده" value={megaPromotion.badge || ''} onChange={(e) => setMegaPromotion({ ...megaPromotion, badge: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input placeholder="متن کوتاه تبلیغ" value={megaPromotion.subtitle || ''} onChange={(e) => setMegaPromotion({ ...megaPromotion, subtitle: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input placeholder="متن دکمه" value={megaPromotion.button_text} onChange={(e) => setMegaPromotion({ ...megaPromotion, button_text: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input placeholder="لینک مقصد" value={megaPromotion.link_url} onChange={(e) => setMegaPromotion({ ...megaPromotion, link_url: e.target.value })} className="rounded bg-slate-800 p-3 text-white md:col-span-2" />
+          <div className="md:col-span-2"><ImageUploader label="تصویر تبلیغ منوی دسته‌بندی" folder="banners" value={megaPromotion.image_url || ''} onChange={(image_url) => setMegaPromotion({ ...megaPromotion, image_url })} /></div>
+          <label className="flex items-center gap-2 rounded bg-slate-800 p-3 text-white md:col-span-2"><input type="checkbox" checked={megaPromotion.is_active} onChange={(e) => setMegaPromotion({ ...megaPromotion, is_active: e.target.checked })} /> تبلیغ داخل منو فعال باشد</label>
+          <button type="button" onClick={saveMegaPromotion} className="rounded bg-yellow-400 p-3 font-bold text-slate-950 md:col-span-2">ذخیره تبلیغ Mega Menu</button>
+        </div>
+      </section>
 
       <section className="rounded-2xl bg-slate-900 p-5">
         <h2 className="mb-4 text-lg font-black text-white">بنرهای تبلیغاتی اسلایدی</h2>

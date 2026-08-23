@@ -12,6 +12,28 @@ export type HomeBanner = {
   created_at?: string;
 };
 
+export type MegaMenuPromotion = {
+  id?: string;
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  button_text: string;
+  image_url?: string;
+  link_url: string;
+  is_active: boolean;
+  updated_at?: string;
+};
+
+export const defaultMegaMenuPromotion: MegaMenuPromotion = {
+  title: 'ویژه صنایع و ناوگان سنگین',
+  subtitle: 'روغن و فیلتر صنعتی با بسته‌بندی عمده',
+  badge: 'فروش عمده',
+  button_text: 'مشاهده محصولات',
+  image_url: '',
+  link_url: '/shop?category=industrial-diesel',
+  is_active: true,
+};
+
 export type HomeSectionSource = 'featured' | 'best_seller' | 'latest' | 'category';
 
 export type HomeSection = {
@@ -103,6 +125,34 @@ export async function deleteHomeBanner(id: string) {
   const { error } = await supabase.from('homepage_banners').delete().eq('id', id);
   if (error) throw error;
   return true;
+}
+
+export async function getMegaMenuPromotion() {
+  const { data, error } = await supabase.from('mega_menu_promotions').select('*').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) {
+    console.warn('mega_menu_promotions not ready, using fallback', error);
+    return defaultMegaMenuPromotion;
+  }
+  return { ...defaultMegaMenuPromotion, ...(data || {}) } as MegaMenuPromotion;
+}
+
+export async function saveMegaMenuPromotion(promotion: MegaMenuPromotion) {
+  const payload = {
+    title: promotion.title.trim(),
+    subtitle: promotion.subtitle?.trim() || '',
+    badge: promotion.badge?.trim() || '',
+    button_text: promotion.button_text.trim() || 'مشاهده محصولات',
+    image_url: promotion.image_url?.trim() || '',
+    link_url: promotion.link_url.trim() || '/shop',
+    is_active: promotion.is_active !== false,
+    updated_at: new Date().toISOString(),
+  };
+  const query = promotion.id
+    ? supabase.from('mega_menu_promotions').update(payload).eq('id', promotion.id)
+    : supabase.from('mega_menu_promotions').insert(payload);
+  const { data, error } = await query.select().single();
+  if (error) throw error;
+  return data as MegaMenuPromotion;
 }
 
 export async function getHomeSections() {

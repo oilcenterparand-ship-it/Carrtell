@@ -8,8 +8,16 @@ import {
   type ServiceRequest,
 } from '../customer/services/serviceRequestsApi';
 import { downloadServiceInvoiceImage } from '../utils/serviceInvoiceImage';
+import { setCustomerCredentials } from '../auth/authApi';
 
 const money = (value: number) => `${Number(value || 0).toLocaleString('fa-IR')} تومان`;
+
+function accountUsernameFromPhone(value: unknown) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (/^989\d{9}$/.test(digits)) return `0${digits.slice(2)}`;
+  if (/^9\d{9}$/.test(digits)) return `0${digits}`;
+  return digits;
+}
 
 export default function ServicePaymentPage() {
   const { requestId = '' } = useParams();
@@ -18,6 +26,9 @@ export default function ServicePaymentPage() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [accountSetupOpen, setAccountSetupOpen] = useState(false);
+  const [accountPassword, setAccountPassword] = useState('');
+  const [accountPasswordConfirm, setAccountPasswordConfirm] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -41,9 +52,31 @@ export default function ServicePaymentPage() {
   }
 
   async function acceptAccount() {
-    if (!requestId) return;
+    if (!requestId || !request) return;
+    if (!accountSetupOpen) {
+      setAccountSetupOpen(true);
+      setError('');
+      return;
+    }
+
+    if (accountPassword.length < 8) {
+      setError('رمز عبور باید حداقل ۸ کاراکتر باشد.');
+      return;
+    }
+    if (accountPassword !== accountPasswordConfirm) {
+      setError('تکرار رمز عبور با رمز اصلی یکسان نیست.');
+      return;
+    }
+
+    const username = accountUsernameFromPhone(request.customer_phone);
+    if (!/^09\d{9}$/.test(username)) {
+      setError('شماره موبایل رزرو برای ساخت حساب معتبر نیست.');
+      return;
+    }
+
     setClaiming(true); setError('');
     try {
+      await setCustomerCredentials(username, accountPassword);
       const claimed = await claimGuestServiceRequest(requestId);
       setRequest(claimed);
       navigate('/dashboard#orders', { replace: true });
@@ -56,6 +89,7 @@ export default function ServicePaymentPage() {
   if (!request) return <main dir="rtl" className="grid min-h-screen place-items-center bg-slate-950 p-4 text-white"><div className="max-w-md rounded-3xl border border-red-400/20 bg-red-500/10 p-6 text-center text-red-200">{error || 'درخواست سرویس پیدا نشد.'}</div></main>;
 
   const paid = request.payment_status === 'paid';
+  const accountUsername = accountUsernameFromPhone(request.customer_phone);
 
   return <main dir="rtl" className="min-h-screen bg-slate-950 px-4 pb-28 pt-8 text-white">
     <section className="mx-auto max-w-xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/30">
@@ -89,9 +123,25 @@ export default function ServicePaymentPage() {
           </button>
 
           {request.customer_user_id ? <button type="button" onClick={() => navigate('/dashboard#orders', { replace: true })} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3.5 font-black text-white">مشاهده وضعیت سفارش در پروفایل</button> : <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-            <div className="flex items-start gap-3"><UserRoundPlus className="mt-1 h-5 w-5 shrink-0 text-emerald-300" /><div><p className="text-sm font-bold text-white">مایل هستید حساب کاربری شما فعال شود؟</p><p className="mt-1 text-xs leading-6 text-slate-400">اگر شماره را در همین رزرو با OTP تأیید کرده باشید، تأیید دوباره لازم نیست و همان نشست قبلی استفاده می‌شود.</p></div></div>
+            <div className="flex items-start gap-3"><UserRoundPlus className="mt-1 h-5 w-5 shrink-0 text-emerald-300" /><div><p className="text-sm font-bold text-white">مایل هستید حساب کاربری شما فعال شود؟</p><p className="mt-1 text-xs leading-6 text-slate-400">شماره موبایل تأییدشده همین رزرو، نام کاربری شما خواهد بود و تأیید پیامکی دوباره لازم نیست.</p></div></div>
+
+            {accountSetupOpen && <div className="mt-4 grid gap-3">
+              <label className="grid gap-1 text-xs font-bold text-slate-300">
+                <span>نام کاربری</span>
+                <input aria-label="نام کاربری" value={accountUsername} readOnly className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-white outline-none" dir="ltr" />
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-300">
+                <span>رمز عبور</span>
+                <input aria-label="رمز عبور" type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} placeholder="حداقل ۸ کاراکتر" className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-emerald-400" />
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-300">
+                <span>تکرار رمز عبور</span>
+                <input aria-label="تکرار رمز عبور" type="password" value={accountPasswordConfirm} onChange={(event) => setAccountPasswordConfirm(event.target.value)} placeholder="تکرار رمز عبور" className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-emerald-400" />
+              </label>
+            </div>}
+
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" disabled={claiming} onClick={() => void acceptAccount()} className="rounded-xl bg-emerald-400 px-3 py-3 text-center text-sm font-black text-slate-950 disabled:opacity-60">{claiming ? 'در حال فعال‌سازی...' : 'بله، حسابم را فعال کن'}</button>
+              <button type="button" disabled={claiming} onClick={() => void acceptAccount()} className="rounded-xl bg-emerald-400 px-3 py-3 text-center text-sm font-black text-slate-950 disabled:opacity-60">{claiming ? 'در حال فعال‌سازی...' : accountSetupOpen ? 'ساخت حساب و ورود' : 'بله، حسابم را فعال کن'}</button>
               <Link to="/" className="rounded-xl border border-white/10 px-3 py-3 text-center text-sm font-bold text-slate-300">نه، ممنون</Link>
             </div>
           </div>}

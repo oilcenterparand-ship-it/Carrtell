@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: anonKey },
         body: JSON.stringify({ phone: normalizeAuthPhone(profile.phone), password }),
+        signal: AbortSignal.timeout(12_000),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result?.access_token) return json({ ok: false, error: 'نام کاربری یا رمز عبور صحیح نیست.' }, 401);
