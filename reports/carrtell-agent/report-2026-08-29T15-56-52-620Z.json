@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-08-29T15:56:52.620Z",
+  "startedAt": "2026-08-29T15:56:35.865Z",
+  "status": "passed",
+  "counts": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 1
+  },
+  "feedbackCounts": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2304,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "passed",
+      "durationMs": 9139,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › admin login gate is healthy",
+      "status": "passed",
+      "durationMs": 2167,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-admin.spec.ts › Persona: Admin › authenticated admin can open critical management sections",
+      "status": "skipped",
+      "durationMs": 317,
+      "project": ""
+    }
+  ],
+  "feedback": []
+}

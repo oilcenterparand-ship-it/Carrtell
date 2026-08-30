@@ -90,6 +90,7 @@ export default function ServicePaymentPage() {
 
   const paid = request.payment_status === 'paid';
   const accountUsername = accountUsernameFromPhone(request.customer_phone);
+  const breakdown = request.pricing_breakdown || {};
 
   return <main dir="rtl" className="min-h-screen bg-slate-950 px-4 pb-28 pt-8 text-white">
     <section className="mx-auto max-w-xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/30">
@@ -105,6 +106,9 @@ export default function ServicePaymentPage() {
           <div className="mt-4 grid gap-3 text-sm text-slate-300">
             <p>خودرو: <b className="text-white">{request.vehicle_title}</b></p>
             <p>زمان: <b className="text-white">{request.preferred_date} - {request.booking_slot_label || request.preferred_time}</b></p>
+            <p>فاصله مسیر: <b className="text-white">{Number(breakdown.routeDistanceKm || 0).toLocaleString('fa-IR')} کیلومتر</b></p>
+            <p>هزینه رفت‌وآمد: <b className="text-white">{money(Number(breakdown.travel || 0))}</b></p>
+            {Number(breakdown.trafficSurcharge || 0) > 0 && <p>افزایش طرح ترافیک: <b className="text-amber-300">{money(Number(breakdown.trafficSurcharge || 0))}</b></p>}
             <p>مبلغ قابل پرداخت: <b className="text-amber-300">{money(Number(request.estimated_total || 0))}</b></p>
           </div>
         </div>}

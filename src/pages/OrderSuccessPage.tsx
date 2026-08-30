@@ -61,7 +61,7 @@ export default function OrderSuccessPage() {
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <span className="text-xs text-[var(--text-muted,#94a3b8)]">مبلغ پرداخت‌شده</span>
-                  <b className="mt-2 block text-lg text-emerald-300">{formatPrice(Number(order.total_amount || 0))} تومان</b>
+                  <b className="mt-2 block text-lg text-emerald-300">{formatPrice(Number(order.total_amount || 0)+Number(order.wallet_used || 0))} تومان</b>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <span className="flex items-center gap-2 text-xs text-[var(--text-muted,#94a3b8)]"><Truck className="h-4 w-4" /> روش دریافت</span>

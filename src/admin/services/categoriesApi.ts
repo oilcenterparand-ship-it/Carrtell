@@ -9,6 +9,7 @@ export type ProductCategory = {
   description?: string;
   image_url?: string | null;
   icon_emoji?: string | null;
+  landing_url?: string | null;
   sort_order: number;
   is_active: boolean;
   created_at?: string;
@@ -60,6 +61,7 @@ export async function createProductCategory(category: ProductCategory) {
     image_url: category.image_url?.trim() || null,
     sort_order: Number(category.sort_order || 0),
     icon_emoji: category.icon_emoji?.trim() || null,
+    landing_url: category.landing_url?.trim() || '',
     is_active: category.is_active !== false,
   };
 
@@ -77,12 +79,21 @@ export async function updateProductCategory(id: string, category: Partial<Produc
     ...(category.image_url !== undefined ? { image_url: category.image_url?.trim() || null } : {}),
     ...(category.sort_order !== undefined ? { sort_order: Number(category.sort_order || 0) } : {}),
     ...(category.icon_emoji !== undefined ? { icon_emoji: category.icon_emoji?.trim() || null } : {}),
+    ...(category.landing_url !== undefined ? { landing_url: category.landing_url?.trim() || '' } : {}),
     ...(category.is_active !== undefined ? { is_active: category.is_active !== false } : {}),
   };
 
   const { data, error } = await supabase.from('product_categories').update(payload).eq('id', id).select().single();
   if (error) throw error;
   return data;
+}
+
+export function getCategoryDestination(category: Pick<ProductCategory, 'slug' | 'landing_url'>, fallback: 'shop' | 'journey' = 'shop') {
+  const configuredDestination = category.landing_url?.trim();
+  if (configuredDestination) return configuredDestination;
+  return fallback === 'journey'
+    ? `/category/${encodeURIComponent(category.slug)}`
+    : `/shop?category=${encodeURIComponent(category.slug)}`;
 }
 
 export function buildCategoryTree(categories: ProductCategory[]): ProductCategoryNode[] {

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import ImageUploader from '../admin/components/ImageUploader';
+import FieldHelp from '../admin/components/FieldHelp';
+import JalaliDateTimeInput from '../admin/components/JalaliDateTimeInput';
 
 type Campaign = {
   id: string;
@@ -50,14 +53,6 @@ const emptyForm = {
 
 const inputClass = 'w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-400';
 const labelClass = 'mb-2 block text-xs font-bold text-slate-300';
-
-function toDatetimeLocal(value?: string | null) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function toDbDatetime(value: string) {
   if (!value) return null;
@@ -136,8 +131,8 @@ export default function AdminDiscountsCampaignsPage() {
       link_url: campaign.link_url || '',
       discount_type: campaign.discount_type || 'percent',
       discount_value: Number(campaign.discount_value || 0),
-      starts_at: toDatetimeLocal(campaign.starts_at),
-      ends_at: toDatetimeLocal(campaign.ends_at),
+      starts_at: campaign.starts_at || '',
+      ends_at: campaign.ends_at || '',
       is_active: Boolean(campaign.is_active),
       priority: Number(campaign.priority || 10),
     });
@@ -252,52 +247,45 @@ export default function AdminDiscountsCampaignsPage() {
             <h2 className="text-xl font-black">{editingId ? 'ویرایش کمپین' : 'ساخت کمپین جدید'}</h2>
             <div className="mt-5 space-y-4">
               <div>
-                <label className={labelClass}>عنوان کمپین</label>
+                <FieldHelp title="عنوان کمپین">نامی است که در پنل و بخش فروش ویژه به مشتری نمایش داده می‌شود.</FieldHelp>
                 <input className={inputClass} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="مثلاً جشنواره روغن موتور" />
               </div>
               <div>
-                <label className={labelClass}>زیرعنوان</label>
+                <FieldHelp title="زیرعنوان">توضیح کوتاهی زیر عنوان کمپین؛ اختیاری و مناسب بیان پیشنهاد اصلی.</FieldHelp>
                 <input className={inputClass} value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} placeholder="توضیح کوتاه کمپین" />
               </div>
               <div>
-                <label className={labelClass}>آدرس تصویر بنر</label>
-                <input className={inputClass} value={form.banner_url} onChange={(e) => setForm({ ...form, banner_url: e.target.value })} placeholder="https://..." />
+                <ImageUploader label="تصویر بنر کمپین" folder="banners" value={form.banner_url} onChange={(banner_url) => setForm({ ...form, banner_url })} />
               </div>
               <div>
-                <label className={labelClass}>لینک بنر</label>
+                <FieldHelp title="لینک مقصد بنر">با کلیک روی بنر مشتری به این مسیر می‌رود؛ مثل /shop، /industrial یا آدرس کامل https.</FieldHelp>
                 <input className={inputClass} value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="/shop یا /admin/discounts" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>نوع تخفیف</label>
+                  <FieldHelp title="نوع تخفیف">درصدی یعنی درصد از قیمت کم شود؛ مبلغ ثابت یعنی یک مبلغ تومانی کم شود.</FieldHelp>
                   <select className={inputClass} value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value as 'percent' | 'fixed' })}>
                     <option value="percent">درصدی</option>
                     <option value="fixed">مبلغ ثابت</option>
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>مقدار تخفیف</label>
+                  <FieldHelp title="مقدار تخفیف">برای نوع درصدی عدد ۱۰ یعنی ۱۰٪؛ برای ثابت عدد واردشده تومان است.</FieldHelp>
                   <input className={inputClass} type="number" value={form.discount_value} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>شروع</label>
-                  <input className={inputClass} type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} />
-                </div>
-                <div>
-                  <label className={labelClass}>پایان</label>
-                  <input className={inputClass} type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
-                </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <JalaliDateTimeInput key={`start-${form.starts_at}`} label="شروع کمپین (شمسی)" help="کمپین پیش از این تاریخ و ساعت برای مشتری فعال نمی‌شود." value={form.starts_at} onChange={(starts_at) => setForm({ ...form, starts_at })} />
+                <JalaliDateTimeInput key={`end-${form.ends_at}`} label="پایان کمپین (شمسی)" help="پس از این تاریخ و ساعت تخفیف به‌صورت خودکار پایان می‌یابد." value={form.ends_at} onChange={(ends_at) => setForm({ ...form, ends_at })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>اولویت نمایش</label>
+                  <FieldHelp title="اولویت نمایش">عدد کمتر زودتر نمایش داده می‌شود؛ مثلاً ۱ قبل از ۱۰ قرار می‌گیرد.</FieldHelp>
                   <input className={inputClass} type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
                 </div>
                 <label className="flex items-end gap-3 rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm font-bold">
                   <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
-                  فعال باشد
+                  فعال باشد؛ اگر خاموش باشد کمپین ذخیره می‌شود اما به مشتری نمایش داده نمی‌شود.
                 </label>
               </div>
               <div className="flex gap-3 pt-2">
@@ -313,21 +301,21 @@ export default function AdminDiscountsCampaignsPage() {
             <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-end">
                 <div className="flex-1">
-                  <label className={labelClass}>انتخاب کمپین</label>
+                  <FieldHelp title="انتخاب کمپین">کمپینی که می‌خواهی محصول را به آن متصل کنی.</FieldHelp>
                   <select className={inputClass} value={selectedCampaignId} onChange={(e) => setSelectedCampaignId(e.target.value)}>
                     <option value="">کمپین را انتخاب کن</option>
                     {campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                   </select>
                 </div>
                 <div className="flex-1">
-                  <label className={labelClass}>انتخاب محصول</label>
+                  <FieldHelp title="انتخاب محصول">محصولی که باید در این جشنواره حضور داشته باشد.</FieldHelp>
                   <select className={inputClass} value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)}>
                     <option value="">محصول را انتخاب کن</option>
                     {products.map((p) => <option key={p.id} value={p.id}>{getProductName(p)}</option>)}
                   </select>
                 </div>
                 <div className="w-full md:w-40">
-                  <label className={labelClass}>قیمت ویژه</label>
+                  <FieldHelp title="قیمت ویژه">اختیاری؛ اگر پر شود همین قیمت جای قانون عمومی تخفیف را برای این محصول می‌گیرد.</FieldHelp>
                   <input className={inputClass} type="number" value={specialPrice} onChange={(e) => setSpecialPrice(e.target.value)} placeholder="اختیاری" />
                 </div>
                 <button onClick={addProductToCampaign} className="rounded-2xl bg-sky-400 px-5 py-3 font-black text-slate-950 hover:bg-sky-300">افزودن محصول</button>

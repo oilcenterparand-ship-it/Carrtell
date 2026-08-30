@@ -32,7 +32,8 @@ import SupportPage from "./pages/SupportPage";
 import LoyaltyAdminPage from './admin/pages/Loyalty';
 import WalletPage from './pages/WalletPage';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
+import CarrtellPageLoader from './components/CarrtellPageLoader';
 import GlobalRouteGuard from './auth/GlobalRouteGuard';
 import AdminRouteGuard from './admin/auth/AdminRouteGuard';
 import AdminLogin from './admin/pages/AdminLogin';
@@ -106,9 +107,17 @@ import Diagnostics from './admin/pages/Diagnostics';
 function ScrollToTop() {
   const location = useLocation();
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [location.pathname]);
+  useLayoutEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+    const reset = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    reset();
+    const frame = window.requestAnimationFrame(reset);
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.key, location.pathname, location.search]);
 
   return null;
 }
@@ -122,6 +131,8 @@ function SiteLayout() {
 function App() {
   return (
     <Router>
+      <ScrollToTop />
+      <CarrtellPageLoader />
       <AdminHealthButton />
       <div className="ct-app-shell min-h-screen font-vazir">
         <AdminRouteGuard>

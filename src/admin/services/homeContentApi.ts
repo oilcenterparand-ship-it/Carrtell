@@ -24,13 +24,33 @@ export type MegaMenuPromotion = {
   updated_at?: string;
 };
 
+export type MegaMenuTile = {
+  id?: string;
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  image_url?: string;
+  link_url: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export const defaultMegaMenuTiles: MegaMenuTile[] = [
+  { title: 'محصولات نظافت خودرویی', subtitle: 'درخشش و مراقبت حرفه‌ای', badge: 'تمیزی', image_url: '/images/mega-menu/car-cleaning.webp', link_url: '/shop?q=نظافت', sort_order: 1, is_active: true },
+  { title: 'فروش ویژه مکمل‌های سوخت', subtitle: 'توان بیشتر، مصرف بهتر', badge: 'فروش ویژه', image_url: '/images/mega-menu/fuel-additives.webp', link_url: '/shop?q=مکمل%20سوخت', sort_order: 2, is_active: true },
+  { title: 'پکیج‌های تعویض روغن اقتصادی و به‌صرفه', subtitle: 'انتخاب کامل برای سرویس دوره‌ای', badge: 'اقتصادی', image_url: '/images/mega-menu/economy-oil-change.webp', link_url: '/?quick=packages', sort_order: 3, is_active: true },
+  { title: 'محصولات تزئینی خودرو', subtitle: 'جزئیات متفاوت برای خودرو', badge: 'خاص', image_url: '/images/mega-menu/car-accessories.webp', link_url: '/shop?q=تزئینی', sort_order: 4, is_active: true },
+];
+
 export const defaultMegaMenuPromotion: MegaMenuPromotion = {
   title: 'ویژه صنایع و ناوگان سنگین',
   subtitle: 'روغن و فیلتر صنعتی با بسته‌بندی عمده',
   badge: 'فروش عمده',
   button_text: 'مشاهده محصولات',
   image_url: '',
-  link_url: '/shop?category=industrial-diesel',
+  link_url: '/industrial',
   is_active: true,
 };
 
@@ -153,6 +173,51 @@ export async function saveMegaMenuPromotion(promotion: MegaMenuPromotion) {
   const { data, error } = await query.select().single();
   if (error) throw error;
   return data as MegaMenuPromotion;
+}
+
+export async function getMegaMenuTiles() {
+  const { data, error } = await supabase
+    .from('mega_menu_tiles')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) {
+    console.warn('mega_menu_tiles not ready, using fallback', error);
+    return defaultMegaMenuTiles;
+  }
+  const tiles = (data || []) as MegaMenuTile[];
+  return tiles.length ? tiles : defaultMegaMenuTiles;
+}
+
+function cleanMegaMenuTile(tile: MegaMenuTile) {
+  return {
+    title: tile.title.trim(),
+    subtitle: tile.subtitle?.trim() || '',
+    badge: tile.badge?.trim() || '',
+    image_url: tile.image_url?.trim() || '',
+    link_url: tile.link_url.trim() || '/shop',
+    sort_order: Number(tile.sort_order || 0),
+    is_active: tile.is_active !== false,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export async function createMegaMenuTile(tile: MegaMenuTile) {
+  const { data, error } = await supabase.from('mega_menu_tiles').insert(cleanMegaMenuTile(tile)).select().single();
+  if (error) throw error;
+  return data as MegaMenuTile;
+}
+
+export async function updateMegaMenuTile(id: string, tile: MegaMenuTile) {
+  const { data, error } = await supabase.from('mega_menu_tiles').update(cleanMegaMenuTile(tile)).eq('id', id).select().single();
+  if (error) throw error;
+  return data as MegaMenuTile;
+}
+
+export async function deleteMegaMenuTile(id: string) {
+  const { error } = await supabase.from('mega_menu_tiles').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
 
 export async function getHomeSections() {

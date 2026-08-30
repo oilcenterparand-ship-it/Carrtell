@@ -1,10 +1,8 @@
-src/App.tsx
-src/components/Layout.tsx
-src/components/MobileBottomNav.tsx
-src/customer/services/serviceRequestsApi.ts
-src/pages/BookPage.tsx
-src/pages/OtpLoginPage.tsx
-src/pages/ServicePaymentPage.tsx
-src/styles/mobile-rc106a.css
-supabase/migrations/202608010001_rc1_06d_service_auth_payment.sql
-README-RC1-06D-FA.md
+Carrtell V3.6.5.0
+supabase/migrations/202608270005_technician_availability_auto_assignment.sql
+src/driver/services/technicianAvailabilityApi.ts
+src/pages/DriverDashboard.tsx
+tests/e2e/technician-auto-assignment-contract.spec.ts
+agent.ps1
+README-FA.md
+PATCH-MANIFEST.txt

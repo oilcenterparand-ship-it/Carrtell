@@ -1,0 +1,161 @@
+{
+  "generatedAt": "2026-08-29T13:31:40.952Z",
+  "startedAt": "2026-08-29T13:30:18.741Z",
+  "status": "failed",
+  "counts": {
+    "passed": 9,
+    "failed": 4,
+    "skipped": 1
+  },
+  "feedbackCounts": {
+    "error": 4,
+    "warning": 1,
+    "info": 2
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 3882,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 5335,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 2978,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "skipped",
+      "durationMs": 350,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
+      "status": "passed",
+      "durationMs": 2785,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login",
+      "status": "passed",
+      "durationMs": 5225,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › booking selection box is compact, locks background, and explains final cost",
+      "status": "passed",
+      "durationMs": 3055,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › mobile bottom navigation keeps correct routes",
+      "status": "passed",
+      "durationMs": 3657,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 23077,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-customer.spec.ts › Persona: Customer › public download page installs only the customer app",
+      "status": "passed",
+      "durationMs": 3064,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 4323,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 22593,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 22216,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "failed",
+      "durationMs": 22632,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    },
+    {
+      "severity": "warning",
+      "area": "customer/hamburger",
+      "route": "/shop",
+      "message": "پنل 100٪ ارتفاع صفحه را گرفته؛ برای یک باکس جمع‌وجور بیش از حد بزرگ است.",
+      "details": {
+        "box": {
+          "x": -5.331101417541504,
+          "y": 0,
+          "width": 389.99998569488525,
+          "height": 720
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "hRatio": 1
+      },
+      "test": " › desktop-chrome › persona-customer.spec.ts › Persona: Customer › public shopping journey is usable without forced login"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/آماده دریافت مأموریت/)\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/آماده دریافت مأموریت/)\u001b[22m\n",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/آماده دریافت مأموریت/)\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/آماده دریافت مأموریت/)\u001b[22m\n",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/آماده دریافت مأموریت/)\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/آماده دریافت مأموریت/)\u001b[22m\n",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    },
+    {
+      "severity": "error",
+      "area": "automated-test",
+      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/آماده دریافت مأموریت/)\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/آماده دریافت مأموریت/)\u001b[22m\n",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls"
+    }
+  ]
+}

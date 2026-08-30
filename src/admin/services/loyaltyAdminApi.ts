@@ -18,27 +18,12 @@ export async function saveAdminLoyaltySettings(settings: Partial<LoyaltySettings
 }
 
 export async function adjustWallet(input: { wallet_id: string; user_id?: string; points_delta?: number; credit_delta?: number; title?: string }) {
-  const walletRes = await supabase.from('customer_wallets').select('*').eq('id', input.wallet_id).single();
-  if (walletRes.error) throw walletRes.error;
-  const wallet = walletRes.data;
-  const newPoints = Math.max(0, Number(wallet.points || 0) + Number(input.points_delta || 0));
-  const newCredit = Math.max(0, Number(wallet.credit_toman || 0) + Number(input.credit_delta || 0));
-
-  const upd = await supabase.from('customer_wallets').update({
-    points: newPoints,
-    credit_toman: newCredit,
-    updated_at: new Date().toISOString(),
-  }).eq('id', input.wallet_id).select('*').single();
-  if (upd.error) throw upd.error;
-
-  await supabase.from('wallet_transactions').insert({
-    wallet_id: input.wallet_id,
-    user_id: input.user_id || wallet.user_id,
-    type: 'manual_admin',
-    title: input.title || 'تنظیم دستی مدیر',
-    points_delta: input.points_delta || 0,
-    credit_delta: input.credit_delta || 0,
+  const { data, error } = await supabase.rpc('carrtell_admin_adjust_wallet', {
+    p_wallet_id: input.wallet_id,
+    p_points_delta: Number(input.points_delta || 0),
+    p_credit_delta: Number(input.credit_delta || 0),
+    p_title: input.title || 'تنظیم دستی مدیر',
   });
-
-  return upd.data;
+  if (error) throw error;
+  return data;
 }

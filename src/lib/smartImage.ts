@@ -41,7 +41,7 @@ const DEFAULT_OPTIONS: Required<Omit<SmartImageOptions, 'watermarkLogoUrl'>> & {
   watermarkTextColor: '#111827',
   watermarkTextSize: 4.5,
   watermarkLogoSize: 18,
-  backgroundColor: '#ffffff',
+  backgroundColor: 'transparent',
 };
 
 function loadImageFromFile(file: File): Promise<HTMLImageElement> {
@@ -101,8 +101,14 @@ export async function optimizeImageWithWatermark(inputFile: File, options: Smart
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('مرورگر از پردازش عکس پشتیبانی نمی‌کند');
 
-  ctx.fillStyle = opt.backgroundColor;
-  ctx.fillRect(0, 0, size.width, size.height);
+  // Keep PNG/WebP alpha intact. A solid canvas background permanently burns a
+  // white/black rectangle into otherwise transparent product and icon files.
+  if (opt.backgroundColor && opt.backgroundColor !== 'transparent') {
+    ctx.fillStyle = opt.backgroundColor;
+    ctx.fillRect(0, 0, size.width, size.height);
+  } else {
+    ctx.clearRect(0, 0, size.width, size.height);
+  }
   ctx.drawImage(source, 0, 0, size.width, size.height);
 
   if (opt.watermarkEnabled) {

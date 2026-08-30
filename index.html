@@ -30,6 +30,14 @@
     </script>
   </head>
   <body class="font-vazir">
+    <div id="ct-bootstrap-loader" role="status" aria-live="polite">
+      <style>
+        #ct-bootstrap-loader{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:radial-gradient(circle at 50% 42%,#15233a 0,#091321 38%,#050b14 100%);color:#f8fafc;font-family:Vazirmatn,Tahoma,sans-serif;transition:opacity .28s ease,visibility .28s ease}#ct-bootstrap-loader.is-ready{opacity:0;visibility:hidden}#ct-bootstrap-loader .ct-boot-mark{position:relative;width:116px;height:116px;display:grid;place-items:center}#ct-bootstrap-loader .ct-boot-ring{position:absolute;inset:0;border:3px dotted rgba(245,183,0,.32);border-top-color:#f5b700;border-right-color:#ffd84d;border-radius:50%;animation:ctBootSpin 1.25s linear infinite}#ct-bootstrap-loader img{width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(245,183,0,.22));animation:ctBootBuild 1.45s cubic-bezier(.22,.8,.25,1) infinite alternate}#ct-bootstrap-loader strong{font-size:14px;color:#f5b700}#ct-bootstrap-loader small{font-size:10px;color:#aebbd0}@keyframes ctBootSpin{to{transform:rotate(360deg)}}@keyframes ctBootBuild{0%{clip-path:inset(0 100% 0 0);transform:scale(.9);opacity:.25}70%,100%{clip-path:inset(0 0 0 0);transform:scale(1);opacity:1}}@media(prefers-reduced-motion:reduce){#ct-bootstrap-loader .ct-boot-ring,#ct-bootstrap-loader img{animation:none}}
+      </style>
+      <div class="ct-boot-mark"><span class="ct-boot-ring"></span><img src="/brand/logo.png" alt="Carrtell" /></div>
+      <strong>کارتل در حال بارگذاری است</strong>
+      <small>تجربه‌ای مطمئن برای خودروی شما</small>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

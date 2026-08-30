@@ -1,0 +1,21 @@
+CARRTELL COMPACT UI + FOOTER REVIEWS V3.7.4
+
+ZIP را مستقیم داخل ریشه پروژه Extract و Replace کن.
+
+cd "D:\carrtell\Carrtell-v0.2-current\project"
+npm run typecheck
+npm run build
+npx playwright test tests/e2e/compact-cards-footer-reviews-v374.spec.ts
+\.\agent.ps1 CUSTOMER
+
+نتیجه تست اختصاصی: 6 passed (دو سناریو در سه اندازه نمایش).
+
+تغییرات:
+- فاصله کارت‌ها کمتر و تعداد ستون‌های دسکتاپ بیشتر شد.
+- عکس، متن، قیمت و دکمه سبد خرید فشرده‌تر شد.
+- آیکون‌ها و جزئیات دسکتاپ حدود 20 درصد کوچک‌تر شدند.
+- اندازه امن لمس موبایل حفظ شد.
+- نظرات از صفحه خانه حذف و به پایین فوتر منتقل شد.
+- نظرات تصادفی می‌چرخند و محصول/خدمت استفاده‌شده را نمایش می‌دهند.
+
+SQL و Deploy تابع Supabase لازم نیست.

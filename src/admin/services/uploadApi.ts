@@ -2,7 +2,7 @@ import { supabase } from '../../lib/supabase';
 import { optimizeImageWithWatermark } from '../../lib/smartImage';
 import { getActiveWatermarkProfile, getImageSettings, type WatermarkTarget } from './imageSettingsApi';
 
-export type UploadFolder = 'products' | 'banners' | 'brands' | 'categories' | 'packages' | 'watermarks';
+export type UploadFolder = 'products' | 'banners' | 'brands' | 'categories' | 'packages' | 'service-icons' | 'watermarks';
 
 export type ImageUploadOptions = {
   maxSize?: number;
@@ -18,6 +18,7 @@ const DEFAULT_OPTIONS_BY_FOLDER: Record<UploadFolder, Required<Pick<ImageUploadO
   brands: { maxSize: 500, quality: 0.86 },
   categories: { maxSize: 420, quality: 0.86 },
   packages: { maxSize: 900, quality: 0.82 },
+  'service-icons': { maxSize: 320, quality: 0.86 },
   watermarks: { maxSize: 500, quality: 0.9 },
 };
 
@@ -41,7 +42,7 @@ function formatSafeBaseName(fileName: string) {
 }
 
 function folderToTarget(folder: UploadFolder): WatermarkTarget | null {
-  if (folder === 'watermarks') return null;
+  if (folder === 'watermarks' || folder === 'service-icons') return null;
   return folder as WatermarkTarget;
 }
 

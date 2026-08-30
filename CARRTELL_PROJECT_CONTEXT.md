@@ -97,8 +97,42 @@ Next recommended task: apply the SQL migration, assign the first real industrial
 
 Next recommended task: install V2, create one real 15W-40 path and one Serkan filter path, run `agent-category.ps1`, then visually verify the hierarchy on a physical phone.
 
+### 2026-08-27 — Cross-device admin login, product media and travel diagnostics V3.6.0
+- Staff login now returns a server-issued one-time session token after credential validation, so a fresh browser/device does not depend on an existing Chrome or Google session.
+- Product hover text is limited to the full product name and current price.
+- Transparent product images render on a white media canvas instead of inheriting the dark theme background.
+- Travel estimation maps Neshan error statuses and missing pricing schema to actionable Persian messages, including HTTP error bodies returned by Supabase Functions.
+- Added focused source-contract regression coverage for all three areas.
+
+Next recommended task: deploy both Edge Functions, apply the safe travel SQL once, publish the new `dist`, then test admin login in Incognito and one real Tehran booking destination.
+
+### 2026-08-27 — Final Neshan traffic fallback V3.6.2
+- Traffic-aware Routing remains the primary route source for service travel pricing.
+- Traffic-aware Distance Matrix is now an automatic fallback when Routing is unavailable or lacks a valid distance.
+- Predictive routing remains enabled in the Neshan panel but is intentionally excluded from real-time money calculation.
+- TypeScript and production build passed; focused lint passed; related contract tests passed 15/15 across desktop, Android and iPhone projects.
+
+Next recommended task: install only V3.6.2, apply the safe SQL, deploy both functions, publish `dist`, then verify one live Tehran quote and a fresh-device admin login.
+
+### 2026-08-27 — Booking pricing admin and compact map V3.6.3
+- Booking step 5 calculates travel privately but shows no fare or distance; pricing appears in step 6 and downstream invoice/payment only.
+- The booking map is 235px high on desktop and remains 330px on mobile.
+- Admin pricing exposes every pricing input, including the traffic-zone polygon advanced JSON.
+- Pricing save no longer silently falls back to browser storage when the server rejects the update.
+- TypeScript and production build passed; related contract tests passed 15/15.
+
+Next recommended task: install V3.6.3 over V3.6.2, build, preview step 5/6, then publish `dist`.
+
 ### 2026-08-23 — Category admin usability correction V2.1
 - Replaced the ambiguous unlabeled category form with explicit root/child creation modes.
 - Child creation now requires selecting a clearly labeled full parent path.
 - Every input has a persistent label and help text; each existing node keeps a prominent `add child` action.
 - TypeScript, production build and changed-file ESLint passed.
+
+### 2026-08-23 — Home category rail and real admin Agent credentials V3.1.6
+- Restored the compact dynamic category rail on `/` only; `/shop` retains its own dynamic cascading Mega Menu.
+- Added desktop/mobile regression coverage that also checks the rail stays absent from shop, payment and product-detail routes.
+- Removed assumed admin credentials from the Persona Admin path.
+- `agent.ps1` now securely prompts for real admin credentials in ADMIN, PERSONAS and INDUSTRIAL modes.
+- Both Agent scripts clear the temporary username and password environment variables in `finally`.
+- No SQL or Edge Function deployment is required for this correction.

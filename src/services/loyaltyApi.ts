@@ -100,19 +100,7 @@ export async function getOrCreateMyWallet(phone?: string | null): Promise<Custom
     return local;
   }
 
-  const existing = await supabase
-    .from('customer_wallets')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (existing.error) throw existing.error;
-  if (existing.data) return existing.data as CustomerWallet;
-
-  const { data, error } = await supabase
-    .from('customer_wallets')
-    .insert({ user_id: userId, phone: phone || null, referral_code: makeReferralCode(phone), tier: 'bronze' })
-    .select('*')
-    .single();
+  const { data, error } = await supabase.rpc('carrtell_get_or_create_my_wallet', { p_phone: phone || null });
   if (error) throw error;
   return data as CustomerWallet;
 }
@@ -131,6 +119,18 @@ export async function getMyWalletTransactions(userId?: string | null): Promise<W
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []) as WalletTransaction[];
+}
+
+export async function createWalletTopupOrder(amount: number) {
+  const { data, error } = await supabase.rpc('carrtell_create_wallet_topup_order', { p_amount: amount });
+  if (error) throw error;
+  return data as { id: string; order_number: string; total_amount: number };
+}
+
+export async function applyWalletToOrder(orderId: string, amount?: number) {
+  const { data, error } = await supabase.rpc('carrtell_apply_wallet_to_order', { p_order_id: orderId, p_requested: amount || null });
+  if (error) throw error;
+  return data as { order: { id: string; total_amount: number; payment_status?: string; status?: string }; wallet_balance: number; applied: number; remaining: number };
 }
 
 export async function addWalletTransaction(input: {

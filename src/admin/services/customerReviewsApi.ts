@@ -10,6 +10,7 @@ export type CustomerReview = {
   comment: string;
   is_approved: boolean;
   created_at?: string;
+  experience_label?: string | null;
 };
 
 export async function createCustomerReview(input: Omit<CustomerReview, 'id' | 'is_approved' | 'created_at'>) {
@@ -56,7 +57,34 @@ export async function getApprovedCustomerReviews(limit = 6) {
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data || []) as CustomerReview[];
+  const reviews = (data || []) as CustomerReview[];
+  const productIds = [...new Set(reviews.map((review) => review.product_id).filter(Boolean))] as string[];
+  const orderIds = [...new Set(reviews.map((review) => review.order_id).filter(Boolean))] as string[];
+
+  const [productsResult, ordersResult, servicesResult] = await Promise.all([
+    productIds.length ? supabase.from('products').select('id,name').in('id', productIds) : Promise.resolve({ data: [], error: null }),
+    orderIds.length ? supabase.from('orders').select('id,items').in('id', orderIds) : Promise.resolve({ data: [], error: null }),
+    orderIds.length ? supabase.from('service_requests').select('order_id,service_title,service_items').in('order_id', orderIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const productNames = new Map((productsResult.data || []).map((row: any) => [String(row.id), String(row.name || '')]));
+  const orderLabels = new Map<string, string>();
+  for (const row of ordersResult.data || []) {
+    const names = (Array.isArray((row as any).items) ? (row as any).items : [])
+      .map((item: any) => String(item.product_name || item.name || '').trim()).filter(Boolean).slice(0, 2);
+    if (names.length) orderLabels.set(String((row as any).id), names.join('، '));
+  }
+  for (const row of servicesResult.data || []) {
+    const names = (Array.isArray((row as any).service_items) ? (row as any).service_items : [])
+      .map((item: any) => String(item.title || item.name || '').trim()).filter(Boolean).slice(0, 2);
+    const label = names.join('، ') || String((row as any).service_title || '').trim();
+    if (label) orderLabels.set(String((row as any).order_id), label);
+  }
+
+  return reviews.map((review) => ({
+    ...review,
+    experience_label: (review.product_id && productNames.get(review.product_id)) || (review.order_id && orderLabels.get(review.order_id)) || 'خرید یا سرویس از Carrtell',
+  }));
 }
 
 

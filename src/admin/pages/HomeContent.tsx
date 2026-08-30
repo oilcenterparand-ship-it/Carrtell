@@ -10,7 +10,11 @@ import {
   updateHomeSection,
   getTodayShoppingSettings,
   getMegaMenuPromotion,
+  getMegaMenuTiles,
   saveMegaMenuPromotion,
+  createMegaMenuTile,
+  updateMegaMenuTile,
+  deleteMegaMenuTile,
   defaultMegaMenuPromotion,
   updateTodayShoppingSettings,
   type HomeBanner,
@@ -18,6 +22,7 @@ import {
   type HomeSectionSource,
   type TodayShoppingSettings,
   type MegaMenuPromotion,
+  type MegaMenuTile,
 } from '../services/homeContentApi';
 import { getProductCategories, type ProductCategory } from '../services/categoriesApi';
 import ImageUploader from '../components/ImageUploader';
@@ -50,6 +55,16 @@ const emptySection: HomeSection = {
   is_active: true,
 };
 
+const emptyMegaMenuTile: MegaMenuTile = {
+  title: '',
+  subtitle: '',
+  badge: '',
+  image_url: '',
+  link_url: '/shop',
+  sort_order: 0,
+  is_active: true,
+};
+
 function makeSlug(title: string) {
   return title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-آ-ی]/gi, '') || `section-${Date.now()}`;
 }
@@ -64,16 +79,20 @@ function HomeContent() {
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [todayShopping, setTodayShopping] = useState<TodayShoppingSettings>(emptyTodayShopping);
   const [megaPromotion, setMegaPromotion] = useState<MegaMenuPromotion>(defaultMegaMenuPromotion);
+  const [megaMenuTiles, setMegaMenuTiles] = useState<MegaMenuTile[]>([]);
+  const [megaMenuTileForm, setMegaMenuTileForm] = useState<MegaMenuTile>(emptyMegaMenuTile);
+  const [editingMegaMenuTileId, setEditingMegaMenuTileId] = useState<string | null>(null);
 
   const activeCategories = useMemo(() => categories.filter((category) => category.is_active !== false), [categories]);
 
   async function loadData() {
-    const [bannerData, sectionData, categoryData, todayShoppingData, megaPromotionData] = await Promise.all([getHomeBanners(), getHomeSections(), getProductCategories(), getTodayShoppingSettings(), getMegaMenuPromotion()]);
+    const [bannerData, sectionData, categoryData, todayShoppingData, megaPromotionData, megaMenuTileData] = await Promise.all([getHomeBanners(), getHomeSections(), getProductCategories(), getTodayShoppingSettings(), getMegaMenuPromotion(), getMegaMenuTiles()]);
     setBanners(bannerData);
     setSections(sectionData);
     setCategories(categoryData);
     setTodayShopping({ ...emptyTodayShopping, ...todayShoppingData });
     setMegaPromotion({ ...defaultMegaMenuPromotion, ...megaPromotionData });
+    setMegaMenuTiles(megaMenuTileData);
   }
 
   useEffect(() => {
@@ -142,6 +161,37 @@ function HomeContent() {
     }
   }
 
+  function resetMegaMenuTile() {
+    setMegaMenuTileForm(emptyMegaMenuTile);
+    setEditingMegaMenuTileId(null);
+  }
+
+  async function saveMegaMenuTile() {
+    if (!megaMenuTileForm.title.trim()) return alert('عنوان بنر کوچک الزامی است');
+    if (!megaMenuTileForm.link_url.trim()) return alert('لینک مقصد بنر کوچک الزامی است');
+    try {
+      if (editingMegaMenuTileId) await updateMegaMenuTile(editingMegaMenuTileId, megaMenuTileForm);
+      else await createMegaMenuTile(megaMenuTileForm);
+      alert(editingMegaMenuTileId ? 'بنر کوچک ویرایش شد ✅' : 'بنر کوچک ساخته شد ✅');
+      resetMegaMenuTile();
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      alert('ذخیره بنر کوچک انجام نشد؛ ابتدا Migration این Sprint را اجرا کن.');
+    }
+  }
+
+  async function removeMegaMenuTile(id: string) {
+    if (!confirm('این بنر کوچک حذف شود؟')) return;
+    try {
+      await deleteMegaMenuTile(id);
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      alert('حذف بنر کوچک انجام نشد.');
+    }
+  }
+
   async function saveSection() {
     if (!sectionForm.title.trim()) {
       alert('عنوان سکشن الزامی است');
@@ -193,12 +243,40 @@ function HomeContent() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-slate-900 p-5">
+      <section className="rounded-2xl bg-slate-900 p-5" data-testid="admin-home-hero-promo-tiles-section">
+        <div className="mb-4">
+          <h2 className="text-lg font-black text-white">چهار بنر کنار بنر اصلی صفحه خانه</h2>
+          <p className="mt-1 text-xs leading-6 text-slate-400">این بنرها جایگزین باکس‌های قدیمی ارسال سریع، ضمانت اصالت، بسته‌بندی امن و پشتیبانی شده‌اند. تصویر، متن، لینک، ترتیب و وضعیت هر بنر را مدیریت کن.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2" data-testid="admin-home-hero-promo-tile-form">
+          <input placeholder="عنوان بنر کوچک" value={megaMenuTileForm.title} onChange={(e) => setMegaMenuTileForm({ ...megaMenuTileForm, title: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input placeholder="نشان؛ مثال: فروش ویژه" value={megaMenuTileForm.badge || ''} onChange={(e) => setMegaMenuTileForm({ ...megaMenuTileForm, badge: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input placeholder="توضیح کوتاه" value={megaMenuTileForm.subtitle || ''} onChange={(e) => setMegaMenuTileForm({ ...megaMenuTileForm, subtitle: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input placeholder="لینک مقصد؛ مثال: /shop?q=نظافت" value={megaMenuTileForm.link_url} onChange={(e) => setMegaMenuTileForm({ ...megaMenuTileForm, link_url: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <input type="number" placeholder="ترتیب نمایش" value={megaMenuTileForm.sort_order} onChange={(e) => setMegaMenuTileForm({ ...megaMenuTileForm, sort_order: Number(e.target.value) })} className="rounded bg-slate-800 p-3 text-white" />
+          <label className="flex items-center gap-2 rounded bg-slate-800 p-3 text-white"><input type="checkbox" checked={megaMenuTileForm.is_active} onChange={(e) => setMegaMenuTileForm({ ...megaMenuTileForm, is_active: e.target.checked })} /> فعال باشد</label>
+          <div className="md:col-span-2"><ImageUploader label="تصویر بنر کوچک" folder="banners" value={megaMenuTileForm.image_url || ''} onChange={(image_url) => setMegaMenuTileForm({ ...megaMenuTileForm, image_url })} /></div>
+          <div className="flex gap-2 md:col-span-2">
+            <button type="button" onClick={saveMegaMenuTile} className="flex-1 rounded bg-yellow-400 p-3 font-bold text-slate-950">{editingMegaMenuTileId ? 'ذخیره تغییرات بنر کوچک' : 'افزودن بنر کوچک'}</button>
+            {editingMegaMenuTileId && <button type="button" onClick={resetMegaMenuTile} className="rounded bg-slate-700 px-6 py-3 font-bold text-white">لغو</button>}
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {megaMenuTiles.map((tile) => (
+            <article key={tile.id || `${tile.title}-${tile.sort_order}`} className="flex gap-3 rounded-xl border border-slate-700 bg-slate-800 p-3 text-white">
+              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-950">{tile.image_url ? <img src={tile.image_url} alt={tile.title} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-xs text-slate-500">بدون تصویر</div>}</div>
+              <div className="min-w-0 flex-1"><b className="line-clamp-1">{tile.title}</b><p className="mt-1 truncate text-xs text-slate-400">{tile.link_url}</p><p className="mt-1 text-[10px] text-slate-500">ترتیب: {tile.sort_order} · {tile.is_active ? 'فعال' : 'غیرفعال'}</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => { setMegaMenuTileForm({ ...emptyMegaMenuTile, ...tile }); setEditingMegaMenuTileId(tile.id || null); }} className="rounded bg-blue-500 px-3 py-1.5 text-xs font-bold">ویرایش</button>{tile.id && <button type="button" onClick={() => removeMegaMenuTile(tile.id!)} className="rounded px-2 py-1.5 text-xs font-bold text-red-400">حذف</button>}</div></div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-slate-900 p-5" data-testid="admin-home-slider-banners-section">
         <h2 className="mb-4 text-lg font-black text-white">بنرهای تبلیغاتی اسلایدی</h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2" data-testid="admin-home-slider-banner-form">
           <input placeholder="عنوان بنر" value={bannerForm.title} onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
           <input placeholder="زیرعنوان" value={bannerForm.subtitle || ''} onChange={(e) => setBannerForm({ ...bannerForm, subtitle: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
-          <input placeholder="آدرس عکس بنر" value={bannerForm.image_url || ''} onChange={(e) => setBannerForm({ ...bannerForm, image_url: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
+          <div className="md:col-span-2"><ImageUploader label="تصویر بنر اسلایدی" folder="banners" value={bannerForm.image_url || ''} onChange={(image_url) => setBannerForm({ ...bannerForm, image_url })} /></div>
           <input placeholder="لینک مقصد؛ مثال: /shop?category=engine-oil" value={bannerForm.link_url || ''} onChange={(e) => setBannerForm({ ...bannerForm, link_url: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
           <input placeholder="برچسب کوچک؛ مثال: تا ۲۰٪ تخفیف" value={bannerForm.badge || ''} onChange={(e) => setBannerForm({ ...bannerForm, badge: e.target.value })} className="rounded bg-slate-800 p-3 text-white" />
           <input type="number" placeholder="ترتیب نمایش" value={bannerForm.sort_order} onChange={(e) => setBannerForm({ ...bannerForm, sort_order: +e.target.value })} className="rounded bg-slate-800 p-3 text-white" />

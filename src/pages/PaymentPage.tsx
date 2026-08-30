@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   XCircle,
+  Wallet,
 } from 'lucide-react';
 import { getOrderPaymentSnapshot, type Order, type OrderItem } from '../admin/services/ordersApi';
 import { formatPrice } from '../admin/services/ordersUtils';
@@ -26,6 +27,7 @@ import {
   type PaymentGatewaySettings,
 } from '../admin/services/paymentsApi';
 import { clearCart } from '../lib/cart';
+import { applyWalletToOrder, getOrCreateMyWallet, type CustomerWallet } from '../services/loyaltyApi';
 
 function formatDate(value?: string | null) {
   if (!value) return 'ثبت نشده';
@@ -67,6 +69,8 @@ export default function PaymentPage() {
   const [isVerifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
   const [setupMessage, setSetupMessage] = useState('');
+  const [wallet, setWallet] = useState<CustomerWallet | null>(null);
+  const [usingWallet, setUsingWallet] = useState(false);
 
   const isPaid = useMemo(
     () => order?.status === 'paid' || order?.payment_status === 'paid' || payment?.status === 'paid',
@@ -91,16 +95,18 @@ export default function PaymentPage() {
 
       try {
         setLoading(true);
-        const [snapshot, latestPayment, paymentSettings] = await Promise.all([
+        const [snapshot, latestPayment, paymentSettings, customerWallet] = await Promise.all([
           getOrderPaymentSnapshot(orderId),
           getLatestPaymentByOrder(orderId).catch(() => null),
           getPaymentGatewaySettings().catch(() => null),
+          getOrCreateMyWallet().catch(() => null),
         ]);
         if (!mounted) return;
         setOrder(snapshot.order);
         setItems(snapshot.items);
         setPayment(latestPayment);
         setSettings(paymentSettings);
+        setWallet(customerWallet);
       } catch (err: any) {
         if (mounted) setError(err?.message || 'سفارش پیدا نشد.');
       } finally {
@@ -183,6 +189,24 @@ export default function PaymentPage() {
     }
   }
 
+  async function useWalletCredit() {
+    if (!orderId || !wallet || Number(wallet.credit_toman || 0) <= 0) return;
+    try {
+      setUsingWallet(true); setError('');
+      const result = await applyWalletToOrder(orderId);
+      setOrder((current) => current ? { ...current, ...result.order } as Order : current);
+      setWallet((current) => current ? { ...current, credit_toman: result.wallet_balance } : current);
+      if (result.remaining === 0 || result.order.payment_status === 'paid') {
+        clearCart();
+        navigate(`/order-success/${orderId}`, { replace: true });
+      } else {
+        setSetupMessage(`${Number(result.applied).toLocaleString('fa-IR')} تومان از کیف پول کم شد؛ مانده را با درگاه پرداخت کن.`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'استفاده از کیف پول انجام نشد.');
+    } finally { setUsingWallet(false); }
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-slate-50 px-3 pb-12 pt-28 text-slate-900 sm:px-5 lg:pt-32">
       <section className="mx-auto max-w-6xl">
@@ -237,6 +261,7 @@ export default function PaymentPage() {
                   <span>{itemCount.toLocaleString('fa-IR')} کالا</span>
                 </div>
                 <b className="mt-2 block text-2xl text-rose-500">{formatPrice(Number(order.total_amount || 0))} تومان</b>
+                {Number(order.wallet_used || 0)>0?<p className="mt-1 text-xs text-emerald-600">{formatPrice(Number(order.wallet_used))} تومان قبلاً از کیف پول پرداخت شده</p>:null}
               </div>
             </aside>
 
@@ -250,6 +275,7 @@ export default function PaymentPage() {
               </div>
 
               <div className="space-y-5 p-4 sm:p-6">
+                {wallet && Number(wallet.credit_toman || 0) > 0 && !isPaid ? <div className="flex flex-col gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 font-black text-emerald-900"><Wallet className="h-5 w-5" /> پرداخت از کیف پول</p><p className="mt-1 text-sm text-emerald-700">اعتبار موجود: {formatPrice(Number(wallet.credit_toman || 0))} تومان؛ اگر کافی نباشد فقط باقی مبلغ با درگاه پرداخت می‌شود.</p></div><button type="button" disabled={usingWallet} onClick={() => void useWalletCredit()} className="rounded-2xl bg-emerald-600 px-5 py-3 font-black text-white disabled:opacity-50">{usingWallet ? 'در حال اعمال...' : 'استفاده از کیف پول'}</button></div> : null}
                 <div className="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-2xl bg-white p-4">
                     <p className="flex items-center gap-2 text-xs text-slate-500"><ShoppingBag className="h-4 w-4" /> تعداد کالا</p>

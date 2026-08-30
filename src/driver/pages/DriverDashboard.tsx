@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { DriverJob, driverStatusLabels, getDriverJobs } from '../services/driverJobsApi';
+import { getMyTomorrowAvailability, setMyTomorrowAvailability, tomorrowPersianLabel, type TechnicianAvailability } from '../services/technicianAvailabilityApi';
 import { formatMissionDate, formatMissionTime, getMissionTimestamp, getMissionTimingBadge } from '../utils/missionSchedule';
 import DriverNotificationSetup, { showDriverNotification } from '../components/DriverNotificationSetup';
 import PwaInstallButton from '../../components/PwaInstallButton';
@@ -17,6 +18,12 @@ export default function DriverDashboard() {
   const [tab, setTab] = useState<'today' | 'history' | 'account'>('today');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<TechnicianAvailability | null>(null);
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [availabilitySaving, setAvailabilitySaving] = useState(false);
+  const [availabilityMessage, setAvailabilityMessage] = useState('');
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('18:00');
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -41,7 +48,35 @@ export default function DriverDashboard() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    void getMyTomorrowAvailability().then((row) => {
+      setAvailability(row);
+      if (row) {
+        setStartTime(row.start_time.slice(0, 5));
+        setEndTime(row.end_time.slice(0, 5));
+      }
+    }).catch(() => undefined);
+  }, []);
+
+  async function saveTomorrowAvailability() {
+    setAvailabilityMessage('');
+    if (endTime <= startTime) {
+      setAvailabilityMessage('ساعت پایان باید بعد از ساعت شروع باشد.');
+      return;
+    }
+    try {
+      setAvailabilitySaving(true);
+      const row = await setMyTomorrowAvailability(startTime, endTime);
+      setAvailability(row);
+      setAvailabilityOpen(false);
+      setAvailabilityMessage(`آمادگی شما برای ${tomorrowPersianLabel()} از ${startTime} تا ${endTime} ثبت شد.`);
+    } catch (err) {
+      setAvailabilityMessage(err instanceof Error ? err.message : 'ثبت ساعت آزاد انجام نشد.');
+    } finally {
+      setAvailabilitySaving(false);
+    }
+  }
 
   const activeJobs = useMemo(() => jobs
     .filter((job) => activeStatuses.includes(String(job.status)))
@@ -92,6 +127,27 @@ export default function DriverDashboard() {
             <Stat value={completedJobs.length} label="تکمیل" icon={<CheckCircle2 className="h-4 w-4" />} />
           </div>
 
+          <section className="overflow-hidden rounded-3xl border border-emerald-400/25 bg-gradient-to-l from-emerald-950/40 to-white/[0.035]">
+            <div className="flex items-center justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <p className="text-sm font-black text-emerald-300">برنامه فردا · {tomorrowPersianLabel()}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">ساعت آزاد را ثبت کن؛ سیستم حداکثر ۵ مأموریت بدون تداخل برایت می‌فرستد.</p>
+                {availability ? <p className="mt-2 text-xs font-black text-white">ثبت‌شده: {availability.start_time.slice(0, 5)} تا {availability.end_time.slice(0, 5)}</p> : null}
+              </div>
+              <button type="button" onClick={() => setAvailabilityOpen((value) => !value)} className="shrink-0 rounded-2xl bg-emerald-400 px-3 py-3 text-xs font-black text-slate-950">
+                برای فردا آمادگی دارم
+              </button>
+            </div>
+            {availabilityOpen ? (
+              <div className="grid grid-cols-2 gap-2 border-t border-white/10 p-4">
+                <label className="grid gap-1 text-xs text-slate-300"><span>از ساعت</span><input aria-label="از ساعت" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className="min-w-0 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-white" /></label>
+                <label className="grid gap-1 text-xs text-slate-300"><span>تا ساعت</span><input aria-label="تا ساعت" type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className="min-w-0 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-white" /></label>
+                <button type="button" disabled={availabilitySaving} onClick={() => void saveTomorrowAvailability()} className="col-span-2 rounded-xl bg-amber-400 px-4 py-2.5 font-black text-slate-950 disabled:opacity-50">{availabilitySaving ? 'در حال ثبت...' : 'ثبت ساعت آزاد'}</button>
+              </div>
+            ) : null}
+            {availabilityMessage ? <p className="border-t border-white/10 px-4 py-3 text-xs font-bold text-amber-200">{availabilityMessage}</p> : null}
+          </section>
+
           {error && <div className="rounded-3xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-100">{error}</div>}
 
           <div className="grid grid-cols-2 rounded-2xl bg-black/20 p-1">
@@ -120,6 +176,7 @@ export default function DriverDashboard() {
                     </div>
                     <div className="mt-4 space-y-2">
                       <Info icon={MapPin} text={nextJob.address_text || 'آدرس ثبت نشده'} />
+                      <WarehouseItems job={nextJob} />
                       <div className="grid grid-cols-2 gap-2">
                         <a href={nextJob.customer_phone ? `tel:${nextJob.customer_phone}` : undefined} className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] p-3 text-sm font-black"><Phone className="h-4 w-4 text-emerald-300" /> تماس</a>
                         <a href={nextJob.latitude && nextJob.longitude ? `https://www.google.com/maps/dir/?api=1&destination=${nextJob.latitude},${nextJob.longitude}` : undefined} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] p-3 text-sm font-black"><Navigation className="h-4 w-4 text-sky-300" /> مسیریابی</a>
@@ -191,7 +248,12 @@ function MissionTimeCard({ job }: { job: DriverJob }) {
 }
 
 function CompactJob({ job, completed = false }: { job: DriverJob; completed?: boolean }) {
-  return <Link to={`/driver/jobs/${job.id}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.035] p-4 active:bg-white/[0.07]"><div className="min-w-0"><div className="truncate font-black">{job.customer_name || 'مشتری'}</div><div className="mt-1 truncate text-xs text-slate-500">{job.vehicle_title || job.address_text || 'بدون توضیح'}</div><div className="mt-2 flex items-center gap-1 text-xs font-bold text-amber-200"><Clock3 className="h-3.5 w-3.5" />{formatMissionDate(job)} · {formatMissionTime(job)}</div></div><span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${completed ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-slate-300'}`}>{driverStatusLabels[String(job.status)] || 'ماموریت'}</span></Link>;
+  return <Link to={`/driver/jobs/${job.id}`} className="block rounded-2xl border border-white/5 bg-white/[0.035] p-4 active:bg-white/[0.07]"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="truncate font-black">{job.customer_name || 'مشتری'}</div><div className="mt-1 truncate text-xs text-slate-500">{job.vehicle_title || job.address_text || 'بدون توضیح'}</div><div className="mt-2 flex items-center gap-1 text-xs font-bold text-amber-200"><Clock3 className="h-3.5 w-3.5" />{formatMissionDate(job)} · {formatMissionTime(job)}</div></div><span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${completed ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-slate-300'}`}>{driverStatusLabels[String(job.status)] || 'ماموریت'}</span></div>{!completed && <WarehouseItems job={job} compact />}</Link>;
+}
+
+function WarehouseItems({ job, compact = false }: { job: DriverJob; compact?: boolean }) {
+  const items = Array.isArray(job.warehouse_items) ? job.warehouse_items : [];
+  return <div className={`${compact ? 'mt-3' : ''} rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-3`}><div className="mb-2 flex items-center gap-2 text-[11px] font-black text-amber-300"><Wrench className="h-3.5 w-3.5" />اقلام قابل تحویل از انبار</div>{items.length ? <div className="flex flex-wrap gap-1.5">{items.map((item, index) => <span key={item.id || `${item.product_name}-${index}`} className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[11px] font-bold text-slate-200">{item.product_name} <b className="text-amber-300">× {Number(item.quantity || 1).toLocaleString('fa-IR')}</b></span>)}</div> : <p className="text-[11px] text-slate-500">کالای انباری برای این مأموریت ثبت نشده است.</p>}</div>;
 }
 
 function HistoryJob({ job }: { job: DriverJob }) {

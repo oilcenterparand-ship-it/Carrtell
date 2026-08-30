@@ -133,6 +133,10 @@ export default function DriverJobDetail() {
             )}
           </InfoPanel>
 
+          <InfoPanel title="خدمات درخواستی">
+            {Array.isArray(job.service_items) && job.service_items.length > 0 ? <div className="space-y-2">{job.service_items.map((service) => <div key={service.id || service.title} className="flex items-center justify-between gap-3 rounded-xl bg-slate-950/70 px-3 py-2 text-sm"><span className="text-slate-200">{service.title}</span><b className="shrink-0 text-amber-300">{Number(service.labor_fee || 0).toLocaleString("fa-IR")} تومان</b></div>)}</div> : <p className="text-sm text-slate-400">{job.service_title || "خدمتی ثبت نشده"}</p>}
+          </InfoPanel>
+
           <InfoPanel title="ثبت پایان سرویس">
             <form onSubmit={handleComplete} className="space-y-4">
               <label className="block">

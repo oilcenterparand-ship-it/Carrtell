@@ -24,6 +24,14 @@ export type BookingSlot = {
 
 export type ServicePricingSettings = {
   travel_fee: number;
+  travel_per_km_fee: number;
+  travel_origin_latitude: number;
+  travel_origin_longitude: number;
+  service_center_latitude: number;
+  service_center_longitude: number;
+  service_radius_km: number;
+  traffic_zone_surcharge_percent: number;
+  traffic_zone_polygon: Array<[number, number]>;
   night_fee: number;
   holiday_fee: number;
   out_of_area_fee: number;
@@ -49,7 +57,15 @@ const DEFAULT_SLOTS: BookingSlot[] = [
 ];
 
 const DEFAULT_PRICING: ServicePricingSettings = {
-  travel_fee: 150000,
+  travel_fee: 200000,
+  travel_per_km_fee: 10000,
+  travel_origin_latitude: 35.6505318,
+  travel_origin_longitude: 51.2740074,
+  service_center_latitude: 35.6892,
+  service_center_longitude: 51.3890,
+  service_radius_km: 40,
+  traffic_zone_surcharge_percent: 30,
+  traffic_zone_polygon: [[35.6595,51.3819],[35.7218,51.3892],[35.723,51.407],[35.7212,51.426],[35.7188,51.443],[35.704,51.447],[35.688,51.449],[35.674,51.447],[35.66,51.444]],
   night_fee: 120000,
   holiday_fee: 100000,
   out_of_area_fee: 250000,
@@ -130,6 +146,14 @@ export async function getServicePricingSettings(): Promise<ServicePricingSetting
   const { data, error } = await supabase.from('service_pricing_settings').select('*').eq('id', 'default').maybeSingle();
   if (!error && data) return {
     travel_fee: Number(data.travel_fee || 0),
+    travel_per_km_fee: Number(data.travel_per_km_fee || 0),
+    travel_origin_latitude: Number(data.travel_origin_latitude || DEFAULT_PRICING.travel_origin_latitude),
+    travel_origin_longitude: Number(data.travel_origin_longitude || DEFAULT_PRICING.travel_origin_longitude),
+    service_center_latitude: Number(data.service_center_latitude || DEFAULT_PRICING.service_center_latitude),
+    service_center_longitude: Number(data.service_center_longitude || DEFAULT_PRICING.service_center_longitude),
+    service_radius_km: Number(data.service_radius_km || DEFAULT_PRICING.service_radius_km),
+    traffic_zone_surcharge_percent: Number(data.traffic_zone_surcharge_percent || 0),
+    traffic_zone_polygon: Array.isArray(data.traffic_zone_polygon) ? data.traffic_zone_polygon : DEFAULT_PRICING.traffic_zone_polygon,
     night_fee: Number(data.night_fee || 0),
     holiday_fee: Number(data.holiday_fee || 0),
     out_of_area_fee: Number(data.out_of_area_fee || 0),
@@ -143,9 +167,9 @@ export async function getServicePricingSettings(): Promise<ServicePricingSetting
 export async function saveServicePricingSettings(settings: ServicePricingSettings) {
   const payload = { id: 'default', ...settings };
   const { data, error } = await supabase.from('service_pricing_settings').upsert(payload).select('*').single();
-  if (!error && data) return data;
+  if (error || !data) throw new Error(error?.message || 'ذخیره قیمت‌گذاری در سرور انجام نشد.');
   writeLocal(LOCAL_PRICING_KEY, settings);
-  return settings;
+  return data;
 }
 
 export function calculateServicePricing(args: {
@@ -155,16 +179,18 @@ export function calculateServicePricing(args: {
   slot?: BookingSlot | null;
   city?: string | null;
   isClubMember?: boolean;
+  travelEstimate?: { total_fee: number; traffic_surcharge: number } | null;
 }) {
   const labor = args.services.reduce((sum, item) => sum + Number(item.base_labor_fee || 0), 0);
-  const travel = args.pricing.travel_fee;
-  const slotHour = Number((args.slot?.start_time || '00:00').split(':')[0]);
-  const night = slotHour >= args.pricing.night_start_hour ? args.pricing.night_fee : 0;
+  const travel = Number(args.travelEstimate?.total_fee ?? args.pricing.travel_fee);
+  const trafficSurcharge = Number(args.travelEstimate?.traffic_surcharge || 0);
+  // Night-time bookings no longer add a separate surcharge.
+  const night = 0;
   const day = args.date ? new Date(`${args.date}T12:00:00`).getDay() : -1;
   const holiday = day === 5 ? args.pricing.holiday_fee : 0;
   const cleanCity = String(args.city || '').trim();
   const outOfArea = cleanCity && !args.pricing.service_area_cities.some((item) => cleanCity.includes(item) || item.includes(cleanCity)) ? args.pricing.out_of_area_fee : 0;
-  const subtotal = labor + travel + night + holiday + outOfArea;
+  const subtotal = labor + travel + holiday + outOfArea;
   const discount = args.isClubMember ? Math.round(subtotal * args.pricing.club_discount_percent / 100) : 0;
-  return { labor, travel, night, holiday, outOfArea, discount, total: Math.max(0, subtotal - discount) };
+  return { labor, travel, trafficSurcharge, night, holiday, outOfArea, discount, total: Math.max(0, subtotal - discount) };
 }

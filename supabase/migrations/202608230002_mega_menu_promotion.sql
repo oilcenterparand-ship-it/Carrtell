@@ -18,5 +18,5 @@ drop policy if exists mega_menu_promotions_admin_manage on public.mega_menu_prom
 create policy mega_menu_promotions_admin_manage on public.mega_menu_promotions for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 insert into public.mega_menu_promotions(title, subtitle, badge, button_text, link_url, is_active)
-select 'ویژه صنایع و ناوگان سنگین', 'روغن و فیلتر صنعتی با بسته‌بندی عمده', 'فروش عمده', 'مشاهده محصولات', '/shop?category=industrial-diesel', true
+select 'ویژه صنایع و ناوگان سنگین', 'روغن و فیلتر صنعتی با بسته‌بندی عمده', 'فروش عمده', 'مشاهده محصولات', '/industrial', true
 where not exists (select 1 from public.mega_menu_promotions);

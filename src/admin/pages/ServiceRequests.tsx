@@ -186,6 +186,7 @@ export default function ServiceRequests() {
 
                   <h2 className="flex items-center gap-2 text-xl font-black"><Car className="h-5 w-5 text-amber-300" />{request.vehicle_title}</h2>
                   <p className="mt-1 text-sm text-slate-400">{request.service_title}</p>
+                  {Array.isArray(request.service_items) && request.service_items.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="خدمات درخواستی">{request.service_items.map((service) => <span key={service.id || service.title} className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-100">{service.title} · {formatNumber(service.labor_fee)} تومان</span>)}</div>}
 
                   <div className="mt-4 grid gap-3 text-sm text-slate-300 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">

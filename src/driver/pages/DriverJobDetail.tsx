@@ -129,6 +129,11 @@ export default function DriverJobDetail() {
           <p className="text-sm leading-7 text-slate-300">{job.address_text || 'آدرس ثبت نشده'}</p>
         </section>
 
+        <section className="rounded-3xl border border-amber-400/20 bg-amber-400/[0.06] p-4">
+          <div className="mb-3 text-sm font-black text-amber-300">اقلامی که باید از انبار تحویل بگیری</div>
+          {job.warehouse_items?.length ? <div className="grid gap-2">{job.warehouse_items.map((item, index) => <div key={item.id || `${item.product_name}-${index}`} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><b className="text-sm text-white">{item.product_name}</b><span className="rounded-xl bg-amber-400 px-3 py-1 text-xs font-black text-slate-950">{Number(item.quantity || 1).toLocaleString('fa-IR')} عدد</span></div>)}</div> : <p className="text-xs text-slate-500">برای این مأموریت کالای انباری ثبت نشده است؛ فقط خدمات درج‌شده را انجام بده.</p>}
+        </section>
+
         {!completed && <section className="rounded-3xl border border-amber-400/15 bg-amber-400/[0.06] p-4"><div className="text-[11px] font-black text-amber-300">اقدام بعدی</div><div className="mt-1 text-base font-black text-white">{getDriverActionLabel(job.status)}</div><p className="mt-1 text-xs leading-6 text-slate-500">فقط همین مرحله را انجام بده؛ بعد از ثبت، دکمه بعدی خودکار جایگزین می‌شود.</p></section>}
 
         {canComplete && !completed && (

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Car,
   ChevronDown,
+  Grid3X3,
   Heart,
   LogOut,
   Menu,
@@ -12,12 +13,17 @@ import {
   Search,
   ShieldCheck,
   Wrench,
+  Zap,
+  Flame,
+  PackageOpen,
+  Sparkles,
   X,
 } from 'lucide-react';
 import { brandConfig } from '../config/brand';
-import { buildCategoryTree, getCategoryDescendantIds, getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
+import { buildCategoryTree, getCategoryDescendantIds, getCategoryDestination, getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
 import { getProducts, getStorefrontSearchProducts, type Product } from '../admin/services/productsApi';
 import { getActiveCarsForCustomer, getCarTitle, type Car as AdminCar } from '../admin/services/carsApi';
+import { defaultMegaMenuPromotion, getMegaMenuPromotion, type MegaMenuPromotion } from '../admin/services/homeContentApi';
 import {
   onSelectedCustomerCarChange,
   readSelectedCustomerCar,
@@ -25,6 +31,7 @@ import {
 } from '../customer/services/selectedCar';
 import { useAuth } from '../auth/AuthProvider';
 import MiniCart from './MiniCart';
+import DynamicCategoryMegaMenu from './DynamicCategoryMegaMenu';
 
 
 function normalizeLiveSearch(value: unknown) {
@@ -39,13 +46,10 @@ function normalizeLiveSearch(value: unknown) {
     .trim();
 }
 
-const fallbackAccessLinks = [
-  { label: 'پیشنهاد شگفت‌انگیز', to: '/#amazing-offers', emoji: '⚡' },
-  { label: 'پرفروش‌ها', to: '/?sort=best-seller', emoji: '🔥' },
-  { label: 'پکیج‌های خودرویی', to: '/#packages', emoji: '📦' },
-  { label: 'مکمل‌های خودرو', to: '/?category=additive', emoji: '🧪' },
-  { label: 'روغن گیربکس اتومات', to: '/?category=automatic-transmission-oil', emoji: '⚙️' },
-  { label: 'ضدیخ / ضدجوش', to: '/?category=antifreeze', emoji: '❄️' },
+const homeQuickLinks = [
+  { label: 'پیشنهاد شگفت‌انگیز', caption: 'فرصت محدود', to: '/?quick=amazing', icon: Zap, tone: 'amazing' },
+  { label: 'پرفروش‌ها', caption: 'محبوب مشتری‌ها', to: '/?quick=best-sellers', icon: Flame, tone: 'bestseller' },
+  { label: 'پکیج‌های خودرویی', caption: 'کامل و به‌صرفه', to: '/?quick=packages', icon: PackageOpen, tone: 'packages' },
 ];
 
 function CarrtellLogo() {
@@ -61,6 +65,8 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [drawerCategoriesOpen, setDrawerCategoriesOpen] = useState(false);
   const [drawerCategoryPath, setDrawerCategoryPath] = useState<string[]>([]);
+  const [homeCategoryMenuOpen, setHomeCategoryMenuOpen] = useState(false);
+  const [megaPromotion, setMegaPromotion] = useState<MegaMenuPromotion>(defaultMegaMenuPromotion);
   const [accountOpen, setAccountOpen] = useState(false);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -121,8 +127,14 @@ export default function Header() {
   useEffect(() => {
     setMobileOpen(false);
     setDrawerCategoriesOpen(false);
+    setHomeCategoryMenuOpen(false);
     setAccountOpen(false);
   }, [location.pathname, location.search, location.hash]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('ct-home-route', showStorefrontBars);
+    return () => document.documentElement.classList.remove('ct-home-route');
+  }, [showStorefrontBars]);
 
   useEffect(() => {
     const unsubscribe = onSelectedCustomerCarChange(() => setSelectedCustomerCar(readSelectedCustomerCar()));
@@ -163,12 +175,15 @@ export default function Header() {
     setSearchLoading(true);
     setSearchError('');
     try {
-      const [categoryItems, productItems] = await Promise.all([
-        getProductCategories().catch(() => []),
+      const [categoryResult, productResult] = await Promise.allSettled([
+        getProductCategories(),
         getStorefrontSearchProducts(600),
       ]);
-      setCategories((categoryItems || []).filter((item) => item?.is_active !== false));
-      setProducts((productItems || []).filter((item) => Boolean(item && item.is_active !== false && item.name)));
+      if (categoryResult.status === 'fulfilled') {
+        setCategories((categoryResult.value || []).filter((item) => item?.is_active !== false));
+      }
+      if (productResult.status === 'rejected') throw productResult.reason;
+      setProducts((productResult.value || []).filter((item) => Boolean(item && item.is_active !== false && item.name)));
     } catch (error) {
       console.error('Carrtell live search catalog failed', error);
       try {
@@ -200,6 +215,9 @@ export default function Header() {
 
   useEffect(() => {
     void loadSearchCatalog();
+    getMegaMenuPromotion()
+      .then((promotion) => setMegaPromotion({ ...defaultMegaMenuPromotion, ...(promotion || {}) }))
+      .catch(() => setMegaPromotion(defaultMegaMenuPromotion));
   }, []);
 
   useEffect(() => {
@@ -286,9 +304,6 @@ export default function Header() {
     setDrawerCategoryPath((current) => [...current.slice(0, depth), id]);
   }
 
-  const accessLinks = categoryRoots.length > 0
-    ? categoryRoots.slice(0, 10).map((item) => ({ label: item.title, to: `/shop?category=${item.slug}`, emoji: item.icon_emoji || '🔧' }))
-    : fallbackAccessLinks;
   const normalizedSearch = normalizeLiveSearch(searchText);
   const searchedProducts = useMemo(() => {
     if (!normalizedSearch) return [];
@@ -461,7 +476,7 @@ export default function Header() {
                     </div>
                     <div className="ct-new-search-results-body">
                       {(liveCategorySuggestions.length > 0 || liveBrandSuggestions.length > 0) && <div className="ct-live-search-shortcuts">
-                        {liveCategorySuggestions.map((item) => <Link key={`cat-${item.slug}`} to={`/shop?category=${encodeURIComponent(item.slug)}`} onClick={()=>{setSearchOpen(false);setSearchText('');}}><span>دسته‌بندی</span><b>{item.title}</b></Link>)}
+                        {liveCategorySuggestions.map((item) => <Link key={`cat-${item.slug}`} to={getCategoryDestination(item)} onClick={()=>{setSearchOpen(false);setSearchText('');}}><span>دسته‌بندی</span><b>{item.title}</b></Link>)}
                         {liveBrandSuggestions.map((brand) => <Link key={`brand-${brand}`} to={`/shop?q=${encodeURIComponent(brand)}`} onClick={()=>{setSearchOpen(false);setSearchText('');}}><span>برند</span><b>{brand}</b></Link>)}
                       </div>}
                       {groupedSearchResults.map(([categoryTitle, items]) => (
@@ -550,37 +565,42 @@ export default function Header() {
         </div>
       </div>
 
-      {showStorefrontBars && <nav className="ct-new-access-row" aria-label="دسته‌بندی محصولات">
+      {showStorefrontBars && <nav className="ct-new-access-row ct-home-category-toolbar" aria-label="دسته‌بندی محصولات">
         <div className="ct-new-access-inner">
-          <div className="ct-new-access-vehicle" ref={vehiclePickerRef}>
-              <button
-                type="button"
-                onClick={() => { setVehiclePickerOpen((value) => !value); setVehicleSearch(''); setVehicleBrand(''); }}
-                className={`ct-new-access-vehicle-button ${selectedCustomerCar ? 'is-active' : ''}`}
-                aria-expanded={vehiclePickerOpen}
-              >
-                <Car className="h-4 w-4" />
-                <span>{selectedCustomerCar?.title || 'انتخاب خودرو'}</span>
-                <ChevronDown className={`h-3.5 w-3.5 transition ${vehiclePickerOpen ? 'rotate-180' : ''}`} />
-              </button>
+          <button
+            type="button"
+            className="ct-home-category-trigger"
+            data-testid="home-category-toolbar-trigger"
+            aria-expanded={homeCategoryMenuOpen}
+            onClick={() => setHomeCategoryMenuOpen(true)}
+            onMouseEnter={() => { if (window.innerWidth >= 768) setHomeCategoryMenuOpen(true); }}
+          >
+            <span className="ct-home-category-trigger-icon"><Grid3X3 /></span>
+            <span><b>دسته‌بندی محصولات</b><small>انتخاب آبشاری و مرحله‌به‌مرحله</small></span>
+            <ChevronDown className="h-4 w-4" />
+          </button>
 
+          <div className="ct-new-access-scroll ct-home-category-shortcuts">
+            {homeQuickLinks.map((item) => {
+              const Icon = item.icon;
+              return <Link key={item.label} to={item.to} className={`ct-home-rail-feature ct-home-rail-feature-${item.tone}`}><span aria-hidden="true"><Icon /></span><span><b>{item.label}</b><small>{item.caption}</small></span></Link>;
+            })}
           </div>
 
-          <div className="ct-new-access-scroll">
-            {accessLinks.map((item) => (
-              <Link key={`${item.label}-${item.to}`} to={item.to}>
-                <span aria-hidden="true">{item.emoji}</span>
-                {item.label}
-              </Link>
-            ))}
-          </div>
-
-          <Link to="/book" className="ct-new-access-service-button">
-            <Wrench className="h-4 w-4" />
-            <span>سرویس در محل</span>
+          <Link to="/book" className="ct-home-rail-booking" data-testid="home-category-booking-cta">
+            <span className="ct-home-rail-booking-icon"><Wrench /><Sparkles /></span>
+            <span><b>رزرو سرویس</b><small>سرویس در محل</small></span>
           </Link>
         </div>
       </nav>}
+
+      <DynamicCategoryMegaMenu
+        open={homeCategoryMenuOpen}
+        categories={categories}
+        promotion={megaPromotion}
+        onClose={() => setHomeCategoryMenuOpen(false)}
+        onChooseCategory={(target) => navigate(target)}
+      />
 
       {mobileOpen && typeof document !== 'undefined' && createPortal((
         <div className="ct-new-drawer-backdrop" onClick={() => setMobileOpen(false)}>
@@ -694,7 +714,7 @@ export default function Header() {
                 <div className="ct-new-drawer-mega-products">
                   <div className="ct-new-drawer-mega-products-head">
                     <b>{drawerActiveCategory?.title || 'محصولات'}</b>
-                    {drawerActiveCategory && <Link to={`/shop?category=${drawerActiveCategory.slug}`}>مشاهده همه</Link>}
+                    {drawerActiveCategory && <Link to={getCategoryDestination(drawerActiveCategory)}>مشاهده همه</Link>}
                   </div>
                   <div className="ct-new-drawer-mega-products-grid">
                     {drawerActiveProducts.map((product) => (
@@ -727,16 +747,16 @@ export default function Header() {
                           <Link
                             key={category.id || category.slug}
                             data-has-children={hasChildren ? 'true' : 'false'}
-                            to={hasChildren ? '#' : `/shop?category=${category.slug}`}
+                            to={category.landing_url?.trim() ? getCategoryDestination(category) : hasChildren ? '#' : getCategoryDestination(category)}
                             className={selected ? 'is-active' : ''}
                             onClick={(event) => {
-                              if (hasChildren && category.id) { event.preventDefault(); selectDrawerCategory(category.id, depth); }
+                              if (hasChildren && category.id && !category.landing_url?.trim()) { event.preventDefault(); selectDrawerCategory(category.id, depth); }
                               else closeDrawer();
                             }}
                             onMouseEnter={() => category.id && selectDrawerCategory(category.id, depth)}
                             onFocus={() => category.id && selectDrawerCategory(category.id, depth)}
                           >
-                            <span>{category.icon_emoji || '🔧'}</span>
+                            <span>{category.image_url ? <img src={category.image_url} alt="" loading="lazy" /> : category.icon_emoji || '🔧'}</span>
                             <span>{category.title}</span>
                             {hasChildren && <ChevronDown className="mr-auto h-3.5 w-3.5 -rotate-90" />}
                           </Link>

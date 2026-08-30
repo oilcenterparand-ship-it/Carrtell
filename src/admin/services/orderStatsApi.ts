@@ -22,6 +22,7 @@ export type AdminOrderSummary = {
   total_amount: number;
   items_count: number;
   created_at: string;
+  order_items?: Array<{ id: string; product_name: string; quantity: number }>;
 };
 
 
@@ -40,6 +41,7 @@ export type AdminOnsiteRequestSummary = {
   assigned_driver_name?: string | null;
   status?: string | null;
   created_at: string;
+  service_items?: Array<{ id?: string; title?: string; name?: string; product_name?: string; quantity?: number; qty?: number }>;
 };
 
 export type AdminOrderStats = {
@@ -61,7 +63,7 @@ export function isPendingReviewStatus(status?: string | null) {
 export async function getAdminOrderSummaries(limit = 8) {
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_number, customer_name, customer_phone, customer_car, status, payment_status, total_amount, items_count, created_at')
+    .select('id, order_number, customer_name, customer_phone, customer_car, status, payment_status, total_amount, items_count, created_at, order_items(id, product_name, quantity)')
     .in('status', PENDING_ORDER_STATUSES)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -143,7 +145,7 @@ export function subscribeToOrders(onChange: () => void) {
 export async function getPendingOnsiteRequests(limit = 8) {
   const { data, error } = await supabase
     .from('service_requests')
-    .select('id, order_id, request_number, customer_name, customer_phone, vehicle_title, car_name, preferred_date, preferred_time, scheduled_at, assigned_driver_id, assigned_driver_name, status, created_at')
+    .select('id, order_id, request_number, customer_name, customer_phone, vehicle_title, car_name, preferred_date, preferred_time, scheduled_at, assigned_driver_id, assigned_driver_name, status, service_items, created_at')
     .in('status', ['pending_review', 'pending', 'confirmed'])
     .order('created_at', { ascending: false })
     .limit(limit);

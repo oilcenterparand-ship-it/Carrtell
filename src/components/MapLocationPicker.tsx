@@ -9,6 +9,7 @@ type Props = {
   initialLatitude?: number | null;
   initialLongitude?: number | null;
   onConfirm: (location: PickedLocation) => void;
+  compactDesktop?: boolean;
 };
 
 const DEFAULT_LOCATION = { latitude: 35.4819, longitude: 51.0832 };
@@ -32,7 +33,7 @@ async function reverseGeocode(latitude: number, longitude: number) {
   return String(data?.address || '').trim();
 }
 
-export default function MapLocationPicker({ initialLatitude, initialLongitude, onConfirm }: Props) {
+export default function MapLocationPicker({ initialLatitude, initialLongitude, onConfirm, compactDesktop = false }: Props) {
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const reverseRequestId = useRef(0);
@@ -188,7 +189,7 @@ export default function MapLocationPicker({ initialLatitude, initialLongitude, o
 
       <div className="p-3 sm:p-4">
         <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-100">
-          <div ref={mapEl} className="h-[330px] w-full" aria-label="نقشه انتخاب موقعیت سرویس" />
+          <div ref={mapEl} className={`h-[330px] w-full ${compactDesktop ? 'md:h-[290px]' : ''}`} aria-label="نقشه انتخاب موقعیت سرویس" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-full">
             <MapPin size={40} className="fill-amber-400 text-amber-600 drop-shadow-lg" />
           </div>

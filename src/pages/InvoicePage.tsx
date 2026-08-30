@@ -48,7 +48,8 @@ export default function InvoicePage() {
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between rounded-2xl bg-white/10 p-4 text-[var(--text-primary,#fff)]"><span>مبلغ کل</span><b>{formatPrice(order.total_amount)} تومان</b></div>
+            <div className="flex items-center justify-between rounded-2xl bg-white/10 p-4 text-[var(--text-primary,#fff)]"><span>مبلغ کل</span><b>{formatPrice(Number(order.total_amount)+Number(order.wallet_used||0))} تومان</b></div>
+            {Number(order.wallet_used||0)>0?<div className="flex items-center justify-between rounded-2xl bg-emerald-500/10 p-4 text-emerald-200"><span>پرداخت از کیف پول</span><b>{formatPrice(Number(order.wallet_used))} تومان</b></div>:null}
             <div className="flex flex-wrap gap-3"><Link to="/dashboard" className="inline-flex rounded-2xl bg-white/10 px-5 py-3 font-bold">رفتن به پروفایل</Link><Link to={`/review/${order.id}`} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary,#f5c518)] px-5 py-3 font-black text-black"><MessageSquare className="h-4 w-4" /> ثبت نظر</Link></div>
           </div>
         )}

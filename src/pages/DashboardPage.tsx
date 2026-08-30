@@ -764,7 +764,7 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2"><div className="font-black">{order.order_number || order.id || `سفارش ${index + 1}`}</div><span className={`rounded-full border px-3 py-1 text-xs font-black ${getStatusClass(order.status)}`}>{getStatusLabel(order.status)}</span></div>
-                    <div className="text-sm leading-7 text-slate-500">مبلغ: {toman(order.total_amount)} | تعداد کالا: {Number(order.items_count || 0).toLocaleString('fa-IR')}{order.created_at ? <span className="block">تاریخ ثبت: {new Date(order.created_at).toLocaleString('fa-IR')}</span> : null}</div>
+                    <div className="text-sm leading-7 text-slate-500">مبلغ: {toman(Number(order.total_amount)+Number(order.wallet_used||0))} | تعداد کالا: {Number(order.items_count || 0).toLocaleString('fa-IR')}{order.created_at ? <span className="block">تاریخ ثبت: {new Date(order.created_at).toLocaleString('fa-IR')}</span> : null}</div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button disabled={downloadingInvoiceId === order.id} onClick={() => downloadInvoice(order)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary,#f5c518)] px-4 py-2 font-bold text-black disabled:opacity-60"><Download size={16} /> {downloadingInvoiceId === order.id ? 'در حال ساخت...' : 'دانلود PDF'}</button>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import AdminHeader from '../components/AdminHeader';
 import Sidebar from '../components/Sidebar';
 import { useAdminRoutes } from '../hooks/useAdminRoutes';
+import AdminPageGuide from '../components/AdminPageGuide';
 
 function AdminLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -10,7 +11,7 @@ function AdminLayout() {
   const navItems = useAdminRoutes();
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#070d17] text-slate-100">
+    <div dir="rtl" data-admin-layout className="ct-admin-shell min-h-screen bg-[#070d17] text-slate-100">
       <AdminHeader onToggleSidebar={() => setSidebarOpen((open) => !open)} />
       <div className="mx-auto flex min-h-[calc(100vh-72px)] max-w-[1920px]">
         <Sidebar navItems={navItems} isOpen={isSidebarOpen} isCollapsed={isSidebarCollapsed} onClose={() => setSidebarOpen(false)} onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)} />
@@ -18,6 +19,7 @@ function AdminLayout() {
           <div className="mx-auto w-full max-w-[1540px]"><Outlet /></div>
         </main>
       </div>
+      <AdminPageGuide />
     </div>
   );
 }

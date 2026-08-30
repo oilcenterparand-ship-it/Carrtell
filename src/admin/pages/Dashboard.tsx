@@ -166,7 +166,7 @@ function Dashboard() {
                 <p className="mt-2 text-sm leading-7 text-slate-600">جزئیات سفارش را ببین و از همان صفحه تکنسین را اختصاص بده.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {onsiteRequests.slice(0, 3).map((request) => (
-                    <span key={request.id} className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 ring-1 ring-red-100">{request.customer_name || 'مشتری'} · {request.preferred_date || 'بدون تاریخ'} · {request.preferred_time || 'بدون ساعت'}</span>
+                    <span key={request.id} className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 ring-1 ring-red-100"><b>{request.customer_name || 'مشتری'} · {request.preferred_date || 'بدون تاریخ'} · {request.preferred_time || 'بدون ساعت'}</b><small className="mt-1 block text-[10px] font-normal text-slate-500">{request.service_items?.length ? request.service_items.map((item) => `${item.product_name || item.title || item.name || 'قلم'} × ${Number(item.quantity || item.qty || 1).toLocaleString('fa-IR')}`).join('، ') : 'بدون اقلام ثبت‌شده'}</small></span>
                   ))}
                 </div>
               </div>
@@ -218,6 +218,10 @@ function Dashboard() {
                     <p className="mt-1 text-xs text-slate-400">{order.customer_car || 'خودرو ثبت نشده'} • {order.items_count} کالا</p>
                   </div>
                   <b className="text-left text-amber-700">{formatPrice(Number(order.total_amount))} تومان</b>
+                  <div className="md:col-span-3 rounded-2xl border border-amber-200 bg-white p-3">
+                    <div className="mb-2 text-[11px] font-black text-amber-700">محتویات سفارش برای تحویل به سرویس‌کار</div>
+                    {order.order_items?.length ? <div className="flex flex-wrap gap-2">{order.order_items.map((item) => <span key={item.id} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">{item.product_name} <b className="text-amber-700">× {Number(item.quantity).toLocaleString('fa-IR')}</b></span>)}</div> : <span className="text-xs text-slate-400">کالای انباری برای این سفارش ثبت نشده است.</span>}
+                  </div>
                 </Link>
               ))}
             </div>

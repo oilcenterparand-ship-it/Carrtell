@@ -35,7 +35,7 @@ export function ShopProductGrid({
 
   return (
     <>
-      <div className="ct-shop-main-product-grid grid grid-cols-2 items-stretch gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8">
+      <div className="ct-shop-main-product-grid grid grid-cols-2 items-stretch gap-1 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-9">
         {products.slice(0, visibleCount).map(renderProduct)}
       </div>
 

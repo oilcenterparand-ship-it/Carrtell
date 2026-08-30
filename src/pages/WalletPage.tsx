@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Copy, Gift, History, Wallet } from 'lucide-react';
+import { Copy, Gift, History, PlusCircle, Wallet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import LoyaltyBadge from '../components/loyalty/LoyaltyBadge';
-import { CustomerWallet, WalletTransaction, formatToman, getMyWalletTransactions, getOrCreateMyWallet } from '../services/loyaltyApi';
+import { createWalletTopupOrder, CustomerWallet, WalletTransaction, formatToman, getMyWalletTransactions, getOrCreateMyWallet } from '../services/loyaltyApi';
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState<CustomerWallet | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [topupAmount, setTopupAmount] = useState(500000);
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupError, setTopupError] = useState('');
+  const navigate = useNavigate();
 
   async function load() {
     setLoading(true);
@@ -29,6 +34,17 @@ export default function WalletPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  async function startTopup() {
+    setTopupError('');
+    try {
+      setTopupLoading(true);
+      const order = await createWalletTopupOrder(topupAmount);
+      navigate(`/payment?orderId=${encodeURIComponent(order.id)}`);
+    } catch (error) {
+      setTopupError(error instanceof Error ? error.message : 'ساخت پرداخت شارژ کیف پول انجام نشد.');
+    } finally { setTopupLoading(false); }
+  }
 
   if (loading) return <div className="min-h-screen bg-slate-950 p-6 text-white">در حال بارگذاری کیف پول...</div>;
 
@@ -66,6 +82,16 @@ export default function WalletPage() {
               {copied && <p className="mt-2 text-xs text-green-300">کپی شد</p>}
             </div>
           </div>
+        </section>
+
+        <section className="rounded-3xl border border-amber-400/20 bg-slate-900 p-6">
+          <div className="flex items-center gap-2"><PlusCircle className="text-amber-300" /><h2 className="text-xl font-black">شارژ کیف پول</h2></div>
+          <p className="mt-2 text-sm leading-7 text-slate-400">مبلغ دلخواه را وارد کن. پس از پرداخت موفق درگاه، اعتبار به‌صورت خودکار به کیف پول اضافه و در تاریخچه ثبت می‌شود.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label><span className="mb-2 block text-xs font-bold text-slate-300">مبلغ شارژ (تومان)</span><input type="number" min="50000" max="50000000" step="50000" value={topupAmount} onChange={(event) => setTopupAmount(Number(event.target.value))} className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-amber-400" /></label>
+            <button type="button" disabled={topupLoading || topupAmount < 50000} onClick={() => void startTopup()} className="self-end rounded-2xl bg-amber-400 px-6 py-3 font-black text-slate-950 disabled:opacity-50">{topupLoading ? 'در حال انتقال...' : 'پرداخت و شارژ'}</button>
+          </div>
+          {topupError ? <p className="mt-3 rounded-xl bg-rose-500/10 p-3 text-sm text-rose-200">{topupError}</p> : null}
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-slate-900 p-6">

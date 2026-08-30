@@ -1,0 +1,20 @@
+CARRTELL PRODUCT CARDS + TRANSPARENT UPLOAD + BRANDED LOADER V3.7.3
+
+1) ZIP را مستقیماً داخل ریشه پروژه Extract و Replace کن.
+2) سپس در PowerShell اجرا کن:
+
+cd "D:\carrtell\Carrtell-v0.2-current\project"
+npm run typecheck
+npm run build
+npx playwright test tests/e2e/product-card-loader-v373.spec.ts
+
+نتیجه مورد انتظار: Typecheck و Build موفق، و 6 تست Passed (دو سناریو در سه اندازه نمایش).
+
+تغییرات:
+- ارتفاع کارت‌های محصول و فضای داخلی کمتر شده است.
+- زمینه سفید عکس محصول با زمینه سرمه‌ای هماهنگ با تم جایگزین شده است.
+- بهینه‌سازی تصاویر جدید شفافیت PNG/WebP را حفظ می‌کند.
+- هنگام بارگذاری اولیه و جابه‌جایی بین صفحات، Loading اختصاصی Carrtell نمایش داده می‌شود.
+
+نکته: عکس‌هایی که قبلاً با پس‌زمینه تخت سفید/مشکی ذخیره شده‌اند باید یک‌بار از فایل شفاف اصلی دوباره آپلود شوند.
+این پچ SQL یا Deploy تابع Supabase ندارد.

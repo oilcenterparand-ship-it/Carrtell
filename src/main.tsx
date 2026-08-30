@@ -81,3 +81,12 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>
 );
+
+// The HTML loader is visible before the JavaScript bundle arrives. Remove it
+// only after React has mounted, so slow connections never see a blank page.
+window.requestAnimationFrame(() => {
+  const bootstrapLoader = document.getElementById('ct-bootstrap-loader');
+  if (!bootstrapLoader) return;
+  bootstrapLoader.classList.add('is-ready');
+  window.setTimeout(() => bootstrapLoader.remove(), 320);
+});

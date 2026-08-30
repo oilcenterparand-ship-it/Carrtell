@@ -27,6 +27,7 @@ import { getProducts, type Product } from '../admin/services/productsApi';
 import { PRODUCT_CATEGORIES } from '../config/productCategories';
 import { formatCustomerAddress, getCustomerAddresses, type CustomerAddress } from '../customer/services/addressApi';
 import { createServiceRequest } from '../customer/services/serviceRequestsApi';
+import { estimateServiceTravel, type ServiceTravelEstimate } from '../customer/services/serviceTravelApi';
 import { getApprovedPackagesForVehicle } from '../customer/services/packageRecommendationApi';
 import type { CarPackage } from '../admin/services/packagesApi';
 import { useAuth } from '../auth/AuthProvider';
@@ -45,6 +46,12 @@ import {
 } from '../customer/services/serviceBookingApi';
 
 const money = (value: number) => `${Number(value || 0).toLocaleString('fa-IR')} تومان`;
+
+function ServiceIcon({ value }: { value?: string | null }) {
+  const icon = String(value || '🔧');
+  if (/^(https?:\/\/|\/)/i.test(icon)) return <img src={icon} alt="" className="h-9 w-9 shrink-0 rounded-xl object-contain" />;
+  return <span className="text-2xl">{icon}</span>;
+}
 
 function localIranPhone(value: unknown) {
   const digits = String(value || '').replace(/\D/g, '');
@@ -145,7 +152,7 @@ export default function BookPage() {
   const [packages, setPackages] = useState<CarPackage[]>([]);
   const [services, setServices] = useState<BookingService[]>([]);
   const [slots, setSlots] = useState<BookingSlot[]>([]);
-  const [pricing, setPricing] = useState<ServicePricingSettings>({ travel_fee: 0, night_fee: 0, holiday_fee: 0, out_of_area_fee: 0, night_start_hour: 18, club_discount_percent: 0, service_area_cities: [] });
+  const [pricing, setPricing] = useState<ServicePricingSettings>({ travel_fee: 200000, travel_per_km_fee: 10000, travel_origin_latitude: 35.6505318, travel_origin_longitude: 51.2740074, service_center_latitude: 35.6892, service_center_longitude: 51.389, service_radius_km: 40, traffic_zone_surcharge_percent: 30, traffic_zone_polygon: [[35.6595,51.3819],[35.7218,51.3892],[35.723,51.407],[35.7212,51.426],[35.7188,51.443],[35.704,51.447],[35.688,51.449],[35.674,51.447],[35.66,51.444]], night_fee: 0, holiday_fee: 0, out_of_area_fee: 0, night_start_hour: 18, club_discount_percent: 0, service_area_cities: [] });
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [selectedCarId, setSelectedCarId] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -159,7 +166,11 @@ export default function BookPage() {
   const [slotId, setSlotId] = useState('');
   const [addressId, setAddressId] = useState('');
   const [manualAddress, setManualAddress] = useState('');
+  const [addressDetails, setAddressDetails] = useState('');
   const [pickedLocation, setPickedLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [travelEstimate, setTravelEstimate] = useState<ServiceTravelEstimate | null>(null);
+  const [travelLoading, setTravelLoading] = useState(false);
+  const [travelError, setTravelError] = useState('');
   const [city, setCity] = useState('پرند');
   const [note, setNote] = useState('');
   const [step, setStep] = useState(1);
@@ -298,10 +309,14 @@ export default function BookPage() {
   const productTotal = useMemo(() => selectedProducts.reduce((sum, product) => sum + Number(product.amazing_price || product.price || 0) * selectedProductQuantity(product.id), 0), [selectedProducts, productQuantities, packageProductQuantities]);
   const serviceLaborTotal = useMemo(() => selectedServices.reduce((sum, service) => sum + Number(service.base_labor_fee || 0), 0), [selectedServices]);
   const servicePrice = useMemo(
-    () => calculateServicePricing({ services: selectedServices, pricing, date, slot: selectedSlot, city, isClubMember: true }),
-    [selectedServices, pricing, date, selectedSlot, city],
+    () => calculateServicePricing({ services: selectedServices, pricing, date, slot: selectedSlot, city, isClubMember: true, travelEstimate }),
+    [selectedServices, pricing, date, selectedSlot, city, travelEstimate],
   );
   const estimatedTotal = servicePrice.total + productTotal;
+
+  useEffect(() => {
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+  }, [step]);
 
   useEffect(() => {
     if (!selectionCartOpen) return;
@@ -500,24 +515,43 @@ export default function BookPage() {
     if (window.confirm('رزرو سرویس لغو شود؟ اطلاعات واردشده در این مرحله از بین می‌رود.')) navigate('/');
   }
 
+  async function confirmServiceLocation(location: { latitude: number; longitude: number; address?: string }) {
+    setAddressId('');
+    setPickedLocation(location);
+    if (location.address) setManualAddress(location.address);
+    setTravelEstimate(null);
+    setTravelError('');
+    setTravelLoading(true);
+    try {
+      setTravelEstimate(await estimateServiceTravel(location.latitude, location.longitude));
+    } catch (estimateError) {
+      setTravelError(estimateError instanceof Error ? estimateError.message : 'محاسبه کرایه مسیر انجام نشد.');
+    } finally {
+      setTravelLoading(false);
+    }
+  }
+
   function next() {
     setError('');
     if (step === 1 && !selectedServiceIds.length) return setError('حداقل یک خدمت را انتخاب کنید.');
     if (step === 2 && !selectedCar) return setError('خودروی خود را انتخاب و تأیید کنید.');
     if (step === 4 && (!date || !selectedSlot)) return setError('روز و بازه زمانی دارای ظرفیت را انتخاب کنید.');
     if (step === 5 && !customerName.trim()) return setError('نام و نام خانوادگی را وارد کنید.');
-    if (step === 5 && !(selectedAddress || manualAddress.trim() || pickedLocation)) return setError('آدرس را وارد کنید یا موقعیت دقیق را روی نقشه انتخاب کنید.');
+    if (step === 5 && !pickedLocation) return setError('موقعیت دقیق محل سرویس را روی نقشه تأیید کنید.');
+    if (step === 5 && travelLoading) return setError('محاسبه فاصله و کرایه هنوز تمام نشده است.');
+    if (step === 5 && !travelEstimate) return setError(travelError || 'ابتدا موقعیت را تأیید کنید تا کرایه محاسبه شود.');
     setStep((value) => Math.min(STEPS.length, value + 1));
   }
 
   async function submit() {
-    if (!selectedCar || !selectedSlot || !selectedServices.length) return;
+    if (!selectedCar || !selectedSlot || !selectedServices.length || !travelEstimate) return;
     setError('');
     if (!/^09\d{9}$/.test(customerPhone.trim())) return setError('شماره موبایل معتبر وارد کنید؛ مانند 09123456789.');
     if (!phoneVerified) return setError('برای پرداخت، ابتدا شماره موبایل را تأیید کنید.');
     setSubmitting(true);
     try {
-      const addressText = selectedAddress ? formatCustomerAddress(selectedAddress) : (manualAddress.trim() || pickedLocation?.address || 'موقعیت انتخاب‌شده روی نقشه');
+      const mapAddress = selectedAddress ? formatCustomerAddress(selectedAddress) : (manualAddress.trim() || pickedLocation?.address || 'موقعیت انتخاب‌شده روی نقشه');
+      const addressText = addressDetails.trim() ? `${mapAddress}، توضیحات تکمیلی: ${addressDetails.trim()}` : mapAddress;
       const latitude = selectedAddress?.latitude ?? pickedLocation?.latitude ?? null;
       const longitude = selectedAddress?.longitude ?? pickedLocation?.longitude ?? null;
       const request = await createServiceRequest({
@@ -533,6 +567,7 @@ export default function BookPage() {
         address_text: addressText,
         latitude,
         longitude,
+        travel_quote_id: travelEstimate.quote_id,
         city,
         preferred_date: date,
         preferred_time: selectedSlot.start_time,
@@ -542,7 +577,7 @@ export default function BookPage() {
         service_ids: selectedServiceIds,
         service_items: selectedServices.map((item) => ({ id: item.id, title: item.title, labor_fee: item.base_labor_fee, estimated_minutes: item.estimated_minutes })),
         suggested_product_ids: allSelectedProductIds,
-        pricing_breakdown: { ...servicePrice, products: productTotal, total: estimatedTotal },
+        pricing_breakdown: { ...servicePrice, products: productTotal, routeDistanceKm: travelEstimate.route_distance_km, billableDistanceKm: travelEstimate.billable_distance_km, travelBaseFee: travelEstimate.base_fee, travelDistanceFee: travelEstimate.distance_fee, trafficZone: travelEstimate.traffic_zone ? 1 : 0, total: estimatedTotal },
         estimated_total: estimatedTotal,
         note: [
           note.trim(),
@@ -567,13 +602,14 @@ export default function BookPage() {
           <div className="flex items-center gap-3"><Wrench className="h-8 w-8 text-amber-300" /><div><h1 className="text-xl font-black sm:text-3xl">رزرو سرویس در محل</h1><p className="mt-2 text-sm text-white/70">فقط چند سؤال کوتاه؛ ما محصول و پکیج مناسب خودروی شما را پیشنهاد می‌دهیم.</p></div></div>
         </header>
 
-        <div className="ct-book-progress mb-4 grid grid-cols-6 gap-1 sm:mb-6 sm:gap-2" aria-label="مراحل رزرو">
+        <ol className="ct-book-progress mb-4 grid grid-cols-6 sm:mb-6" aria-label="مراحل رزرو">
           {STEPS.map((label, index) => (
-            <div key={label} className={`rounded-xl px-1 py-2 text-center text-[10px] font-bold sm:rounded-2xl sm:px-2 sm:py-3 sm:text-xs ${step >= index + 1 ? 'bg-amber-400 text-slate-950' : 'bg-white text-slate-400'}`}>
-              <span className="sm:hidden">{index + 1}</span><span className="hidden sm:inline">{index + 1}. {label}</span>
-            </div>
+            <li key={label} className={step > index + 1 ? 'is-complete' : step === index + 1 ? 'is-current' : 'is-upcoming'}>
+              <span className="ct-book-progress-dot">{step > index + 1 ? <Check className="h-3.5 w-3.5" /> : index + 1}</span>
+              <b className="hidden sm:block">{label}</b>
+            </li>
           ))}
-        </div>
+        </ol>
 
         {error && <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-700">{error}</div>}
         <div className="relative z-50 mb-4 flex items-center justify-between gap-3">
@@ -588,7 +624,7 @@ export default function BookPage() {
               <header className="flex items-center justify-between border-b border-white/10 bg-slate-900/90 px-4 py-4"><div><b>انتخاب‌های رزرو</b><p className="mt-1 text-[11px] text-slate-400">خدمات و کالاهای انتخابی خود را اینجا مدیریت کنید.</p></div><button type="button" onClick={() => setSelectionCartOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 hover:border-amber-400/50" aria-label="بستن انتخاب‌ها"><X className="h-4 w-4" /></button></header>
               <div className="max-h-[min(52dvh,420px)] space-y-2 overflow-y-auto p-3">
                 {!selectedServices.length && !selectedProducts.length && !selectedPackages.length && <p className="p-5 text-center text-sm text-slate-400">هنوز خدمت یا محصولی انتخاب نشده است.</p>}
-                {selectedServices.map((service) => <div key={service.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3"><span className="text-xl">{service.icon}</span><div className="min-w-0 flex-1"><b className="block truncate text-sm">{service.title}</b><small className="text-slate-400">خدمت انتخابی</small></div><button type="button" onClick={() => toggleService(service.id)} className="grid h-9 w-9 place-items-center rounded-lg bg-rose-500/15 text-rose-300" aria-label={`حذف خدمت ${service.title}`}><Trash2 className="h-4 w-4" /></button></div>)}
+                {selectedServices.map((service) => <div key={service.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3"><ServiceIcon value={service.icon} /><div className="min-w-0 flex-1"><b className="block truncate text-sm">{service.title}</b><small className="text-slate-400">خدمت انتخابی</small></div><button type="button" onClick={() => toggleService(service.id)} className="grid h-9 w-9 place-items-center rounded-lg bg-rose-500/15 text-rose-300" aria-label={`حذف خدمت ${service.title}`}><Trash2 className="h-4 w-4" /></button></div>)}
                 {selectedPackages.map((pkg) => <div key={pkg.id} className="flex items-center gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3"><Sparkles className="h-5 w-5 shrink-0 text-amber-300" /><div className="min-w-0 flex-1"><b className="block truncate text-sm">{pkg.title}</b><small className="text-amber-100/60">پکیج انتخابی</small></div><button type="button" onClick={() => togglePackage(pkg.id)} className="grid h-9 w-9 place-items-center rounded-lg bg-rose-500/15 text-rose-300" aria-label={`حذف پکیج ${pkg.title}`}><Trash2 className="h-4 w-4" /></button></div>)}
                 {selectedProducts.map((product) => <div key={product.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-white">{product.image_url ? <img src={product.image_url} alt="" className="h-full w-full object-contain" /> : <PackageSearch className="h-5 w-5 text-slate-400" />}</div><div className="min-w-0 flex-1"><b className="line-clamp-2 text-xs">{product.name}</b><div className="mt-2 inline-flex items-center overflow-hidden rounded-lg border border-amber-400/40"><button type="button" onClick={() => product.id && changeProductQuantity(product.id, -1)} className="grid h-8 w-8 place-items-center bg-amber-400 text-slate-950" aria-label={`کم کردن ${product.name}`}><Minus className="h-3.5 w-3.5" /></button><span className="min-w-8 text-center text-xs font-black">{selectedProductQuantity(product.id).toLocaleString('fa-IR')}</span><button type="button" onClick={() => product.id && changeProductQuantity(product.id, 1)} className="grid h-8 w-8 place-items-center bg-amber-400 text-slate-950" aria-label={`زیاد کردن ${product.name}`}><Plus className="h-3.5 w-3.5" /></button></div></div><button type="button" onClick={() => product.id && changeProductQuantity(product.id, -selectedProductQuantity(product.id))} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-rose-500/15 text-rose-300" aria-label={`حذف محصول ${product.name}`}><Trash2 className="h-4 w-4" /></button></div>)}
               </div>
@@ -609,7 +645,7 @@ export default function BookPage() {
             {step === 1 && (
               <div className="space-y-4" data-booking-step="service">
                 <div><p className="text-xs font-bold text-amber-600">مرحله ۱ از ۶</p><h2 className="mt-1 text-xl font-black">چه خدماتی برای خودرو می‌خواهید؟</h2><p className="mt-1 text-sm text-slate-500">یک یا چند خدمت انتخاب کنید؛ پیشنهاد کالا در مرحله بعد از انتخاب خودرو ساخته می‌شود.</p></div>
-                <div className="grid gap-3 md:grid-cols-2">{services.map((service) => { const active = selectedServiceIds.includes(service.id); return <button type="button" key={service.id} onClick={() => toggleService(service.id)} className={`rounded-2xl border p-4 text-right transition ${active ? 'ct-book-service-selected border-emerald-500 bg-slate-950 text-white shadow-md' : 'border-slate-200 bg-slate-50 hover:border-amber-300'}`}><div className="flex items-start gap-3"><span className="text-2xl">{service.icon}</span><div className="flex-1"><div className="flex items-center justify-between"><b>{service.title}</b>{active && <Check className="h-5 w-5 text-emerald-400" />}</div><p className={`mt-1 text-xs leading-6 ${active ? 'text-slate-300' : 'text-slate-500'}`}>{service.description}</p></div></div></button>; })}</div>
+                <div className="grid gap-3 md:grid-cols-2">{services.map((service) => { const active = selectedServiceIds.includes(service.id); return <button type="button" key={service.id} onClick={() => toggleService(service.id)} className={`rounded-2xl border p-4 text-right transition ${active ? 'ct-book-service-selected border-emerald-500 bg-slate-950 text-white shadow-md' : 'border-slate-200 bg-slate-50 hover:border-amber-300'}`}><div className="flex items-start gap-3"><ServiceIcon value={service.icon} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><b>{service.title}</b><span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-1 text-xs font-black text-amber-600">{money(service.base_labor_fee)}</span></div><p className={`mt-1 text-xs leading-6 ${active ? 'text-slate-300' : 'text-slate-500'}`}>{service.description}</p></div>{active && <Check className="h-5 w-5 shrink-0 text-emerald-400" />}</div></button>; })}</div>
               </div>
             )}
 
@@ -634,7 +670,7 @@ export default function BookPage() {
 
                 <section aria-label="محصولات پیشنهادی">
                   <div className="mb-3 flex items-center gap-2"><PackageSearch className="h-5 w-5 text-amber-500" /><h3 className="font-black">محصولات مرتبط با سرویس</h3></div>
-                  {recommendedProducts.length ? <div className="grid gap-3 md:grid-cols-2">{recommendedProducts.map((product) => { const active = Boolean(product.id && allSelectedProductIds.includes(product.id)); return <button type="button" key={product.id} onClick={() => toggleProduct(product.id)} className={`flex items-center gap-3 rounded-2xl border p-3 text-right ${active ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-white p-2">{product.image_url ? <img src={product.image_url} alt={product.name} className="h-full w-full object-contain" /> : <PackageSearch className="h-6 w-6 text-slate-300" />}</div><div className="min-w-0 flex-1"><b className="line-clamp-2 text-sm">{product.name}</b><p className="mt-1 text-xs text-slate-500">{product.recommendation_reason || 'سازگار با خودرو و خدمت انتخابی'}</p><span className="mt-2 block text-sm font-black text-amber-700">{money(Number(product.amazing_price || product.price || 0))}</span></div>{active && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />}</button>; })}</div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500"><PackageSearch className="mb-2 h-6 w-6" />برای این خودرو و خدمت، کالای موجود و سازگار پیدا نشد. می‌توانید رزرو سرویس را بدون کالا ادامه دهید.</div>}
+                  {recommendedProducts.length ? <div className="grid gap-3 md:grid-cols-2">{recommendedProducts.map((product) => { const active = Boolean(product.id && allSelectedProductIds.includes(product.id)); return <button type="button" key={product.id} onClick={() => toggleProduct(product.id)} aria-pressed={active} className="ct-book-product-card relative flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-right transition"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-white p-2">{product.image_url ? <img src={product.image_url} alt={product.name} className="h-full w-full object-contain" /> : <PackageSearch className="h-6 w-6 text-slate-300" />}</div><div className="min-w-0 flex-1"><b className="line-clamp-2 text-sm">{product.name}</b><p className="mt-1 text-xs text-slate-500">{product.recommendation_reason || 'سازگار با خودرو و خدمت انتخابی'}</p><span className="mt-2 block text-sm font-black text-amber-700">{money(Number(product.amazing_price || product.price || 0))}</span></div>{active && <span className="ct-book-product-check" aria-label="به سبد انتخاب‌ها اضافه شد"><Check className="h-3.5 w-3.5" /></span>}</button>; })}</div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500"><PackageSearch className="mb-2 h-6 w-6" />برای این خودرو و خدمت، کالای موجود و سازگار پیدا نشد. می‌توانید رزرو سرویس را بدون کالا ادامه دهید.</div>}
                 </section>
               </div>
             )}
@@ -658,7 +694,11 @@ export default function BookPage() {
               <div className="space-y-4" data-booking-step="address">
                 <div><p className="text-xs font-bold text-amber-600">مرحله ۵ از ۶</p><h2 className="mt-1 flex items-center gap-2 text-xl font-black"><MapPin className="h-5 w-5 text-amber-500" /> اطلاعات و محل سرویس</h2></div>
                 <label className="block space-y-2"><span className="text-sm font-bold">نام و نام خانوادگی <em className="not-italic text-rose-500">*</em></span><div className="relative"><UserRound className="absolute right-4 top-4 h-4 w-4 text-slate-400" /><input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="نام و نام خانوادگی" className="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-4 pr-11 outline-none focus:border-amber-400" /></div></label>
-                <MapLocationPicker initialLatitude={selectedAddress?.latitude || pickedLocation?.latitude} initialLongitude={selectedAddress?.longitude || pickedLocation?.longitude} onConfirm={(location) => { setAddressId(''); setPickedLocation(location); if (location.address) setManualAddress(location.address); }} />
+                <MapLocationPicker compactDesktop initialLatitude={selectedAddress?.latitude || pickedLocation?.latitude} initialLongitude={selectedAddress?.longitude || pickedLocation?.longitude} onConfirm={(location) => void confirmServiceLocation(location)} />
+                <label className="block space-y-2"><span className="text-sm font-bold">آدرس تکمیلی <span className="font-normal text-slate-400">(اختیاری)</span></span><textarea value={addressDetails} onChange={(event) => setAddressDetails(event.target.value)} rows={2} placeholder="مثلاً نام کوچه، پلاک، واحد یا توضیح محل توقف" className="w-full rounded-2xl border border-slate-300 bg-white p-3 text-sm outline-none focus:border-amber-400" /></label>
+                {travelLoading && <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800"><Loader2 className="h-5 w-5 animate-spin" /> در حال محاسبه فاصله و کرایه مسیر...</div>}
+                {travelError && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-7 text-rose-700">{travelError}</div>}
+                {travelEstimate && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800" data-testid="booking-location-priced"><CheckCircle2 className="ml-2 inline h-5 w-5" />موقعیت تأیید شد؛ جزئیات هزینه در مرحله نهایی نمایش داده می‌شود.</div>}
               </div>
             )}
 
@@ -669,10 +709,29 @@ export default function BookPage() {
                   <div className="grid gap-2.5 text-slate-600">
                     <p><span className="text-slate-500">خودرو:</span> <b className="text-slate-900">{selectedCar && getCarTitle(selectedCar)}</b></p>
                     <p><span className="text-slate-500">زمان:</span> <b className="text-slate-900">{dateOptions.find((item) => item.value === date)?.label}، {selectedSlot?.label}</b></p>
-                    <p><span className="text-slate-500">محل:</span> <b className="text-slate-900">{selectedAddress ? formatCustomerAddress(selectedAddress) : (manualAddress || pickedLocation?.address || 'موقعیت انتخاب‌شده روی نقشه')}</b></p>
-                    <p><span className="text-slate-500">انتخاب‌ها:</span> <b className="text-slate-900">{selectedServices.length.toLocaleString('fa-IR')} خدمت{selectedProducts.length ? ` + ${selectedProducts.length.toLocaleString('fa-IR')} کالا` : ''}</b></p>
+                    <p><span className="text-slate-500">محل:</span> <b className="text-slate-900">{selectedAddress ? formatCustomerAddress(selectedAddress) : (manualAddress || pickedLocation?.address || 'موقعیت انتخاب‌شده روی نقشه')}{addressDetails.trim() ? `، ${addressDetails.trim()}` : ''}</b></p>
                   </div>
                 </div>
+                <section className="ct-book-cost-breakdown overflow-hidden rounded-xl border border-amber-400/25 bg-slate-950" aria-label="جزئیات هزینه‌ها" data-testid="booking-cost-breakdown">
+                  <header className="flex items-center gap-1.5 border-b border-amber-400/20 px-3 py-2 text-amber-300"><Sparkles className="h-3.5 w-3.5" /><b>جزئیات هزینه‌ها</b></header>
+                  <div className="grid gap-1 px-3 py-2 text-xs">
+                    <div className="ct-book-cost-service-row">
+                      <span className="ct-book-cost-service-copy">
+                        <span>خدمات</span>
+                        <span className="ct-book-service-chips">
+                          {selectedServices.map((service) => <small key={service.id}>{service.title} · {money(service.base_labor_fee)}</small>)}
+                        </span>
+                      </span>
+                      <b>{money(servicePrice.labor)}</b>
+                    </div>
+                    <div><span>محصولات</span><b>{money(productTotal)}</b></div>
+                    <div><span>ایاب‌وذهاب</span><b>{money(servicePrice.travel)}</b></div>
+                    {servicePrice.holiday > 0 && <div><span>هزینه تعطیلات</span><b>{money(servicePrice.holiday)}</b></div>}
+                    {servicePrice.outOfArea > 0 && <div><span>هزینه خارج محدوده</span><b>{money(servicePrice.outOfArea)}</b></div>}
+                    {servicePrice.discount > 0 && <div className="text-emerald-700"><span>تخفیف باشگاه</span><b>− {money(servicePrice.discount)}</b></div>}
+                  </div>
+                  <footer className="flex items-center justify-between border-t border-amber-400/25 bg-amber-400 px-3 py-2 text-slate-950"><span className="font-black">مجموع قابل پرداخت</span><b>{money(estimatedTotal)}</b></footer>
+                </section>
                 <label className="block space-y-2"><span className="text-sm font-bold">توضیحات برای سرویس‌کار <span className="font-normal text-slate-400">(اختیاری)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} placeholder="توضیحات لازم برای آدرس‌دهی بهتر و یا مورد خاص در ارائه سرویس (مثلاً پیچ کارتل ماشینم خرابه)" className="w-full rounded-2xl border border-slate-300 bg-white p-4 outline-none focus:border-amber-400" /></label>
                 <section className="rounded-2xl border border-slate-200 bg-white p-4" aria-label="تأیید موبایل پیش از پرداخت">
                   <div className="mb-3 flex items-center gap-2"><Phone className="h-5 w-5 text-amber-500" /><b>تأیید شماره برای پرداخت</b></div>
@@ -685,7 +744,6 @@ export default function BookPage() {
                   {otpSent && !phoneVerified && <button type="button" onClick={sendBookingOtp} disabled={otpBusy || otpResendIn > 0} className="mt-2 text-xs font-black text-amber-600 underline underline-offset-4 disabled:opacity-50">{otpResendIn > 0 ? `ارسال مجدد (${otpResendIn} ثانیه)` : 'ارسال مجدد کد'}</button>}
                   {otpMessage && <p className={`mt-2 text-xs font-bold ${phoneVerified ? 'text-emerald-600' : 'text-amber-600'}`}>{otpMessage}</p>}
                 </section>
-                <div className="ct-book-review-total flex items-center justify-between rounded-2xl border border-amber-400/25 bg-slate-950 p-4 text-white"><span className="font-black">مبلغ قابل پرداخت</span><b className="text-lg text-amber-300">{money(estimatedTotal)}</b></div>
               </div>
             )}
 

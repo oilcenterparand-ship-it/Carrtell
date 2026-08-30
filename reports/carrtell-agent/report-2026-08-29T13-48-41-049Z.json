@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-08-29T13:48:41.049Z",
+  "startedAt": "2026-08-29T13:48:20.569Z",
+  "status": "passed",
+  "counts": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "feedbackCounts": {
+    "error": 0,
+    "warning": 0,
+    "info": 2
+  },
+  "tests": [
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 2688,
+      "project": ""
+    },
+    {
+      "title": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "passed",
+      "durationMs": 5680,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users",
+      "status": "passed",
+      "durationMs": 2285,
+      "project": ""
+    },
+    {
+      "title": " › android-chrome › persona-technician.spec.ts › Persona: Technician › technician can load panel and operate visible task controls",
+      "status": "passed",
+      "durationMs": 5245,
+      "project": ""
+    }
+  ],
+  "feedback": [
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › desktop-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    },
+    {
+      "severity": "info",
+      "area": "technician/auth",
+      "route": "/driver",
+      "message": "مسیر سرویس‌کار برای کاربر ناشناس به صفحه ورود مستقل سرویس‌کار هدایت شد.",
+      "test": " › android-chrome › persona-technician.spec.ts › Persona: Technician › driver route is protected for anonymous users"
+    }
+  ]
+}

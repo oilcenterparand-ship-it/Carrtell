@@ -1,5 +1,7 @@
 $ErrorActionPreference = "Stop"
 
+Write-Host "STRICT CHECK: category hover, dynamic card images, home banners, mobile rail and bottom-nav safety." -ForegroundColor Yellow
+
 if ([string]::IsNullOrWhiteSpace($env:CARRTELL_ADMIN_USERNAME)) {
   $env:CARRTELL_ADMIN_USERNAME = (Read-Host "Carrtell admin username").Trim()
 }
@@ -38,7 +40,8 @@ try {
   Run-Step "TYPECHECK" "npm run typecheck"
   Run-Step "PRODUCTION BUILD" "npm run build"
   Run-Step "DYNAMIC CATEGORY CUSTOMER JOURNEY" "npx playwright test tests/e2e/dynamic-category-journey.spec.ts --workers=1"
-  Run-Step "DYNAMIC CASCADING CATEGORY MENU" "npx playwright test tests/e2e/dynamic-category-mega-menu.spec.ts --workers=1"
+  Run-Step "DYNAMIC CASCADING MENU + HOVER + HOME PROMO BANNERS + MOBILE SAFETY" "npx playwright test tests/e2e/dynamic-category-mega-menu.spec.ts --workers=1"
+  Run-Step "DYNAMIC CATEGORY SOURCE AND CYCLE SAFETY" "npx playwright test tests/e2e/home-category-agent-source-contract.spec.ts -c playwright.source.config.ts --workers=1"
   Run-Step "INDUSTRIAL REGRESSION" "npx playwright test tests/e2e/industrial-diesel-catalog.spec.ts --workers=1"
   Run-Step "CUSTOMER AND ADMIN LOGIN FREEZE REGRESSION" "npx playwright test tests/e2e/auth-login-freeze.spec.ts --workers=1"
   Run-Step "ADMIN CATEGORY AND PRODUCT PERSONA" "npx playwright test tests/e2e/persona-admin.spec.ts -c playwright.persona.config.ts --project=desktop-chrome --workers=1"
@@ -49,7 +52,8 @@ catch {
   Write-Host $_.Exception.Message -ForegroundColor Red
 }
 finally {
-  $env:CARRTELL_ADMIN_PASSWORD = $null
+  Remove-Item Env:CARRTELL_ADMIN_USERNAME -ErrorAction SilentlyContinue
+  Remove-Item Env:CARRTELL_ADMIN_PASSWORD -ErrorAction SilentlyContinue
 }
 
 if ($agentFailed) { exit 1 }

@@ -241,7 +241,19 @@ Deno.serve(async (req) => {
         return json(req, { ok:false, error:`admin_access_provision_failed: ${verifyAdminError?.message || 'inactive_or_missing'}` }, 500);
       }
 
-      return json(req, { ok:true, email, role:'admin' });
+      const { data: loginLink, error: loginLinkError } = await admin.auth.admin.generateLink({
+        type:'magiclink',
+        email,
+      });
+      const tokenHash = loginLink?.properties?.hashed_token;
+      if (loginLinkError || !tokenHash) {
+        return json(req, { ok:false, error:`admin_session_issue_failed: ${loginLinkError?.message || 'token_missing'}` }, 500);
+      }
+
+      // Return a one-time token after server-side credential validation. This
+      // creates the same independent session on every browser/device and does
+      // not depend on a password or an existing Google/Chrome session.
+      return json(req, { ok:true, token_hash:tokenHash, role:'admin' });
     }
 
     let setting: { username:string; password_hash:string } | null = null;
@@ -375,7 +387,10 @@ Deno.serve(async (req) => {
     });
     if (authSyncError) return json(req, { ok:false, error:`staff_auth_sync_failed: ${authSyncError.message}` }, 500);
 
-    return json(req, { ok:true, email, role });
+    const { data: loginLink, error: loginLinkError } = await admin.auth.admin.generateLink({ type:'magiclink', email });
+    const tokenHash = loginLink?.properties?.hashed_token;
+    if (loginLinkError || !tokenHash) return json(req, { ok:false, error:`staff_session_issue_failed: ${loginLinkError?.message || 'token_missing'}` }, 500);
+    return json(req, { ok:true, token_hash:tokenHash, role });
   } catch (error) {
     console.error('staff-password-login', error);
     return json(req, { ok:false, error:error instanceof Error ? error.message : 'unknown_error' }, 500);

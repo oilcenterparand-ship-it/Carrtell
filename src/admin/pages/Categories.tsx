@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import ImageUploader from '../components/ImageUploader';
-import { buildCategoryTree, createProductCategory, deleteProductCategory, getCategoryLabelPath, getProductCategories, ProductCategory, ProductCategoryNode, updateProductCategory } from '../services/categoriesApi';
+import { buildCategoryTree, createProductCategory, deleteProductCategory, getCategoryDescendantIds, getCategoryLabelPath, getProductCategories, ProductCategory, ProductCategoryNode, updateProductCategory } from '../services/categoriesApi';
 
-const emptyCategory: ProductCategory = { title: '', slug: '', description: '', parent_id: null, image_url: '', icon_emoji: '🔧', sort_order: 0, is_active: true };
+const emptyCategory: ProductCategory = { title: '', slug: '', description: '', parent_id: null, image_url: '', icon_emoji: '🔧', landing_url: '', sort_order: 0, is_active: true };
 const field = 'w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-yellow-400';
 const makeSlug = (title: string) => title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-آ-ی]/gi, '');
 
@@ -47,7 +47,8 @@ export default function Categories() {
     if (!confirm('دسته‌بندی حذف شود؟')) return;
     try { await deleteProductCategory(id); await loadData(); } catch (error) { console.error(error); alert('این دسته به محصول متصل است یا اجازه حذف وجود ندارد.'); }
   }
-  const parentOptions = categories.filter((item) => item.id && item.id !== editingId);
+  const invalidParentIds = useMemo(() => editingId ? new Set(getCategoryDescendantIds(categories, editingId)) : new Set<string>(), [categories, editingId]);
+  const parentOptions = categories.filter((item) => item.id && !invalidParentIds.has(item.id));
   return <div className="space-y-6" dir="rtl">
     <div><h1 className="text-2xl font-bold text-white">ساخت دسته و زیرشاخه محصولات</h1><p className="mt-2 text-sm leading-6 text-slate-400">هر تعداد مرحله که لازم داری خودت بساز؛ مثل روغن‌ها ← روغن موتور ← گرید ← 15W-40.</p></div>
     <div className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-3">
@@ -59,10 +60,14 @@ export default function Categories() {
       {formMode === 'child' && <Field label="زیرمجموعه کدام مسیر باشد؟" hint="هر مسیری را انتخاب کنی، شاخه جدید دقیقاً زیر همان ساخته می‌شود."><select value={form.parent_id || ''} onChange={(e) => setForm({ ...form, parent_id: e.target.value || null })} className={field}><option value="">انتخاب مسیر والد...</option>{parentOptions.map((item) => <option key={item.id} value={item.id}>{getCategoryLabelPath(categories, item.id)}</option>)}</select></Field>}
       <Field label={formMode === 'root' ? 'نام دسته اصلی' : 'نام زیرشاخه جدید'} hint="هر نامی می‌خواهی؛ مثل گرید روغن، 15W-40، برند یا سرکان."><input placeholder="نام را وارد کن" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value, slug: form.slug || makeSlug(e.target.value) })} className={field} /></Field>
       <Field label="آدرس انگلیسی شاخه (Slug)" hint="خودکار ساخته می‌شود؛ در صورت نیاز می‌توانی تغییرش بدهی."><input placeholder="example: 15w40" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className={field} /></Field>
+      <Field label="صفحه مقصد اختصاصی" hint="اختیاری؛ برای ورود مستقیم این کارت به بخش صنعتی بنویس /industrial. اگر خالی باشد، محصولات همین دسته باز می‌شوند."><input placeholder="مثال: /industrial" value={form.landing_url || ''} onChange={(e) => setForm({ ...form, landing_url: e.target.value })} className={field} dir="ltr" /></Field>
       <Field label="ترتیب نمایش" hint="عدد کمتر، زودتر نمایش داده می‌شود."><input placeholder="مثلاً 1" type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} className={field} /></Field>
       <Field label="آیکون یا ایموجی" hint="مثلاً 🛢️ یا 🚛"><input placeholder="یک ایموجی" value={form.icon_emoji || ''} onChange={(e) => setForm({ ...form, icon_emoji: e.target.value })} className={field} maxLength={8} /></Field>
       <label className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-800 p-4 text-sm font-black text-white"><input className="h-5 w-5" type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> این شاخه فعال و قابل‌نمایش باشد</label>
-      <div className="md:col-span-2"><ImageUploader label="تصویر یا آیکون دسته‌بندی" folder="categories" value={form.image_url || ''} onChange={(image_url) => setForm({ ...form, image_url })} /></div>
+      <div className="md:col-span-2">
+        <p className="mb-2 rounded-lg border border-yellow-400/20 bg-yellow-400/5 px-3 py-2 text-[11px] leading-6 text-yellow-100">این تصویر داخل بخش مربعی کارت دسته‌بندی نمایش داده می‌شود. برای نتیجه بهتر از تصویر مربع یا محصول با پس‌زمینه ساده استفاده کن.</p>
+        <ImageUploader label="تصویر داخل کارت دسته‌بندی" folder="categories" value={form.image_url || ''} onChange={(image_url) => setForm({ ...form, image_url })} />
+      </div>
       <Field label="توضیح کوتاه برای مشتری" hint="اختیاری است و بالای صفحه این شاخه نمایش داده می‌شود."><textarea placeholder="توضیح این دسته یا شاخه" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} className={field} rows={3} /></Field>
       <button onClick={saveCategory} className="rounded-xl bg-yellow-400 p-4 text-base font-black text-slate-950 md:col-span-2">{editingId ? 'ذخیره تغییرات' : formMode === 'root' ? 'ساخت دسته اصلی' : 'ساخت این زیرشاخه'}</button>
       {editingId && <button onClick={() => resetForm('root')} className="rounded-xl bg-slate-700 p-3 font-bold text-white md:col-span-2">لغو ویرایش</button>}

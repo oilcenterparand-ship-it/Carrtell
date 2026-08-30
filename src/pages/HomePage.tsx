@@ -3,26 +3,22 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
   ChevronLeft,
-  Headphones,
-  PackageCheck,
   Plus,
-  ShieldCheck,
   Sparkles,
-  Star,
   Truck,
 } from 'lucide-react';
 import { ProductCard } from './ShopPage';
 import { getProducts, type Product } from '../admin/services/productsApi';
-import { getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
+import { getCategoryDestination, getProductCategories, type ProductCategory } from '../admin/services/categoriesApi';
 import { addProductToCart, readCart, type CartItem } from '../lib/cart';
-import { getApprovedCustomerReviews, type CustomerReview } from '../admin/services/customerReviewsApi';
+import { defaultMegaMenuTiles, getMegaMenuTiles, type MegaMenuTile } from '../admin/services/homeContentApi';
 
 const PAGE_SIZE = 25;
 
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [reviews, setReviews] = useState<CustomerReview[]>([]);
+  const [promoTiles, setPromoTiles] = useState<MegaMenuTile[]>(defaultMegaMenuTiles);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [cart, setCart] = useState<Record<string, CartItem>>(() => readCart());
   const [loading, setLoading] = useState(true);
@@ -31,15 +27,15 @@ export default function HomePage() {
     let active = true;
     async function load() {
       try {
-        const [productRows, categoryRows, reviewRows] = await Promise.all([
+        const [productRows, categoryRows, promoTileRows] = await Promise.all([
           getProducts(),
           getProductCategories(),
-          getApprovedCustomerReviews(6),
+          getMegaMenuTiles(),
         ]);
         if (!active) return;
         setProducts(productRows.filter((product) => product.is_active !== false));
         setCategories(categoryRows.filter((category) => category.is_active !== false));
-        setReviews(reviewRows);
+        setPromoTiles(promoTileRows);
       } catch (error) {
         console.error('Homepage load error:', error);
       } finally {
@@ -69,6 +65,10 @@ export default function HomePage() {
     [activeProducts],
   );
   const visibleProducts = activeProducts.slice(0, visibleCount);
+  const activePromoTiles = useMemo(
+    () => promoTiles.filter((tile) => tile.is_active !== false).sort((a, b) => a.sort_order - b.sort_order).slice(0, 4),
+    [promoTiles],
+  );
   const reserved = useMemo(
     () => Object.fromEntries(Object.entries(cart).map(([id, item]) => [id, item.quantity])),
     [cart],
@@ -82,7 +82,7 @@ export default function HomePage() {
   return (
     <main dir="rtl" className="bg-[#f7f7f8] text-slate-900 pt-28">
       <section className="mx-auto max-w-[1240px] px-4 pt-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
           <div className="relative min-h-[245px] overflow-hidden rounded-[24px] bg-gradient-to-l from-[#a61017] via-[#d51d26] to-[#f0444d] p-7 text-white shadow-sm">
             <div className="relative z-10 max-w-xl">
               <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-black">
@@ -99,17 +99,17 @@ export default function HomePage() {
             <div className="absolute left-16 top-10 h-24 w-24 rounded-full bg-white/10" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 rounded-[24px] bg-white p-4 shadow-sm">
-            {[
-              { title: 'ضمانت اصالت', Icon: ShieldCheck },
-              { title: 'ارسال سریع', Icon: Truck },
-              { title: 'پشتیبانی', Icon: Headphones },
-              { title: 'بسته‌بندی امن', Icon: PackageCheck },
-            ].map(({ title, Icon }) => (
-              <div key={title} className="flex min-h-[96px] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-slate-50 text-center">
-                <Icon className="mb-2 h-6 w-6 text-red-500" />
-                <span className="text-xs font-black">{title}</span>
-              </div>
+          <div className="grid grid-cols-2 gap-3 rounded-[24px] bg-slate-950 p-3 shadow-sm" data-testid="home-hero-promo-tiles" aria-label="بنرهای تبلیغاتی صفحه اصلی">
+            {activePromoTiles.map((tile) => (
+              <Link key={tile.id || `${tile.title}-${tile.sort_order}`} to={tile.link_url || '/shop'} className="group relative min-h-[112px] overflow-hidden rounded-2xl border border-amber-400/25 bg-slate-900 text-white shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400/70 hover:shadow-lg">
+                {tile.image_url ? <img src={tile.image_url} alt={tile.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-950" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 z-10 p-3">
+                  {tile.badge && <span className="mb-1 inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-[8px] font-black text-slate-950">{tile.badge}</span>}
+                  <h2 className="line-clamp-2 text-[11px] font-black leading-5">{tile.title}</h2>
+                  <span className="mt-1 flex items-center gap-1 text-[8px] font-bold text-amber-300">مشاهده <ArrowLeft className="h-3 w-3" /></span>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -129,8 +129,10 @@ export default function HomePage() {
         </div>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
           {categories.slice(0, 8).map((category) => (
-            <Link key={category.id || category.slug} to={`/category/${encodeURIComponent(category.slug)}`} className="rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl">{category.icon_emoji || '🚘'}</div>
+            <Link key={category.id || category.slug} to={getCategoryDestination(category, 'journey')} className="rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="mx-auto mb-2 flex h-16 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 text-2xl">
+                {category.image_url ? <img src={category.image_url} alt={category.title} loading="lazy" className="h-full w-full object-contain p-1.5" /> : <span aria-hidden="true">{category.icon_emoji || '🚘'}</span>}
+              </div>
               <div className="truncate text-[11px] font-black">{category.title}</div>
             </Link>
           ))}
@@ -159,24 +161,6 @@ export default function HomePage() {
                 <ProductCard key={product.id} product={product} reservedQuantity={reserved[product.id || ''] || 0} onAddToCart={handleAdd} compact />
               ))}
             </div>
-          </div>
-        </section>
-      )}
-
-      {reviews.length > 0 && (
-        <section className="mx-auto max-w-[1240px] px-4 pb-7">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-black">نظر مشتریان</h2>
-            <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {reviews.slice(0, 3).map((review) => (
-              <article key={review.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="mb-2 flex gap-1 text-amber-400">{Array.from({ length: Number(review.rating || 0) }).map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-current" />)}</div>
-                <p className="line-clamp-3 text-xs leading-6 text-slate-600">{review.comment}</p>
-                <div className="mt-3 text-xs font-black">{review.customer_name || 'مشتری Carrtell'}</div>
-              </article>
-            ))}
           </div>
         </section>
       )}

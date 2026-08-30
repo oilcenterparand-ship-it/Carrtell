@@ -23,13 +23,12 @@ export async function signInStaffWithTemporaryPassword(role: StaffLoginRole, use
   // synchronizes the matching Supabase Auth user's password. A regular
   // signInWithPassword creates a deterministic, refreshable browser session and
   // avoids the fragile magic-link token exchange used by the previous version.
-  if (data.email) {
+  if (data.token_hash) {
+    const { error: verifyError } = await withAuthTimeout(supabase.auth.verifyOtp({ token_hash: data.token_hash, type: 'magiclink' }));
+    if (verifyError) throw new Error('نشست ورود ساخته نشد. لطفاً دوباره تلاش کنید.');
+  } else if (data.email) {
     const { error: signInError } = await withAuthTimeout(supabase.auth.signInWithPassword({ email: data.email, password }));
     if (signInError) throw new Error('نشست ورود ساخته نشد. لطفاً دوباره تلاش کنید.');
-  } else if (data.token_hash) {
-    // Backward compatibility while older Edge Function deployments roll out.
-    const { error: verifyError } = await withAuthTimeout(supabase.auth.verifyOtp({ token_hash: data.token_hash, type: 'magiclink' }));
-    if (verifyError) throw verifyError;
   } else {
     throw new Error('پاسخ ورود ناقص است.');
   }

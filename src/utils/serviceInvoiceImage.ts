@@ -3,8 +3,23 @@ import type { ServiceRequest } from '../customer/services/serviceRequestsApi';
 function money(value: number) { return `${Number(value || 0).toLocaleString('fa-IR')} تومان`; }
 
 export function downloadServiceInvoiceImage(request: ServiceRequest) {
+  const breakdown = request.pricing_breakdown || {};
+  const lines: Array<[string, string]> = [
+    ['شماره درخواست', request.request_number || '-'],
+    ['مشتری', request.customer_name || '-'],
+    ['موبایل', request.customer_phone || '-'],
+    ['خودرو', request.vehicle_title || '-'],
+    ['سرویس', request.service_title || '-'],
+    ['تاریخ', request.preferred_date || '-'],
+    ['ساعت', request.booking_slot_label || request.preferred_time || '-'],
+    ['آدرس', request.address_text || '-'],
+    ['فاصله مسیر', `${Number(breakdown.routeDistanceKm || 0).toLocaleString('fa-IR')} کیلومتر`],
+    ['هزینه رفت‌وآمد', money(Number(breakdown.travel || 0))],
+    ...(Number(breakdown.trafficSurcharge || 0) > 0 ? [['افزایش محدوده طرح ترافیک', money(Number(breakdown.trafficSurcharge || 0))] as [string, string]] : []),
+    ['شماره پیگیری پرداخت', request.payment_reference || '-'],
+  ];
   const width = 1080;
-  const height = 1500;
+  const height = Math.max(1700, 500 + lines.length * 115);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -20,18 +35,6 @@ export function downloadServiceInvoiceImage(request: ServiceRequest) {
   ctx.fillText('فاکتور رزرو سرویس Carrtell', 980, 120);
   ctx.fillStyle = '#facc15';
   ctx.fillRect(80, 170, 920, 6);
-
-  const lines: Array<[string, string]> = [
-    ['شماره درخواست', request.request_number || '-'],
-    ['مشتری', request.customer_name || '-'],
-    ['موبایل', request.customer_phone || '-'],
-    ['خودرو', request.vehicle_title || '-'],
-    ['سرویس', request.service_title || '-'],
-    ['تاریخ', request.preferred_date || '-'],
-    ['ساعت', request.booking_slot_label || request.preferred_time || '-'],
-    ['آدرس', request.address_text || '-'],
-    ['شماره پیگیری پرداخت', request.payment_reference || '-'],
-  ];
 
   let y = 270;
   for (const [label, value] of lines) {
@@ -52,13 +55,14 @@ export function downloadServiceInvoiceImage(request: ServiceRequest) {
   }
 
   ctx.fillStyle = '#111827';
-  ctx.fillRect(80, 1240, 920, 145);
+  y += 15;
+  ctx.fillRect(80, y, 920, 145);
   ctx.fillStyle = '#facc15';
   ctx.font = '900 42px Vazirmatn, Tahoma, sans-serif';
-  ctx.fillText(`مبلغ پرداخت‌شده: ${money(Number(request.estimated_total || 0))}`, 950, 1325);
+  ctx.fillText(`مبلغ پرداخت‌شده: ${money(Number(request.estimated_total || 0))}`, 950, y + 85);
   ctx.fillStyle = '#64748b';
   ctx.font = '500 24px Vazirmatn, Tahoma, sans-serif';
-  ctx.fillText('این فاکتور به‌صورت خودکار توسط Carrtell صادر شده است.', 980, 1440);
+  ctx.fillText('این فاکتور به‌صورت خودکار توسط Carrtell صادر شده است.', 980, height - 60);
 
   canvas.toBlob((blob) => {
     if (!blob) return;

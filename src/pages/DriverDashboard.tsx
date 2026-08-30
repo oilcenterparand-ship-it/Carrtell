@@ -5,6 +5,7 @@ import {
   driverStatusLabels,
   getDriverJobs,
 } from "../driver/services/driverJobsApi";
+import { getMyTomorrowAvailability, setMyTomorrowAvailability, tomorrowPersianLabel, type TechnicianAvailability } from "../driver/services/technicianAvailabilityApi";
 
 const activeStatuses = ["assigned", "on_way", "arrived", "working"];
 
@@ -12,6 +13,12 @@ export default function DriverDashboard() {
   const [jobs, setJobs] = useState<DriverJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<TechnicianAvailability | null>(null);
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [availabilitySaving, setAvailabilitySaving] = useState(false);
+  const [availabilityMessage, setAvailabilityMessage] = useState("");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("18:00");
 
   async function load() {
     try {
@@ -28,7 +35,27 @@ export default function DriverDashboard() {
 
   useEffect(() => {
     load();
+    getMyTomorrowAvailability().then((row) => {
+      setAvailability(row);
+      if (row) { setStartTime(row.start_time.slice(0, 5)); setEndTime(row.end_time.slice(0, 5)); }
+    }).catch(() => undefined);
   }, []);
+
+  async function saveTomorrowAvailability() {
+    setAvailabilityMessage("");
+    if (endTime <= startTime) return setAvailabilityMessage("ساعت پایان باید بعد از ساعت شروع باشد.");
+    try {
+      setAvailabilitySaving(true);
+      const row = await setMyTomorrowAvailability(startTime, endTime);
+      setAvailability(row);
+      setAvailabilityOpen(false);
+      setAvailabilityMessage(`آمادگی شما برای ${tomorrowPersianLabel()} از ${startTime} تا ${endTime} ثبت شد.`);
+    } catch (err) {
+      setAvailabilityMessage(err instanceof Error ? err.message : "ثبت ساعت آزاد انجام نشد.");
+    } finally {
+      setAvailabilitySaving(false);
+    }
+  }
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -62,6 +89,15 @@ export default function DriverDashboard() {
             </button>
           </div>
         </div>
+
+        <section className="mb-6 overflow-hidden rounded-3xl border border-emerald-400/25 bg-gradient-to-l from-emerald-950/35 to-slate-900">
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div><b className="text-emerald-300">برنامه فردا · {tomorrowPersianLabel()}</b><p className="mt-1 text-xs text-slate-400">ساعات آزاد را ثبت کن؛ سیستم حداکثر ۵ مأموریت بدون تداخل برایت ارسال می‌کند.</p>{availability && <p className="mt-2 text-sm font-bold text-white">ثبت‌شده: {availability.start_time.slice(0,5)} تا {availability.end_time.slice(0,5)}</p>}</div>
+            <button type="button" onClick={() => setAvailabilityOpen((value) => !value)} className="rounded-2xl bg-emerald-400 px-5 py-3 font-black text-slate-950">برای فردا آمادگی دارم</button>
+          </div>
+          {availabilityOpen && <div className="grid gap-3 border-t border-white/10 p-4 sm:grid-cols-[1fr_1fr_auto]"><label className="grid gap-1 text-xs text-slate-300"><span>از ساعت</span><input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-white" /></label><label className="grid gap-1 text-xs text-slate-300"><span>تا ساعت</span><input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-white" /></label><button type="button" disabled={availabilitySaving} onClick={() => void saveTomorrowAvailability()} className="self-end rounded-xl bg-amber-400 px-5 py-2.5 font-black text-slate-950 disabled:opacity-50">{availabilitySaving ? "در حال ثبت..." : "ثبت ساعت آزاد"}</button></div>}
+          {availabilityMessage && <p className="border-t border-white/10 px-4 py-3 text-xs font-bold text-amber-200">{availabilityMessage}</p>}
+        </section>
 
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="امروز" value={stats.today} />

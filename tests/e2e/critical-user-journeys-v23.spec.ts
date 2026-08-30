@@ -73,6 +73,12 @@ async function mockBookingBackend(page: Page, options: { failOtpRequest?: boolea
     });
   });
 
+  await page.route('**/functions/v1/service-travel-estimate**', async route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ ok: true, estimate: { quote_id: '90000000-0000-4000-8000-000000000001', route_distance_meters: 12500, route_distance_km: 12.5, billable_distance_km: 13, base_fee: 200000, distance_fee: 130000, traffic_surcharge: 99000, traffic_surcharge_percent: 30, traffic_zone: true, total_fee: 429000, radius_from_tehran_center_km: 3.2, duration_seconds: 1800 } }),
+  }));
+
   await page.route('**/rest/v1/**', async route => {
     const url = new URL(route.request().url());
     const path = decodeURIComponent(url.pathname);
@@ -287,9 +293,13 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     await expect(page.locator('[data-booking-step="address"] input[autocomplete="tel"]')).toHaveCount(0);
     await expect(page.locator('[data-booking-step="address"]').getByText('آدرس تشخیص داده‌شده')).toHaveCount(0);
     await expect(page.locator('[data-booking-step="address"]').getByText('توضیحات برای سرویس‌کار')).toHaveCount(0);
+    await expect(page.getByPlaceholder(/نام کوچه، پلاک، واحد/)).toBeVisible();
+    await page.getByPlaceholder(/نام کوچه، پلاک، واحد/).fill('پلاک ۱۲، واحد ۳');
     await page.getByRole('button', { name: 'موقعیت فعلی من' }).click();
     await expect(page.getByRole('button', { name: /تأیید این موقعیت|موقعیت ثبت شد/ })).toBeEnabled();
     await page.getByRole('button', { name: /تأیید این موقعیت|موقعیت ثبت شد/ }).click();
+    await expect(page.getByTestId('booking-travel-estimate')).toHaveCount(0);
+    await expect(page.getByTestId('booking-location-priced')).toContainText('جزئیات هزینه در مرحله نهایی');
     await page.getByRole('button', { name: /ادامه/ }).click();
 
     // 6) review and payment page
@@ -298,6 +308,13 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     await expect(review.getByText('توضیحات برای سرویس‌کار')).toBeVisible();
     await expect(review.getByPlaceholder(/توضیحات لازم برای آدرس‌دهی بهتر/)).toBeVisible();
     await expect(review.getByText('تأیید شماره برای پرداخت')).toBeVisible();
+    await expect(review.getByText('فاصله مسیر:')).toHaveCount(0);
+    await expect(review.getByText('هزینه رفت‌وآمد:')).toHaveCount(0);
+    const costs = page.getByTestId('booking-cost-breakdown');
+    await expect(costs.getByText('خدمات')).toBeVisible();
+    await expect(costs.getByText('محصولات')).toBeVisible();
+    await expect(costs.getByText('ایاب‌وذهاب')).toBeVisible();
+    await expect(costs.getByText('مجموع قابل پرداخت')).toBeVisible();
     await expect(page.getByRole('button', { name: 'ابتدا شماره را تأیید کنید' })).toBeDisabled();
     await review.getByPlaceholder('09xxxxxxxxx').fill('09121234567');
     await review.getByRole('button', { name: 'ارسال کد' }).click();

@@ -36,6 +36,7 @@ export type ServiceRequest = {
   address_text: string;
   latitude?: number | null;
   longitude?: number | null;
+  travel_quote_id?: string | null;
   preferred_date: string;
   preferred_time: string;
   service_title: string;
@@ -83,6 +84,7 @@ export type CreateServiceRequestInput = {
   address_text: string;
   latitude?: number | null;
   longitude?: number | null;
+  travel_quote_id?: string | null;
   preferred_date: string;
   preferred_time: string;
   service_title?: string;
@@ -188,6 +190,7 @@ function normalizeRequest(row: Partial<ServiceRequest>): ServiceRequest {
     address_text: row.address_text || '',
     latitude: row.latitude ?? null,
     longitude: row.longitude ?? null,
+    travel_quote_id: row.travel_quote_id || null,
     preferred_date: row.preferred_date || '',
     preferred_time: row.preferred_time || '',
     service_title: row.service_title || 'سرویس دوره‌ای روغن و فیلتر',
@@ -282,6 +285,7 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
     customer_user_id: resolvedCustomerUserId,
     guest_token: guestToken,
     customer_phone: cleanPhone,
+    address_text: input.address_text.trim(),
     request_number: makeRequestNumber(),
     next_service_km: calcNextServiceKm(input.last_service_km, input.service_interval_km),
     status: 'pending_review',
@@ -307,6 +311,11 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
       }
     }
     return payload;
+  }
+
+  if (input.travel_quote_id) {
+    console.error('service request with verified travel quote failed', error);
+    throw new Error('ثبت استعلام کرایه انجام نشد؛ موقعیت را دوباره تأیید کنید و سپس ادامه دهید.');
   }
 
   const localRequest = normalizeRequest(payload);

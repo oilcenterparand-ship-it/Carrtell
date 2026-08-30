@@ -1,16 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { auditBasicUx, assertNoRuntimeErrors, attachFeedback, watchRuntime } from './helpers/personaAudit';
 
-const username = process.env.CARRTELL_TECH_USERNAME || 'admin';
-const password = process.env.CARRTELL_TECH_PASSWORD || 'admin';
+const username = process.env.CARRTELL_TECH_USERNAME || '';
+const password = process.env.CARRTELL_TECH_PASSWORD || '';
 
 async function loginTechnician(page: import('@playwright/test').Page) {
+  if (!username || !password) throw new Error('CARRTELL_TECH_USERNAME and CARRTELL_TECH_PASSWORD are required.');
   await page.goto('/driver/login?returnTo=%2Fdriver');
   await expect(page.getByRole('heading', { name: /ورود سرویس.?کار/ })).toBeVisible();
   await page.getByPlaceholder(/نام کاربری/).fill(username);
   await page.getByPlaceholder(/رمز عبور/).fill(password);
   await page.getByRole('button', { name: /ورود به پنل سرویس.?کار/ }).click();
-  await expect(page).toHaveURL(/\/driver(?:$|\/|\?)/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/driver\/dashboard(?:\?|$)/, { timeout: 20_000 });
 }
 
 test.describe('Persona: Technician', () => {
@@ -27,6 +28,7 @@ test.describe('Persona: Technician', () => {
     const runtime = watchRuntime(page);
     await loginTechnician(page);
     await expect(page.getByText(/آماده دریافت مأموریت/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: /برای فردا آمادگی دارم/ })).toBeVisible();
     await expect(page.locator('footer')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /ماموریت‌های من/ })).toBeVisible();
     await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/driver.webmanifest');

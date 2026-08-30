@@ -31,6 +31,8 @@ export type Order = {
   items_count: number;
   items?: unknown[] | null;
   fulfillment_warehouse_id?: string | null;
+  assigned_technician_id?: string | null;
+  wallet_used?: number | null;
   created_at: string;
 };
 
@@ -238,6 +240,33 @@ export async function getOrderItems(orderId: string) {
 
   if (error) throw error;
   return (data || []) as OrderItem[];
+}
+
+export async function getOrderItemsForOrders(orderIds: string[]) {
+  if (!orderIds.length) return {} as Record<string, OrderItem[]>;
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('*')
+    .in('order_id', orderIds)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).reduce<Record<string, OrderItem[]>>((grouped, item) => {
+    const key = String(item.order_id);
+    (grouped[key] ||= []).push(item as OrderItem);
+    return grouped;
+  }, {});
+}
+
+export async function replaceOrderItems(orderId: string, items: Array<Pick<OrderItem, 'product_id'|'product_name'|'product_image_url'|'quantity'|'unit_price'>>, note = 'ویرایش اقلام از پنل مدیریت') {
+  const { data, error } = await supabase.rpc('carrtell_admin_replace_order_items', { p_order_id: orderId, p_items: items, p_note: note });
+  if (error) throw error;
+  return data as { order: Order; items: OrderItem[]; wallet_credit: number };
+}
+
+export async function assignOrderTechnician(orderId: string, technicianId: string | null) {
+  const { data, error } = await supabase.rpc('carrtell_assign_order_technician', { p_order_id: orderId, p_technician_id: technicianId || null });
+  if (error) throw error;
+  return data as Order;
 }
 
 export async function getOrder(orderId: string) {

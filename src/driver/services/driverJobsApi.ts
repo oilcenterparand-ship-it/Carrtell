@@ -15,6 +15,8 @@ export type DriverJob = {
   service_interval_km?: number | null;
   next_service_km?: number | null;
   address_text?: string | null;
+  service_title?: string | null;
+  service_items?: Array<{ id?: string; title: string; labor_fee: number; estimated_minutes?: number }>;
   latitude?: number | null;
   longitude?: number | null;
   driver_id?: string | null;
@@ -36,6 +38,7 @@ export type DriverJob = {
   completion_note?: string | null;
   created_at?: string | null;
   queue_position?: number | null;
+  warehouse_items?: Array<{ id?: string; product_id?: string | null; product_name: string; quantity: number; product_image_url?: string | null }>;
 };
 
 export type DriverJobReportInput = {
@@ -76,9 +79,19 @@ function normalizeJob(row: Record<string, any>): DriverJob {
   };
 }
 
+async function attachWarehouseItems(job: DriverJob): Promise<DriverJob> {
+  if (isTestJobId(job.id)) return { ...job, warehouse_items: [{ id: 'test-oil', product_name: 'روغن موتور تست', quantity: 1 }, { id: 'test-filter', product_name: 'فیلتر روغن تست', quantity: 1 }] };
+  const { data, error } = await supabase.rpc('carrtell_get_my_mission_order_items', { p_service_request_id: job.id });
+  if (error) {
+    console.warn('driver warehouse items unavailable', error);
+    return { ...job, warehouse_items: [] };
+  }
+  return { ...job, warehouse_items: Array.isArray(data) ? data : [] };
+}
+
 function makeDefaultTestJob(): DriverJob {
   const now = new Date().toISOString();
-  return { id: TEST_JOB_ID, status: 'assigned', customer_name: 'امین تست', customer_phone: '09120000000', car_name: 'پژو ۲۰۶ تیپ ۲', current_km: 85000, next_service_km: 92000, service_interval_km: 7000, address_text: 'پرند، فاز صفر، خیابان تست، پلاک ۱۲، واحد ۳', latitude: 35.4837, longitude: 50.9187, driver_id: 'test-driver', service_vehicle_id: 'test-vehicle', scheduled_at: now, assigned_at: now, created_at: now, used_products: [], driver_notes: '' };
+  return { id: TEST_JOB_ID, status: 'assigned', customer_name: 'امین تست', customer_phone: '09120000000', car_name: 'پژو ۲۰۶ تیپ ۲', current_km: 85000, next_service_km: 92000, service_interval_km: 7000, address_text: 'پرند، فاز صفر، خیابان تست، پلاک ۱۲، واحد ۳', service_title: 'تعویض روغن موتور', service_items: [{ id: 'test-service', title: 'تعویض روغن موتور', labor_fee: 180000 }], latitude: 35.4837, longitude: 50.9187, driver_id: 'test-driver', service_vehicle_id: 'test-vehicle', scheduled_at: now, assigned_at: now, created_at: now, used_products: [], driver_notes: '' };
 }
 
 function getStoredTestJob(): DriverJob {
@@ -110,16 +123,16 @@ export async function getDriverJobs(statuses?: string[]) {
   }
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map((row) => normalizeJob(row as Record<string, any>));
+  return Promise.all((data ?? []).map((row) => attachWarehouseItems(normalizeJob(row as Record<string, any>))));
 }
 
 export async function getDriverJobById(id: string) {
   assertValidJobId(id);
-  if (isTestJobId(id)) return getStoredTestJob();
+  if (isTestJobId(id)) return attachWarehouseItems(getStoredTestJob());
   const { data, error } = await supabase.from('service_requests').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('مأموریت پیدا نشد.');
-  return normalizeJob(data as Record<string, any>);
+  return attachWarehouseItems(normalizeJob(data as Record<string, any>));
 }
 
 export async function updateDriverJobStatus(id: string, status: DriverJobStatus) {
