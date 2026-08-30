@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+test.use({ serviceWorkers: 'block' });
+
 test.describe('Carrtell booking flow structure', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/book');
+    await page.goto('/book', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'رزرو سرویس در محل' })).toBeVisible();
   });
 

@@ -11,9 +11,9 @@ test('staff login issues a device-independent one-time session token', () => {
   expect(client.indexOf('if (data.token_hash)')).toBeLessThan(client.indexOf('else if (data.email)'));
 });
 
-test('product hover text is only full name and price and transparent images use white canvas', () => {
+test('product hover text keeps full name and price and uses themed media canvas', () => {
   const shop = read('src/pages/ShopPage.tsx');
-  expect(shop).toContain("const imageBg = '#ffffff'");
+  expect(shop).toContain("const imageBg = theme.cardImageBackground || '#101a2c'");
   expect(shop).toContain('title={`${product.name} | قیمت ${formatPrice(finalPrice)} تومان`}');
   expect(shop).not.toContain('const hoverDetails =');
 });

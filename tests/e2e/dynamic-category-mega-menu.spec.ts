@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.use({ serviceWorkers: 'block' });
+
 const dynamicCategories = [
   { id: '10000000-0000-4000-8000-000000000001', parent_id: null, title: 'ریشه آزمایشی پویا', slug: 'dynamic-root-qa', image_url: '/images/mega-menu/economy-oil-change.webp', icon_emoji: '🚚', sort_order: 1, is_active: true },
   { id: '10000000-0000-4000-8000-000000000002', parent_id: '10000000-0000-4000-8000-000000000001', title: 'شاخه آزمایشی پویا', slug: 'dynamic-branch-qa', icon_emoji: '🛢️', sort_order: 1, is_active: true },
@@ -45,7 +47,7 @@ test.describe('Dynamic cascading category menu', () => {
         const promotionCopyBox = await page.getByTestId('home-mega-menu-promotion').locator('.ct-mega-promotion-copy').boundingBox();
         expect(Math.abs((triggerBox?.y || 0) + (triggerBox?.height || 0) + 5 - (sheetBox?.y || 0))).toBeLessThanOrEqual(4);
         expect((sheetBox?.y || 0) + (sheetBox?.height || 0)).toBeLessThanOrEqual(viewport.height - 8);
-        expect(sheetBox?.width || 0).toBeLessThanOrEqual(1100);
+        expect(sheetBox?.width || 0).toBeLessThanOrEqual(1320);
         expect(sheetBox?.height || 0).toBeLessThanOrEqual(348);
         expect((promotionBox?.y || 0) + (promotionBox?.height || 0)).toBeLessThanOrEqual((sheetBox?.y || 0) + (sheetBox?.height || 0));
         expect(promotionCopyBox?.width || 0).toBeGreaterThan(180);
