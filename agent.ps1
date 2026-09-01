@@ -113,6 +113,8 @@ if ($Mode -eq "CUSTOMER3") {
 }
 if ($Mode -eq "ADMIN") {
   Fresh-Build
+  Run-Step "ADMIN MEDIA MANAGER + POWERSHELL LAUNCHER CONTRACT" "npx playwright test tests/e2e/admin-media-manager-v383.spec.ts --reporter=line"
+  Run-Step "CUSTOMER EXPERIENCE + ADMIN MOBILE CONTRACT" "npx playwright test tests/e2e/customer-experience-v382.spec.ts --reporter=line"
   Run-Step "ADMIN COMMERCE + CAMPAIGN + WALLET CONTRACTS" "npx playwright test tests/e2e/admin-commerce-wallet-contract.spec.ts --reporter=line"
   Run-Step "ADMIN + TECHNICIAN WAREHOUSE PICK-LIST CONTRACT" "npx playwright test tests/e2e/admin-driver-picklist-contract.spec.ts --reporter=line"
   try {
@@ -179,7 +181,7 @@ if ($Mode -eq "BOOKING") {
 }
 if ($Mode -eq "SHOP") {
   Fresh-Build
-  Run-Step "SHOP + CART + HEADER CART" "npx playwright test tests/e2e/shop-cart-v22.spec.ts tests/e2e/critical-user-journeys-v23.spec.ts -g 'shop|cart|MiniCart'"
+  Run-Step "SHOP + CART + HEADER CART" "npx playwright test tests/e2e/home-shop-experience-v384.spec.ts tests/e2e/shop-cart-v22.spec.ts tests/e2e/critical-user-journeys-v23.spec.ts -g 'Carrtell V3.8.4|shop|cart|MiniCart'"
   exit 0
 }
 if ($Mode -eq "INDUSTRIAL") {
@@ -227,6 +229,7 @@ if ($Mode -eq "FINAL") {
 
 if ($Mode -eq "CUSTOMER") {
   Fresh-Build
+  Run-Step "CANONICAL HOME + CUSTOMER HISTORY + EXPERIENCE" "npx playwright test tests/e2e/home-shop-experience-v384.spec.ts tests/e2e/canonical-home-v380.spec.ts tests/e2e/customer-paid-history-v381.spec.ts tests/e2e/customer-experience-v382.spec.ts --reporter=line"
   Run-Step "CUSTOMER JOURNEYS" "npx playwright test tests/e2e/customer-journey-v21.spec.ts tests/e2e/shop-cart-v22.spec.ts tests/e2e/booking-flow.spec.ts tests/e2e/critical-user-journeys-v23.spec.ts"
   exit 0
 }

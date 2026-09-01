@@ -4,6 +4,7 @@ export type CustomerReview = {
   id: string;
   order_id?: string | null;
   product_id?: string | null;
+  product_name?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
   rating: number;
@@ -14,11 +15,20 @@ export type CustomerReview = {
 };
 
 export async function createCustomerReview(input: Omit<CustomerReview, 'id' | 'is_approved' | 'created_at'>) {
-  const { data, error } = await supabase
+  const payload = { ...input, is_approved: false };
+  let { data, error } = await supabase
     .from('customer_reviews')
-    .insert({ ...input, is_approved: false })
+    .insert(payload)
     .select('*')
     .single();
+  // The UI remains usable during staged deployments where the optional
+  // product_name snapshot migration has not reached production yet.
+  if (error && input.product_name && (error.code === '42703' || error.code === 'PGRST204')) {
+    const { product_name: _productName, ...legacyPayload } = payload;
+    const retry = await supabase.from('customer_reviews').insert(legacyPayload).select('*').single();
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) throw error;
   return data as CustomerReview;
 }
@@ -83,7 +93,7 @@ export async function getApprovedCustomerReviews(limit = 6) {
 
   return reviews.map((review) => ({
     ...review,
-    experience_label: (review.product_id && productNames.get(review.product_id)) || (review.order_id && orderLabels.get(review.order_id)) || 'خرید یا سرویس از Carrtell',
+    experience_label: (review.product_id && productNames.get(review.product_id)) || review.product_name || (review.order_id && orderLabels.get(review.order_id)) || 'خرید یا سرویس از Carrtell',
   }));
 }
 

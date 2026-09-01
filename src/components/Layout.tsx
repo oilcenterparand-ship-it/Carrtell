@@ -142,6 +142,16 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
+    const openPicker = () => {
+      setVehicleSearch('');
+      setVehicleBrand(selectedCustomerCar?.brand || '');
+      setVehiclePickerOpen(true);
+    };
+    window.addEventListener('carrtell:open-vehicle-picker', openPicker);
+    return () => window.removeEventListener('carrtell:open-vehicle-picker', openPicker);
+  }, [selectedCustomerCar?.brand]);
+
+  useEffect(() => {
     const syncFavorites = () => {
       try {
         const parsed = JSON.parse(localStorage.getItem('carrtell:favorites') || '[]');

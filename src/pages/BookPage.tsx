@@ -146,7 +146,6 @@ function getDateOptions() {
 export default function BookPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const bookingStartedAsGuestRef = useRef<boolean | null>(null);
   const [cars, setCars] = useState<AdminCar[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [packages, setPackages] = useState<CarPackage[]>([]);
@@ -331,11 +330,6 @@ export default function BookPage() {
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [selectionCartOpen]);
-
-  useEffect(() => {
-    if (authLoading || bookingStartedAsGuestRef.current !== null) return;
-    bookingStartedAsGuestRef.current = !user;
-  }, [authLoading, user]);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -557,7 +551,6 @@ export default function BookPage() {
       const request = await createServiceRequest({
         customer_name: customerName.trim() || 'مشتری کارتل',
         customer_phone: customerPhone.trim(),
-        customer_user_id: bookingStartedAsGuestRef.current === true ? null : (user?.id || null),
         vehicle_id: selectedCar.id || null,
         vehicle_title: getCarTitle(selectedCar),
         current_km: 0,
@@ -716,13 +709,13 @@ export default function BookPage() {
                   <header className="flex items-center gap-1.5 border-b border-amber-400/20 px-3 py-2 text-amber-300"><Sparkles className="h-3.5 w-3.5" /><b>جزئیات هزینه‌ها</b></header>
                   <div className="grid gap-1 px-3 py-2 text-xs">
                     <div className="ct-book-cost-service-row">
-                      <span className="ct-book-cost-service-copy">
-                        <span>خدمات</span>
-                        <span className="ct-book-service-chips">
-                          {selectedServices.map((service) => <small key={service.id}>{service.title} · {money(service.base_labor_fee)}</small>)}
-                        </span>
+                      <span className="ct-book-cost-service-label">خدمات</span>
+                      <span className="ct-book-service-list">
+                        {selectedServices.map((service) => <span className="ct-book-service-line" key={service.id}><small>{service.title}</small><b>{money(service.base_labor_fee)}</b></span>)}
                       </span>
-                      <b>{money(servicePrice.labor)}</b>
+                    </div>
+                    <div className="ct-book-cost-labor-total">
+                      <span>جمع خدمات</span><b>{money(servicePrice.labor)}</b>
                     </div>
                     <div><span>محصولات</span><b>{money(productTotal)}</b></div>
                     <div><span>ایاب‌وذهاب</span><b>{money(servicePrice.travel)}</b></div>

@@ -1,4 +1,4 @@
-﻿import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { auditBasicUx, assertNoRuntimeErrors, watchRuntime } from './helpers/personaAudit';
 
 const username = process.env.CARRTELL_ADMIN_USERNAME || '';
@@ -44,48 +44,22 @@ test.describe('Persona: Admin', () => {
       await auditBasicUx(page, testInfo, `admin${route.replace('/admin', '')}`);
       await assertNoRuntimeErrors(runtime, testInfo, 'admin/routes', route);
       if (route === '/admin/home-content') {
-        await expect(page.getByTestId('admin-media-manager')).toBeVisible();
-
-        const contentTabs = page.locator('nav[aria-label]').getByRole('button');
-        await expect(contentTabs).toHaveCount(4);
-
-        await expect(page.getByTestId('admin-home-slider-banners-section')).toBeVisible();
-        await expect(page.getByTestId('admin-home-slider-banner-form')).toBeVisible();
-
-        const sliderLink = page
-          .getByTestId('admin-home-slider-banner-form')
-          .locator('input[dir="ltr"]')
-          .first();
-
-        await sliderLink.fill('/industrial');
-        await expect(sliderLink).toHaveValue('/industrial');
-
-        await contentTabs.nth(1).click();
-
+        await expect(page.getByTestId('admin-mega-menu-promotion-form')).toBeVisible();
         await expect(page.getByTestId('admin-home-hero-promo-tiles-section')).toBeVisible();
         await expect(page.getByTestId('admin-home-hero-promo-tile-form')).toBeVisible();
-
-        const tileLink = page
-          .getByTestId('admin-home-hero-promo-tile-form')
-          .locator('input[dir="ltr"]')
-          .first();
-
-        await tileLink.fill('/shop?q=filter');
-        await expect(tileLink).toHaveValue('/shop?q=filter');
-
-        await contentTabs.nth(2).click();
-
-        await expect(page.getByTestId('admin-mega-menu-promotion-form')).toBeVisible();
-
-        const megaLink = page
-          .getByTestId('admin-mega-menu-promotion-form')
-          .locator('input[dir="ltr"]')
-          .first();
-
+        await expect(page.getByTestId('admin-home-slider-banners-section')).toBeVisible();
+        await expect(page.getByTestId('admin-home-slider-banner-form')).toBeVisible();
+        await expect(page.getByText('تصویر بنر اسلایدی', { exact: true })).toBeVisible();
+        const sliderLink = page.getByPlaceholder('لینک مقصد؛ مثال: /shop?category=engine-oil');
+        await sliderLink.fill('/industrial');
+        await expect(sliderLink).toHaveValue('/industrial');
+        const tileLink = page.getByPlaceholder('لینک مقصد؛ مثال: /shop?q=نظافت');
+        await tileLink.fill('/shop?q=فیلتر');
+        await expect(tileLink).toHaveValue('/shop?q=فیلتر');
+        const megaLink = page.getByTestId('admin-mega-menu-promotion-form').getByPlaceholder('لینک مقصد');
         await megaLink.fill('/book');
         await expect(megaLink).toHaveValue('/book');
       }
-
       if (route === '/admin/categories') {
         await expect(page.getByRole('heading', { name: 'ساخت دسته و زیرشاخه محصولات' })).toBeVisible();
         await expect(page.getByRole('button', { name: '+ دسته اصلی جدید' })).toBeVisible();
@@ -108,4 +82,3 @@ test.describe('Persona: Admin', () => {
     }
   });
 });
-

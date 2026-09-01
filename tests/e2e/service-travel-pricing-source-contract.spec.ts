@@ -28,7 +28,8 @@ test.describe('Service travel pricing contracts', () => {
     expect(book).not.toContain('هزینه رفت‌وآمد:');
     expect(book).toContain('data-testid="booking-cost-breakdown"');
     expect(book).toContain('ایاب‌وذهاب');
-    expect(book).toContain('ct-book-service-chips');
+    expect(book).toContain('data-booking-step="service"');
+    expect(book).toContain('ct-book-service-selected');
     expect(book).not.toContain('<span>هزینه شب</span>');
     expect(read('src/customer/services/serviceBookingApi.ts')).toContain('const night = 0;');
     expect(book).toContain('compactDesktop');

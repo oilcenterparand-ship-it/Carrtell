@@ -162,3 +162,33 @@ export async function uploadPublicImage(
 
   return data.publicUrl;
 }
+
+/** Upload an image that has already passed through optimizeImageForUpload.
+ * This avoids performing the relatively expensive canvas/WebP conversion twice
+ * when the UI needs to show the compression result before uploading. */
+export async function uploadOptimizedPublicImage(
+  optimized: OptimizedImageResult,
+  originalFileName: string,
+  folder: UploadFolder = 'products'
+) {
+  const fileToUpload = optimized.file;
+  const extension = fileToUpload.type === 'image/webp' ? 'webp' : (fileToUpload.name.split('.').pop() || 'webp');
+  const safeBase = formatSafeBaseName(originalFileName);
+  const safeName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeBase}.${extension}`;
+
+  const { error } = await supabase.storage
+    .from(CARRTELL_STORAGE_BUCKET)
+    .upload(safeName, fileToUpload, {
+      cacheControl: '31536000',
+      upsert: true,
+      contentType: fileToUpload.type || 'image/webp',
+    });
+
+  if (error) throw new Error(normalizeStorageError(error));
+
+  const { data } = supabase.storage
+    .from(CARRTELL_STORAGE_BUCKET)
+    .getPublicUrl(safeName);
+
+  return data.publicUrl;
+}

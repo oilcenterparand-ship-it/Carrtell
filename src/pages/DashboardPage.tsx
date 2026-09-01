@@ -21,6 +21,8 @@ import {
   LogOut,
   KeyRound,
   AlertTriangle,
+  MoreHorizontal,
+  WalletCards,
 } from 'lucide-react';
 import { deleteCustomerAddress, formatCustomerAddress, getCustomerAddresses, saveCustomerAddress, type CustomerAddress } from '../customer/services/addressApi';
 import { getActiveCarsForCustomer, getCarTitle, type Car as AdminCar } from '../admin/services/carsApi';
@@ -44,6 +46,7 @@ import {
   type ServiceReminder,
 } from '../customer/services/garageApi';
 import { getServiceCatalogItems, getServiceHistory, saveServiceHistory, type ServiceCatalogItem, type ServiceHistoryRecord } from '../customer/services/serviceHistoryApi';
+import { getServiceRequestStatusLabel, getServiceRequestsByPhone, type ServiceRequest } from '../customer/services/serviceRequestsApi';
 
 const CARTELL_USER_KEY = 'carrtell_customer_profile';
 
@@ -111,6 +114,15 @@ function km(value?: number | null) {
   return `${Number(value || 0).toLocaleString('fa-IR')} کیلومتر`;
 }
 
+function embeddedOrderItems(order: Order) {
+  return (Array.isArray(order.items) ? order.items : [])
+    .map((item: any) => ({
+      name: String(item?.product_name || item?.name || '').trim(),
+      quantity: Math.max(1, Number(item?.quantity || 1)),
+    }))
+    .filter((item) => item.name);
+}
+
 const emptyAddress = (phone = ''): CustomerAddress => ({
   customer_phone: phone,
   title: 'خانه',
@@ -162,6 +174,7 @@ export default function DashboardPage() {
   const [cars, setCars] = useState<AdminCar[]>([]);
   const [selectedCarId, setSelectedCarId] = useState(() => readSelectedCustomerCar()?.id || '');
   const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [serviceOrders, setServiceOrders] = useState<ServiceRequest[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
@@ -182,6 +195,7 @@ export default function DashboardPage() {
   const [deleteOtp, setDeleteOtp] = useState('');
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteNotice, setDeleteNotice] = useState('');
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const isLoggedIn = Boolean(user?.id && user?.phone);
 
@@ -307,16 +321,22 @@ export default function DashboardPage() {
     const normalizedPhone = customerPhone.trim();
     if (!normalizedPhone) {
       setUserOrders([]);
+      setServiceOrders([]);
       return;
     }
 
     setOrdersLoading(true);
     setOrdersError('');
     try {
+      // Claim paid guest history first; the following order query can then see
+      // legacy paid rows that were created before the customer session existed.
+      const requests = await getServiceRequestsByPhone(normalizedPhone);
       const items = await getOrdersByPhone(normalizedPhone);
       setUserOrders(items);
+      setServiceOrders(requests);
     } catch (error: any) {
       setUserOrders([]);
+      setServiceOrders([]);
       setOrdersError(error?.message || 'سفارش‌ها از Supabase دریافت نشدند.');
     } finally {
       setOrdersLoading(false);
@@ -502,51 +522,43 @@ export default function DashboardPage() {
   return (
     <main dir="rtl" className="ct-customer-dashboard min-h-screen bg-[#08111f] text-slate-100 px-4 pb-8 pt-10">
       <div className="mx-auto max-w-6xl space-y-6">
-        <header className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <header className="relative overflow-visible rounded-3xl border border-slate-700 bg-[#0d182a] p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="mb-1 text-sm font-bold text-[var(--primary,#f5c518)]">پنل کاربری Carrtell</p>
               <h1 className="text-2xl font-black">{form.fullName?.trim() ? `سلام، ${form.fullName.trim()}` : 'سلام، خوش آمدید'} 👋</h1>
-              <p className="mt-1 text-sm text-slate-500">همه اطلاعات سفارش، خودرو و سرویس‌هایت یکجا در دسترس است.</p>
+              <p className="mt-1 text-xs text-slate-400">سفارش، کیف پول، خودرو و آدرس‌های شما</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2">
               <a href="/book" className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary,#f5c518)] px-5 py-3 font-black text-black"><Wrench size={18} /> رزرو سرویس</a>
-              <button type="button" onClick={() => void logoutFromDashboard()} className="inline-flex items-center gap-2 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 font-black text-rose-700"><LogOut size={18} /> خروج از حساب</button>
+              <button type="button" aria-label="گزینه‌های بیشتر حساب" onClick={() => setMoreMenuOpen((open) => !open)} className="grid h-11 w-11 place-items-center rounded-2xl border border-slate-600 bg-slate-950/40 text-slate-200"><MoreHorizontal /></button>
             </div>
           </div>
+          {moreMenuOpen && <div className="absolute left-4 top-[calc(100%-8px)] z-30 w-52 rounded-2xl border border-slate-700 bg-[#08111f] p-2 shadow-2xl">
+            <button type="button" onClick={() => { setActivePanel('profile'); setMoreMenuOpen(false); window.history.replaceState(null, '', '#profile'); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-white/5"><User size={16} /> مشخصات و امنیت</button>
+            <a href="/profile/support" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-white/5"><MessageSquare size={16} /> پشتیبانی</a>
+            <a href="/profile/returns" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-white/5"><RefreshCw size={16} /> مرجوعی‌ها</a>
+            <button type="button" onClick={() => void logoutFromDashboard()} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold text-rose-300 hover:bg-rose-500/10"><LogOut size={16} /> خروج از حساب</button>
+          </div>}
         </header>
 
-        <nav className="ct-dashboard-tabs sticky top-3 z-20 grid grid-cols-5 gap-1.5 rounded-2xl border border-slate-700/70 bg-[#0d182a]/95 p-1.5 shadow-lg shadow-black/20 backdrop-blur">
+        <nav className="ct-dashboard-tabs sticky top-3 z-20 grid grid-cols-4 gap-1.5 rounded-2xl border border-slate-700/70 bg-[#0d182a]/95 p-1.5 shadow-lg shadow-black/20 backdrop-blur">
           {([
-            ['overview', 'خانه حساب', Home],
             ['orders', 'سفارش‌ها', FileText],
-            ['vehicles', 'خودرو و سلامت', Car],
+            ['vehicles', 'خودروهای من', Car],
             ['addresses', 'آدرس‌ها', MapPin],
-            ['profile', 'مشخصات من', User],
           ] as const).map(([panel, label, Icon]) => (
-            <button key={String(panel)} type="button" onClick={() => { setActivePanel(panel as DashboardPanel); window.history.replaceState(null, '', panel === 'overview' ? '/dashboard' : `#${panel}`); }} className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-black transition ${activePanel === panel ? 'bg-[var(--primary,#f5c518)] text-slate-950 shadow-md' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}><Icon size={17} />{label}</button>
+            <button key={String(panel)} type="button" onClick={() => { setActivePanel(panel as DashboardPanel); window.history.replaceState(null, '', `#${panel}`); }} className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-black transition ${activePanel === panel ? 'bg-[var(--primary,#f5c518)] text-slate-950 shadow-md' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}><Icon size={17} />{label}</button>
           ))}
+          <a href="/profile/wallet" className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-black text-slate-300 transition hover:bg-white/5 hover:text-white"><WalletCards size={17} />کیف پول</a>
         </nav>
 
         {activePanel === 'overview' && (
-          <section className="ct-dashboard-category-hub grid gap-4 lg:grid-cols-3" aria-label="دسته‌بندی امکانات حساب">
-            <article className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5">
-              <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400 text-slate-950"><FileText /></span><div><h2 className="font-black">خرید و سفارش‌ها</h2><p className="mt-1 text-xs text-slate-400">پیگیری سفارش و دریافت فاکتور</p></div></div>
-              <div className="my-4 rounded-2xl bg-slate-950/55 p-4"><span className="text-xs text-slate-400">آخرین وضعیت</span><b className="mt-2 block">{activeOrder ? getStatusLabel(activeOrder.status) : 'سفارشی ثبت نشده'}</b></div>
-              <button type="button" onClick={() => { setActivePanel('orders'); window.history.replaceState(null, '', '#orders'); }} className="w-full rounded-2xl border border-slate-600 px-4 py-3 font-black hover:border-amber-400">مشاهده سفارش‌ها</button>
-            </article>
-
-            <article className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5">
-              <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400 text-slate-950"><Car /></span><div><h2 className="font-black">خودرو و سرویس</h2><p className="mt-1 text-xs text-slate-400">گاراژ، سلامت خودرو و سوابق سرویس</p></div></div>
-              <div className="my-4 rounded-2xl bg-slate-950/55 p-4"><span className="text-xs text-slate-400">خودروی فعال</span><b className="mt-2 block">{defaultVehicle?.title || (selectedAdminCar ? getCarTitle(selectedAdminCar) : 'خودرو انتخاب نشده')}</b>{activeReminder && <small className="mt-1 block text-amber-300">{getServiceStatusLabel(activeReminder.status)}</small>}</div>
-              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setActivePanel('vehicles'); window.history.replaceState(null, '', '#vehicles'); }} className="rounded-2xl border border-slate-600 px-3 py-3 text-sm font-black hover:border-amber-400">مدیریت خودرو</button><a href="/book" className="rounded-2xl bg-amber-400 px-3 py-3 text-center text-sm font-black text-slate-950">رزرو سرویس</a></div>
-            </article>
-
-            <article className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5">
-              <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400 text-slate-950"><User /></span><div><h2 className="font-black">مشخصات و نشانی‌ها</h2><p className="mt-1 text-xs text-slate-400">اطلاعات ورود، تماس و آدرس‌های من</p></div></div>
-              <div className="my-4 grid grid-cols-2 gap-2"><div className="rounded-2xl bg-slate-950/55 p-3"><span className="text-[10px] text-slate-400">پروفایل</span><b className="mt-1 block text-sm">{form.fullName ? 'تکمیل شده' : 'نیاز به تکمیل'}</b></div><div className="rounded-2xl bg-slate-950/55 p-3"><span className="text-[10px] text-slate-400">آدرس‌ها</span><b className="mt-1 block text-sm">{addresses.length.toLocaleString('fa-IR')} مورد</b></div></div>
-              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setActivePanel('profile'); window.history.replaceState(null, '', '#profile'); }} className="rounded-2xl border border-slate-600 px-3 py-3 text-sm font-black hover:border-amber-400">مشخصات من</button><button type="button" onClick={() => { setActivePanel('addresses'); window.history.replaceState(null, '', '#addresses'); }} className="rounded-2xl border border-slate-600 px-3 py-3 text-sm font-black hover:border-amber-400">آدرس‌ها</button></div>
-            </article>
+          <section className="ct-dashboard-category-hub grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="دسترسی‌های اصلی حساب">
+            <button type="button" onClick={() => { setActivePanel('orders'); window.history.replaceState(null, '', '#orders'); }} className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5 text-center"><FileText className="mx-auto mb-3 text-amber-300" /><b>سفارش‌ها</b><small className="mt-2 block text-slate-400">{activeOrder ? getStatusLabel(activeOrder.status) : 'مشاهده سوابق'}</small></button>
+            <a href="/profile/wallet" className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5 text-center"><WalletCards className="mx-auto mb-3 text-amber-300" /><b>کیف پول</b><small className="mt-2 block text-slate-400">موجودی و تراکنش‌ها</small></a>
+            <button type="button" onClick={() => { setActivePanel('vehicles'); window.history.replaceState(null, '', '#vehicles'); }} className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5 text-center"><Car className="mx-auto mb-3 text-amber-300" /><b>خودروهای من</b><small className="mt-2 block truncate text-slate-400">{defaultVehicle?.title || (selectedAdminCar ? getCarTitle(selectedAdminCar) : 'انتخاب خودرو')}</small></button>
+            <button type="button" onClick={() => { setActivePanel('addresses'); window.history.replaceState(null, '', '#addresses'); }} className="rounded-3xl border border-slate-700 bg-[#0d182a] p-5 text-center"><MapPin className="mx-auto mb-3 text-amber-300" /><b>آدرس‌ها</b><small className="mt-2 block text-slate-400">{addresses.length.toLocaleString('fa-IR')} آدرس ثبت‌شده</small></button>
           </section>
         )}
 
@@ -758,13 +770,28 @@ export default function DashboardPage() {
           </div>
 
           {ordersError && <div className="mb-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">{ordersError}</div>}
-          {ordersLoading ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">در حال دریافت سفارش‌ها از Supabase...</div> : userOrders.length === 0 ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">هنوز سفارشی برای این شماره موبایل ثبت نشده است.</div> : (
-            <div className="space-y-3">{userOrders.map((order, index) => (
+          {ordersLoading ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">در حال دریافت سفارش‌ها از Supabase...</div> : userOrders.length === 0 && serviceOrders.length === 0 ? <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">هنوز سفارشی برای این شماره موبایل ثبت نشده است.</div> : (
+            <div className="space-y-3">
+              {serviceOrders.filter((request) => !request.order_id || !userOrders.some((order) => order.id === request.order_id)).map((request) => (
+                <article key={request.id} className="rounded-2xl border border-emerald-400/20 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2"><b className="text-slate-950">{request.request_number}</b><span className={`rounded-full border px-3 py-1 text-xs font-black ${request.payment_status === 'paid' ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-700' : 'border-amber-400/30 bg-amber-500/10 text-amber-700'}`}>{request.payment_status === 'paid' ? 'پرداخت موفق' : 'در انتظار پرداخت'}</span></div>
+                      <p className="text-sm font-black text-slate-900">{request.vehicle_title}</p>
+                      <div className="flex flex-wrap gap-1.5">{(request.service_items?.length ? request.service_items : [{ id: 'service', title: request.service_title, labor_fee: 0 }]).map((service) => <span key={service.id} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700">{service.title}{service.labor_fee > 0 ? ` · ${toman(service.labor_fee)}` : ''}</span>)}</div>
+                      <p className="text-xs leading-6 text-slate-500">زمان: {request.preferred_date}، {request.booking_slot_label || request.preferred_time}<br />وضعیت اجرا: {getServiceRequestStatusLabel(request.status)}<br />مبلغ: {toman(request.estimated_total)}</p>
+                    </div>
+                    <a href={`/service-payment/${request.id}`} className="rounded-xl bg-[var(--primary,#f5c518)] px-4 py-2 text-sm font-black text-slate-950">مشاهده جزئیات</a>
+                  </div>
+                </article>
+              ))}
+              {userOrders.map((order, index) => (
               <div key={order.id || index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2"><div className="font-black">{order.order_number || order.id || `سفارش ${index + 1}`}</div><span className={`rounded-full border px-3 py-1 text-xs font-black ${getStatusClass(order.status)}`}>{getStatusLabel(order.status)}</span></div>
                     <div className="text-sm leading-7 text-slate-500">مبلغ: {toman(Number(order.total_amount)+Number(order.wallet_used||0))} | تعداد کالا: {Number(order.items_count || 0).toLocaleString('fa-IR')}{order.created_at ? <span className="block">تاریخ ثبت: {new Date(order.created_at).toLocaleString('fa-IR')}</span> : null}</div>
+                    {embeddedOrderItems(order).length > 0 && <div className="flex flex-wrap gap-1.5">{embeddedOrderItems(order).map((item, itemIndex) => <span key={`${item.name}-${itemIndex}`} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700">{item.name} × {item.quantity.toLocaleString('fa-IR')}</span>)}</div>}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button disabled={downloadingInvoiceId === order.id} onClick={() => downloadInvoice(order)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary,#f5c518)] px-4 py-2 font-bold text-black disabled:opacity-60"><Download size={16} /> {downloadingInvoiceId === order.id ? 'در حال ساخت...' : 'دانلود PDF'}</button>

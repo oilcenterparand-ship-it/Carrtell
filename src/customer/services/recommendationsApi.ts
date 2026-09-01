@@ -140,7 +140,7 @@ export async function getMyCarRecommendations(selectedCar: SelectedCustomerCar |
   const sourceProducts = (productsData || []) as Product[];
   const matchedProducts = sourceProducts
     .filter((product) => settings.only_in_stock ? isProductAvailable(product) : product.is_active !== false)
-    .filter((product) => selectedCar?.id ? productMatchesSelectedCar(product, selectedCar) : true)
+    .filter((product) => selectedCar?.id ? productMatchesSelectedCar(product, selectedCar) : false)
     .filter((product) => productMatchesTransmission(product, selectedCar))
     .map((product) => {
       const bucket = getBucket(product, settings);
@@ -156,7 +156,7 @@ export async function getMyCarRecommendations(selectedCar: SelectedCustomerCar |
 
   const recommendedPackages: RecommendedPackage[] = (packagesData || [])
     .filter((pkg) => pkg.is_active !== false)
-    .filter((pkg) => !selectedCar?.id || !pkg.car_id || pkg.car_id === selectedCar.id)
+    .filter((pkg) => selectedCar?.id ? (!pkg.car_id || pkg.car_id === selectedCar.id) : false)
     .map((pkg) => {
       const items = pkg.items || [];
       const availableItems = items.filter((item) => item.product && isProductAvailable(item.product));

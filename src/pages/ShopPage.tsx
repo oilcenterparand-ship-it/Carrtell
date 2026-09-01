@@ -114,6 +114,15 @@ function productMatchesCar(product: Product | null | undefined, carId: string) {
   return !!product.compatible_all_cars || (product.compatible_car_ids || []).includes(carId);
 }
 
+function prioritizeProductsForCar(products: Product[], carId: string) {
+  if (!carId || carId === 'all') return products;
+  return [...products].sort((a, b) => {
+    const aCompatible = productMatchesCar(a, carId) ? 0 : 1;
+    const bCompatible = productMatchesCar(b, carId) ? 0 : 1;
+    return aCompatible - bCompatible;
+  });
+}
+
 function getProductSearchText(product: Product, categories: ProductCategory[], cars: Car[]) {
   const categoryTitle = categories.find((category) => category.slug === product.category)?.title || product.category || '';
   const compatibleCarTitles = (product.compatible_car_ids || [])
@@ -646,7 +655,7 @@ export default function ShopPage() {
       result = result.filter((p) => p.category === activeCategory || p.category_ids?.some((id) => descendantIds.has(id)));
     }
     if (activeBrand !== 'all') result = result.filter((p) => p.brand === activeBrand);
-    if (activeCarId !== 'all') result = result.filter((p) => productMatchesCar(p, activeCarId));
+    // انتخاب خودرو یک اولویت‌بندی است، نه فیلتر حذفی؛ همه محصولات باید باقی بمانند.
     if (availabilityFilter === 'available') result = result.filter((p) => isProductAvailable(p, reservedQuantityByProductId[p.id || ''] || 0));
     if (availabilityFilter === 'low-stock') result = result.filter((p) => !p.is_out_of_stock && Number(p.stock || 0) > 0 && Number(p.stock || 0) <= 2);
     if (availabilityFilter === 'amazing') result = result.filter(isAmazingActive);
@@ -656,17 +665,19 @@ export default function ShopPage() {
     });
     const query = search.trim().toLowerCase();
     if (query) result = result.filter((p) => getProductSearchText(p, categories, cars).includes(query));
+    let sorted = result;
     switch (sortBy) {
-      case 'featured': return [...result].sort((a, b) => Number(b.is_featured) - Number(a.is_featured));
-      case 'best-seller': return [...result].sort((a, b) => Number(b.is_best_seller) - Number(a.is_best_seller));
-      case 'rating': return [...result].sort((a, b) => (reviewSummaries[b.id || '']?.average || 0) - (reviewSummaries[a.id || '']?.average || 0));
-      case 'price-asc': return [...result].sort((a, b) => getProductFinalPrice(a) - getProductFinalPrice(b));
-      case 'price-desc': return [...result].sort((a, b) => getProductFinalPrice(b) - getProductFinalPrice(a));
-      default: return result;
+      case 'featured': sorted = [...result].sort((a, b) => Number(b.is_featured) - Number(a.is_featured)); break;
+      case 'best-seller': sorted = [...result].sort((a, b) => Number(b.is_best_seller) - Number(a.is_best_seller)); break;
+      case 'rating': sorted = [...result].sort((a, b) => (reviewSummaries[b.id || '']?.average || 0) - (reviewSummaries[a.id || '']?.average || 0)); break;
+      case 'price-asc': sorted = [...result].sort((a, b) => getProductFinalPrice(a) - getProductFinalPrice(b)); break;
+      case 'price-desc': sorted = [...result].sort((a, b) => getProductFinalPrice(b) - getProductFinalPrice(a)); break;
+      default: sorted = [...result];
     }
+    return prioritizeProductsForCar(sorted, activeCarId);
   }, [products, search, activeCategory, activeBrand, activeCarId, availabilityFilter, sortBy, categories, cars, reservedQuantityByProductId, reviewSummaries, minPrice, effectiveMaxPrice]);
 
-  const activeFilterCount = [activeCategory !== 'all', activeBrand !== 'all', activeCarId !== 'all', availabilityFilter !== 'all', Boolean(search.trim()), minPrice > 0, effectiveMaxPrice < highestProductPrice].filter(Boolean).length;
+  const activeFilterCount = [activeCategory !== 'all', activeBrand !== 'all', availabilityFilter !== 'all', Boolean(search.trim()), minPrice > 0, effectiveMaxPrice < highestProductPrice].filter(Boolean).length;
   const activeCar = activeCarId !== 'all' ? cars.find((car) => car.id === activeCarId) : null;
 
   function clearShopFilters() {
@@ -674,8 +685,7 @@ export default function ShopPage() {
     setActiveCategory('all');
     setActiveBrand('all');
     setAvailabilityFilter('all');
-    setActiveCarId('all');
-    saveSelectedCustomerCar(null);
+    // انتخاب خودرو مستقل از فیلترهای فروشگاه است و با «پاک کردن فیلترها» حذف نمی‌شود.
     setSortBy('popular');
     setMinPrice(0);
     setMaxPrice(null);
@@ -937,7 +947,7 @@ export default function ShopPage() {
               <div><h2 className="text-xl font-black !text-red-600" style={{ color: '#dc2626' }}>{amazingSection?.title || 'پیشنهاد شگفت‌انگیز'}</h2><p className="text-xs" style={{ color: amazingSectionTextColor, opacity: 0.72 }}>{amazingSection?.subtitle || 'بزرگ‌ترین حراج امروز'}</p></div>
               <div className="flex items-center gap-1 text-slate-950"><span className="rounded px-2 py-1 text-xs font-black" style={{ background: theme.amazingTimerBackground, color: theme.amazingTimerTextColor }}>{countdown.h}</span><span className="rounded px-2 py-1 text-xs font-black" style={{ background: theme.amazingTimerBackground, color: theme.amazingTimerTextColor }}>{countdown.m}</span><span className="rounded px-2 py-1 text-xs font-black" style={{ background: theme.amazingTimerBackground, color: theme.amazingTimerTextColor }}>{countdown.s}</span></div>
             </div>
-            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">{amazingProducts.map((product) => <ProductCard key={product.id} product={product} reservedQuantity={product.id ? reservedQuantityByProductId[product.id] || 0 : 0} onAddToCart={addToCart} compact theme={{ ...theme, cardBackground: theme.amazingCardBackground, productInfoBackground: theme.amazingCardBackground }} ratingSummary={product.id ? reviewSummaries[product.id] : undefined} />)}<ViewAllCard to="/shop/special-offers" label="همه پیشنهادها" compact theme={{ ...theme, cardBackground: theme.amazingCardBackground }} /></div>
+            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">{amazingProducts.map((product) => <ProductCard key={product.id} product={product} reservedQuantity={product.id ? reservedQuantityByProductId[product.id] || 0 : 0} onAddToCart={addToCart} onChangeQuantity={changeQuantity} compact theme={{ ...theme, cardBackground: theme.amazingCardBackground, productInfoBackground: theme.amazingCardBackground }} ratingSummary={product.id ? reviewSummaries[product.id] : undefined} />)}<ViewAllCard to="/shop/special-offers" label="همه پیشنهادها" compact theme={{ ...theme, cardBackground: theme.amazingCardBackground }} /></div>
           </section>
         )}
 
@@ -958,7 +968,7 @@ export default function ShopPage() {
                 </button>
               ))}
             </div>
-            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">{tabProducts.map((product) => <ProductCard key={product.id} product={product} reservedQuantity={product.id ? reservedQuantityByProductId[product.id] || 0 : 0} onAddToCart={addToCart} theme={theme} selectedCarId={activeCarId !== 'all' ? activeCarId : undefined} ratingSummary={product.id ? reviewSummaries[product.id] : undefined} />)}<ViewAllCard to="/shop/featured" label="همه محصولات منتخب" theme={theme} /></div>
+            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">{tabProducts.map((product) => <ProductCard key={product.id} product={product} reservedQuantity={product.id ? reservedQuantityByProductId[product.id] || 0 : 0} onAddToCart={addToCart} onChangeQuantity={changeQuantity} theme={theme} selectedCarId={activeCarId !== 'all' ? activeCarId : undefined} ratingSummary={product.id ? reviewSummaries[product.id] : undefined} />)}<ViewAllCard to="/shop/featured" label="همه محصولات منتخب" theme={theme} /></div>
           </section>
         )}
 

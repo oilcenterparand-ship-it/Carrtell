@@ -311,7 +311,7 @@ test.describe('Carrtell v2.3 critical user journeys', () => {
     await expect(review.getByText('فاصله مسیر:')).toHaveCount(0);
     await expect(review.getByText('هزینه رفت‌وآمد:')).toHaveCount(0);
     const costs = page.getByTestId('booking-cost-breakdown');
-    await expect(costs.getByText('خدمات')).toBeVisible();
+    await expect(costs.getByText('خدمات', { exact: true })).toBeVisible();
     await expect(costs.getByText('محصولات')).toBeVisible();
     await expect(costs.getByText('ایاب‌وذهاب')).toBeVisible();
     await expect(costs.getByText('مجموع قابل پرداخت')).toBeVisible();

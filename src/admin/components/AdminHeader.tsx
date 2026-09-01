@@ -177,7 +177,7 @@ function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
             </button>
 
             {isOpen && (
-              <div dir="rtl" className="absolute left-0 top-14 z-[99999] w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15">
+              <div dir="rtl" className="fixed left-3 right-3 top-[78px] z-[99999] max-h-[calc(100dvh-90px)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15 sm:absolute sm:left-0 sm:right-auto sm:top-14 sm:w-[360px] sm:max-w-[calc(100vw-2rem)]">
                 <div className="flex items-center justify-between border-b border-slate-100 p-4">
                   <div>
                     <h3 className="text-sm font-black text-slate-900">سفارش‌های جدید</h3>
@@ -200,7 +200,7 @@ function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
                   </Link>
                 )}
 
-                <div className="max-h-80 overflow-y-auto p-3">
+                <div className="max-h-[calc(100dvh-260px)] overflow-y-auto p-3 sm:max-h-80">
                   {isLoading && orders.length === 0 ? (
                     <div className="py-8 text-center text-sm text-slate-500">در حال دریافت...</div>
                   ) : orders.length === 0 ? (

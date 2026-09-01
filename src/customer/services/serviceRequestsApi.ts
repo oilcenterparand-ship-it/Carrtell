@@ -24,6 +24,8 @@ export type DriverUser = {
 export type ServiceRequest = {
   id: string;
   request_number: string;
+  order_id?: string | null;
+  source?: string | null;
   customer_name: string;
   customer_phone: string;
   vehicle_id?: string | null;
@@ -178,6 +180,8 @@ function normalizeRequest(row: Partial<ServiceRequest>): ServiceRequest {
   return {
     id: row.id || crypto.randomUUID(),
     request_number: row.request_number || makeRequestNumber(),
+    order_id: row.order_id || null,
+    source: row.source || null,
     customer_name: row.customer_name || '',
     customer_phone: row.customer_phone || '',
     vehicle_id: row.vehicle_id || null,
@@ -371,14 +375,27 @@ export async function getServiceRequestsByPhone(phone: string): Promise<ServiceR
   const cleanPhone = phone.trim();
   if (!cleanPhone) return [];
 
+  const { data: claimedData, error: claimError } = await supabase.rpc('carrtell_claim_my_paid_history');
+  if (!claimError && Array.isArray(claimedData)) {
+    return (claimedData as ServiceRequest[]).map(normalizeRequest);
+  }
+  if (claimError && (claimError.code === '42883' || /carrtell_claim_my_paid_history/i.test(claimError.message || ''))) {
+    throw new Error('برای نمایش سفارش‌های پرداخت‌شده، ابتدا SQL نسخه V3.8.1 را در Supabase اجرا کنید.');
+  }
+
+  const digits = cleanPhone.replace(/\D/g, '');
+  const localPhone = /^989\d{9}$/.test(digits) ? `0${digits.slice(2)}` : /^9\d{9}$/.test(digits) ? `0${digits}` : digits;
+  const internationalPhone = /^09\d{9}$/.test(localPhone) ? `+98${localPhone.slice(1)}` : cleanPhone;
+  const variants = [...new Set([cleanPhone, localPhone, internationalPhone].filter(Boolean))];
+
   const { data, error } = await supabase
     .from('service_requests')
     .select('*')
-    .eq('customer_phone', cleanPhone)
+    .in('customer_phone', variants)
     .order('created_at', { ascending: false });
 
   if (!error) return ((data || []) as ServiceRequest[]).map(normalizeRequest);
-  return readLocal().filter((item) => item.customer_phone === cleanPhone).map(normalizeRequest);
+  return readLocal().filter((item) => variants.includes(item.customer_phone)).map(normalizeRequest);
 }
 
 export async function assignServiceRequestDriver(id: string, input: AssignDriverInput) {

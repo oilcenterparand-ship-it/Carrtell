@@ -103,10 +103,12 @@ export async function createOrder(input: CreateOrderInput) {
   const totalAmount = normalizedItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const itemsCount = normalizedItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  const { data: authData } = await supabase.auth.getUser();
   const { data: order, error: orderError } = await supabase
     .from('orders')
     .insert({
       order_number: makeOrderNumber(),
+      user_id: authData.user?.id || null,
       customer_name: input.customerName,
       customer_phone: input.customerPhone,
       customer_address: input.customerAddress || null,
@@ -284,10 +286,15 @@ export async function getOrdersByPhone(phone: string) {
   const normalized = phone.trim();
   if (!normalized) return [] as Order[];
 
+  const digits = normalized.replace(/\D/g, '');
+  const localPhone = /^989\d{9}$/.test(digits) ? `0${digits.slice(2)}` : /^9\d{9}$/.test(digits) ? `0${digits}` : digits;
+  const internationalPhone = /^09\d{9}$/.test(localPhone) ? `+98${localPhone.slice(1)}` : normalized;
+  const variants = [...new Set([normalized, localPhone, internationalPhone].filter(Boolean))];
+
   const { data, error } = await supabase
     .from('orders')
     .select('*')
-    .eq('customer_phone', normalized)
+    .in('customer_phone', variants)
     .order('created_at', { ascending: false });
 
   if (error) throw error;

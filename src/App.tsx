@@ -47,6 +47,7 @@ import MobileBottomNav from './components/MobileBottomNav';
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import StoreCollectionPage from './pages/StoreCollectionPage';
+import MyCarProductsPage from './pages/MyCarProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import IndustrialProductsPage from './pages/IndustrialProductsPage';
 import CategoryJourneyPage from './pages/CategoryJourneyPage';
@@ -156,6 +157,7 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/home" element={<Navigate to="/" replace />} />
                 <Route path="/shop" element={<ShopPage />} />
+                <Route path="/my-car/products" element={<MyCarProductsPage />} />
                 <Route path="/shop/product/:id" element={<ProductDetailPage />} />
                 <Route path="/industrial" element={<IndustrialProductsPage />} />
                 <Route path="/categories" element={<CategoryJourneyPage />} />
